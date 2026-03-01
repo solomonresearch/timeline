@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { upsertProfile } from '@/lib/api'
+import { upsertProfile, applyPendingProfileData } from '@/lib/api'
 
 interface AuthContextType {
   user: User | null
@@ -34,7 +34,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (event === 'SIGNED_IN' && session?.user) {
         // Ensure profile exists (trigger may have already created it)
-        upsertProfile(session.user.id)
+        upsertProfile(session.user.id).then(() => {
+          // Apply pending profile data saved during signup (if any)
+          const raw = localStorage.getItem('timeline_pending_profile')
+          if (raw) {
+            try {
+              const pending = JSON.parse(raw)
+              if (pending.email === session.user.email) {
+                applyPendingProfileData(session.user.id)
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+        })
       }
     })
 

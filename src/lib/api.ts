@@ -56,7 +56,7 @@ export async function fetchProfile(userId: string): Promise<DbProfile | null> {
 
 export async function updateProfile(
   userId: string,
-  updates: { display_name?: string; bio?: string; birth_year?: number | null },
+  updates: { display_name?: string; bio?: string; birth_year?: number | null; birth_date?: string | null },
 ): Promise<DbProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -77,6 +77,35 @@ export async function upsertProfile(userId: string): Promise<void> {
     .upsert({ id: userId }, { onConflict: 'id' })
   if (error) {
     console.error('upsertProfile error:', error)
+  }
+}
+
+export async function applyPendingProfileData(userId: string): Promise<void> {
+  const raw = localStorage.getItem('timeline_pending_profile')
+  if (!raw) return
+
+  try {
+    const pending = JSON.parse(raw)
+    // Discard if older than 30 days
+    if (pending.created_at) {
+      const age = Date.now() - new Date(pending.created_at).getTime()
+      if (age > 30 * 24 * 60 * 60 * 1000) {
+        localStorage.removeItem('timeline_pending_profile')
+        return
+      }
+    }
+
+    const updates: { bio?: string; birth_year?: number; birth_date?: string } = {}
+    if (pending.bio) updates.bio = pending.bio
+    if (pending.birth_year) updates.birth_year = pending.birth_year
+    if (pending.birth_date) updates.birth_date = pending.birth_date
+
+    if (Object.keys(updates).length > 0) {
+      await updateProfile(userId, updates)
+    }
+    localStorage.removeItem('timeline_pending_profile')
+  } catch {
+    localStorage.removeItem('timeline_pending_profile')
   }
 }
 

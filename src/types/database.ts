@@ -3,6 +3,7 @@ export interface DbProfile {
   display_name: string
   bio: string
   birth_year: number | null
+  birth_date: string | null
   created_at: string
   updated_at: string
 }

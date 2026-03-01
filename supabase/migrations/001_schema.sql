@@ -1,252 +1,81 @@
--- ============================================================
--- 001_schema.sql — Life Timeline App database schema
--- Run in Supabase SQL Editor
--- ============================================================
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- Enable UUID generation
-create extension if not exists "pgcrypto";
-
--- ============================================================
--- PROFILES
--- ============================================================
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null default '',
-  bio text not null default '',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table public.profiles enable row level security;
-
-create policy "Users can read own profile"
-  on public.profiles for select
-  using (auth.uid() = id);
-
-create policy "Users can update own profile"
-  on public.profiles for update
-  using (auth.uid() = id);
-
-create policy "Users can insert own profile"
-  on public.profiles for insert
-  with check (auth.uid() = id);
-
--- Auto-create profile on signup
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = ''
-as $$
-begin
-  insert into public.profiles (id)
-  values (new.id);
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-
--- ============================================================
--- TIMELINES
--- ============================================================
-create table public.timelines (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null default 'My Life',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table public.timelines enable row level security;
-
-create policy "Users can read own timelines"
-  on public.timelines for select
-  using (auth.uid() = user_id);
-
-create policy "Users can insert own timelines"
-  on public.timelines for insert
-  with check (auth.uid() = user_id);
-
-create policy "Users can update own timelines"
-  on public.timelines for update
-  using (auth.uid() = user_id);
-
-create policy "Users can delete own timelines"
-  on public.timelines for delete
-  using (auth.uid() = user_id);
-
--- ============================================================
--- LANES
--- ============================================================
-create table public.lanes (
-  id uuid primary key default gen_random_uuid(),
-  timeline_id uuid not null references public.timelines(id) on delete cascade,
-  name text not null,
-  color text not null default '#3b82f6',
-  visible boolean not null default true,
-  is_default boolean not null default false,
-  "order" integer not null default 0
-);
-
-alter table public.lanes enable row level security;
-
-create policy "Users can read own lanes"
-  on public.lanes for select
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = lanes.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can insert own lanes"
-  on public.lanes for insert
-  with check (
-    exists (
-      select 1 from public.timelines t
-      where t.id = lanes.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can update own lanes"
-  on public.lanes for update
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = lanes.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can delete own lanes"
-  on public.lanes for delete
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = lanes.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
--- ============================================================
--- EVENTS
--- ============================================================
-create table public.events (
-  id uuid primary key default gen_random_uuid(),
-  lane_id uuid not null references public.lanes(id) on delete cascade,
-  timeline_id uuid not null references public.timelines(id) on delete cascade,
-  title text not null,
-  description text not null default '',
-  type text not null check (type in ('range', 'point')),
-  start_year real not null,
+CREATE TABLE public.events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  lane_id uuid NOT NULL,
+  timeline_id uuid NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL DEFAULT ''::text,
+  type text NOT NULL CHECK (type = ANY (ARRAY['range'::text, 'point'::text])),
+  start_year real NOT NULL,
   end_year real,
-  color text
+  color text,
+  CONSTRAINT events_pkey PRIMARY KEY (id),
+  CONSTRAINT events_lane_id_fkey FOREIGN KEY (lane_id) REFERENCES public.lanes(id),
+  CONSTRAINT events_timeline_id_fkey FOREIGN KEY (timeline_id) REFERENCES public.timelines(id)
 );
-
-alter table public.events enable row level security;
-
-create policy "Users can read own events"
-  on public.events for select
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = events.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can insert own events"
-  on public.events for insert
-  with check (
-    exists (
-      select 1 from public.timelines t
-      where t.id = events.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can update own events"
-  on public.events for update
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = events.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can delete own events"
-  on public.events for delete
-  using (
-    exists (
-      select 1 from public.timelines t
-      where t.id = events.timeline_id and t.user_id = auth.uid()
-    )
-  );
-
--- ============================================================
--- PERSONAS (global, read-only for authenticated users)
--- ============================================================
-create table public.personas (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  bio text not null default '',
-  birth_year integer not null,
-  death_year integer
+CREATE TABLE public.kanban_cards (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  status text NOT NULL DEFAULT 'todo'::text CHECK (status = ANY (ARRAY['todo'::text, 'in_progress'::text, 'done'::text])),
+  position integer NOT NULL DEFAULT 0,
+  created_by uuid,
+  archived boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT kanban_cards_pkey PRIMARY KEY (id),
+  CONSTRAINT kanban_cards_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
-
-alter table public.personas enable row level security;
-
-create policy "Authenticated users can read personas"
-  on public.personas for select
-  using (auth.role() = 'authenticated');
-
--- ============================================================
--- PERSONA_EVENTS
--- ============================================================
-create table public.persona_events (
-  id uuid primary key default gen_random_uuid(),
-  persona_id uuid not null references public.personas(id) on delete cascade,
-  lane_name text not null,
-  title text not null,
-  description text not null default '',
-  type text not null check (type in ('range', 'point')),
-  start_year real not null,
+CREATE TABLE public.lanes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  timeline_id uuid NOT NULL,
+  name text NOT NULL,
+  color text NOT NULL DEFAULT '#3b82f6'::text,
+  visible boolean NOT NULL DEFAULT true,
+  is_default boolean NOT NULL DEFAULT false,
+  order integer NOT NULL DEFAULT 0,
+  CONSTRAINT lanes_pkey PRIMARY KEY (id),
+  CONSTRAINT lanes_timeline_id_fkey FOREIGN KEY (timeline_id) REFERENCES public.timelines(id)
+);
+CREATE TABLE public.persona_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  persona_id uuid NOT NULL,
+  lane_name text NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL DEFAULT ''::text,
+  type text NOT NULL CHECK (type = ANY (ARRAY['range'::text, 'point'::text])),
+  start_year real NOT NULL,
   end_year real,
-  color text
+  color text,
+  CONSTRAINT persona_events_pkey PRIMARY KEY (id),
+  CONSTRAINT persona_events_persona_id_fkey FOREIGN KEY (persona_id) REFERENCES public.personas(id)
 );
-
-alter table public.persona_events enable row level security;
-
-create policy "Authenticated users can read persona events"
-  on public.persona_events for select
-  using (auth.role() = 'authenticated');
-
--- ============================================================
--- RPC: create_default_timeline
--- Creates a "My Life" timeline with 10 default lanes for a user
--- ============================================================
-create or replace function public.create_default_timeline(p_user_id uuid)
-returns uuid
-language plpgsql
-security definer set search_path = ''
-as $$
-declare
-  v_timeline_id uuid;
-begin
-  insert into public.timelines (user_id, name)
-  values (p_user_id, 'My Life')
-  returning id into v_timeline_id;
-
-  insert into public.lanes (timeline_id, name, color, visible, is_default, "order") values
-    (v_timeline_id, 'Location',         '#3b82f6', true, true, 0),
-    (v_timeline_id, 'University',       '#8b5cf6', true, true, 1),
-    (v_timeline_id, 'Work',             '#10b981', true, true, 2),
-    (v_timeline_id, 'Other Activities', '#f59e0b', true, true, 3),
-    (v_timeline_id, 'Type of House',    '#6366f1', true, true, 4),
-    (v_timeline_id, 'Wealth',           '#14b8a6', true, true, 5),
-    (v_timeline_id, 'Relations',        '#ec4899', true, true, 6),
-    (v_timeline_id, 'Kids',             '#f97316', true, true, 7),
-    (v_timeline_id, 'Parents',          '#84cc16', true, true, 8),
-    (v_timeline_id, 'Cars',             '#64748b', true, true, 9);
-
-  return v_timeline_id;
-end;
-$$;
+CREATE TABLE public.personas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  bio text NOT NULL DEFAULT ''::text,
+  birth_year integer NOT NULL,
+  death_year integer,
+  CONSTRAINT personas_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  display_name text NOT NULL DEFAULT ''::text,
+  bio text NOT NULL DEFAULT ''::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  birth_date date,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.timelines (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL DEFAULT 'My Life'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT timelines_pkey PRIMARY KEY (id),
+  CONSTRAINT timelines_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
