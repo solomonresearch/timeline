@@ -1,75 +1,73 @@
-# Timeline
+# React + TypeScript + Vite
 
-A personal timeline application for visualizing life events, achievements, and milestones — where you lived, worked, studied, your earnings, and wealth over time.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Built with React (frontend) and Node.js (backend).
+Currently, two official plugins are available:
 
-## Features
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-- **Life Events Timeline** — Chronological visualization of key moments: education, career, relocations, personal milestones
-- **Categories** — Filter by event type: Work, Education, Residence, Achievement, Financial
-- **Wealth & Earnings Tracker** — Visualize income and net worth progression over time
-- **Interactive UI** — Zoom, scroll, and click into events for details
-- **Data Entry** — Add, edit, and delete life events through a simple interface
+## React Compiler
 
-## Tech Stack
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-- **Frontend:** React, Vite, Tailwind CSS
-- **Backend:** Node.js, Express
-- **Database:** SQLite (local) / PostgreSQL (production)
-- **Charts:** Recharts for financial visualizations
+## Expanding the ESLint configuration
 
-## Getting Started
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-### Prerequisites
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-- Node.js >= 18
-- npm or yarn
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-### Installation
-
-```bash
-# Clone the repo
-git clone https://github.com/solomonresearch/timeline.git
-cd timeline
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-### Project Structure
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
-timeline/
-├── client/          # React frontend
-│   ├── src/
-│   │   ├── components/  # UI components
-│   │   ├── pages/       # Route pages
-│   │   ├── hooks/       # Custom hooks
-│   │   └── utils/       # Helpers
-│   └── public/
-├── server/          # Node.js backend
-│   ├── routes/      # API routes
-│   ├── models/      # Data models
-│   └── db/          # Database config & migrations
-├── package.json
-└── README.md
-```
-
-## Event Types
-
-| Category | Examples |
-|----------|----------|
-| Residence | Cities/countries lived in, moves |
-| Education | Schools, degrees, certifications |
-| Work | Jobs, promotions, career changes |
-| Financial | Salary changes, investments, net worth milestones |
-| Achievement | Awards, publications, personal goals |
-| Life | Relationships, travel, health milestones |
-
-## License
-
-MIT

@@ -1,0 +1,182 @@
+import { useState, useCallback } from 'react'
+import type { Lane, TimelineEvent } from '@/types/timeline'
+import { useTimeline } from '@/hooks/useTimeline'
+import { Toolbar } from '@/components/Toolbar'
+import { TimelineContainer } from '@/components/timeline/TimelineContainer'
+import { EventPopover } from '@/components/EventPopover'
+import { EventDialog } from '@/components/dialogs/EventDialog'
+import { LaneDialog } from '@/components/dialogs/LaneDialog'
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog'
+import { TooltipProvider } from '@/components/ui/tooltip'
+
+function App() {
+  const {
+    lanes,
+    events,
+    pixelsPerYear,
+    setPixelsPerYear,
+    yearStart,
+    yearEnd,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addLane,
+    updateLane,
+    deleteLane,
+    toggleLaneVisibility,
+  } = useTimeline()
+
+  // Popover state
+  const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement } | null>(null)
+
+  // Event dialog state
+  const [eventDialogOpen, setEventDialogOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
+
+  // Lane dialog state
+  const [laneDialogOpen, setLaneDialogOpen] = useState(false)
+  const [editingLane, setEditingLane] = useState<Lane | null>(null)
+
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean
+    title: string
+    description: string
+    onConfirm: () => void
+  }>({ open: false, title: '', description: '', onConfirm: () => {} })
+
+  // Event click → show popover
+  const handleEventClick = useCallback((event: TimelineEvent, element: HTMLElement) => {
+    setPopover({ event, anchor: element })
+  }, [])
+
+  // Toolbar → Add Event
+  const handleAddEvent = useCallback(() => {
+    setEditingEvent(null)
+    setEventDialogOpen(true)
+  }, [])
+
+  // Toolbar → Add Lane
+  const handleAddLane = useCallback(() => {
+    setEditingLane(null)
+    setLaneDialogOpen(true)
+  }, [])
+
+  // Popover → Edit
+  const handleEditEvent = useCallback((event: TimelineEvent) => {
+    setPopover(null)
+    setEditingEvent(event)
+    setEventDialogOpen(true)
+  }, [])
+
+  // Popover → Delete
+  const handleDeleteEvent = useCallback((event: TimelineEvent) => {
+    setPopover(null)
+    setDeleteDialog({
+      open: true,
+      title: 'Delete Event',
+      description: `Are you sure you want to delete "${event.title}"? This action cannot be undone.`,
+      onConfirm: () => {
+        deleteEvent(event.id)
+        setDeleteDialog(prev => ({ ...prev, open: false }))
+      },
+    })
+  }, [deleteEvent])
+
+  // Sidebar → Edit Lane
+  const handleEditLane = useCallback((lane: Lane) => {
+    setEditingLane(lane)
+    setLaneDialogOpen(true)
+  }, [])
+
+  // Sidebar → Delete Lane
+  const handleDeleteLane = useCallback((lane: Lane) => {
+    setDeleteDialog({
+      open: true,
+      title: 'Delete Lane',
+      description: `Are you sure you want to delete "${lane.name}" and all its events? This action cannot be undone.`,
+      onConfirm: () => {
+        deleteLane(lane.id)
+        setDeleteDialog(prev => ({ ...prev, open: false }))
+      },
+    })
+  }, [deleteLane])
+
+  // Save event (add or update)
+  const handleSaveEvent = useCallback((data: Omit<TimelineEvent, 'id'>) => {
+    if (editingEvent) {
+      updateEvent(editingEvent.id, data)
+    } else {
+      addEvent(data)
+    }
+  }, [editingEvent, updateEvent, addEvent])
+
+  // Save lane (add or update)
+  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean }) => {
+    if (editingLane) {
+      updateLane(editingLane.id, data)
+    } else {
+      addLane(data)
+    }
+  }, [editingLane, updateLane, addLane])
+
+  return (
+    <TooltipProvider>
+      <div className="flex flex-col h-screen bg-white">
+        <Toolbar
+          pixelsPerYear={pixelsPerYear}
+          onPixelsPerYearChange={setPixelsPerYear}
+          onAddEvent={handleAddEvent}
+          onAddLane={handleAddLane}
+        />
+        <TimelineContainer
+          lanes={lanes}
+          events={events}
+          yearStart={yearStart}
+          yearEnd={yearEnd}
+          pixelsPerYear={pixelsPerYear}
+          onToggleVisibility={toggleLaneVisibility}
+          onEditLane={handleEditLane}
+          onDeleteLane={handleDeleteLane}
+          onEventClick={handleEventClick}
+        />
+
+        {/* Event popover */}
+        {popover && (
+          <EventPopover
+            event={popover.event}
+            anchorEl={popover.anchor}
+            laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
+            onEdit={handleEditEvent}
+            onDelete={handleDeleteEvent}
+            onClose={() => setPopover(null)}
+          />
+        )}
+
+        {/* Dialogs */}
+        <EventDialog
+          open={eventDialogOpen}
+          onOpenChange={setEventDialogOpen}
+          lanes={lanes}
+          editingEvent={editingEvent}
+          onSave={handleSaveEvent}
+        />
+        <LaneDialog
+          open={laneDialogOpen}
+          onOpenChange={setLaneDialogOpen}
+          editingLane={editingLane}
+          onSave={handleSaveLane}
+        />
+        <DeleteConfirmDialog
+          open={deleteDialog.open}
+          onOpenChange={open => setDeleteDialog(prev => ({ ...prev, open }))}
+          title={deleteDialog.title}
+          description={deleteDialog.description}
+          onConfirm={deleteDialog.onConfirm}
+        />
+      </div>
+    </TooltipProvider>
+  )
+}
+
+export default App

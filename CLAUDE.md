@@ -1,64 +1,75 @@
-# CLAUDE.md — Timeline App
+# CLAUDE.md — Life Timeline App
 
 ## Project Overview
 
-Personal timeline application for visualizing life events, achievements, career, education, residences, and financial history. React frontend with Node.js/Express backend.
+Personal life timeline visualization — horizontal swim-lane view of life events across dimensions (location, work, education, relations, etc.). React SPA with all data in client-side state (no backend).
 
 ## Tech Stack
 
-- **Frontend:** React 18+, Vite, Tailwind CSS, Recharts
-- **Backend:** Node.js, Express
-- **Database:** SQLite (dev) / PostgreSQL (prod)
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4
+- **UI Components:** shadcn/ui (Radix primitives + CVA + Tailwind)
+- **Icons:** Lucide React
 - **Package Manager:** npm
 
 ## Commands
 
 ```bash
 npm install          # Install all dependencies
-npm run dev          # Start both client and server in dev mode
-npm run dev:client   # Start React dev server only
-npm run dev:server   # Start Express server only
-npm run build        # Production build
+npm run dev          # Start Vite dev server (localhost:5173)
+npm run build        # Production build (tsc + vite build)
 npm run lint         # Run ESLint
-npm test             # Run tests
+npm run preview      # Preview production build
 ```
 
 ## Architecture
 
-### Frontend (`client/`)
-- Vite + React SPA
-- Pages: Timeline view, Event detail, Add/Edit event, Financial dashboard
-- Components are functional with hooks, no class components
-- Tailwind CSS for styling — no CSS modules or styled-components
-- Recharts for financial/wealth visualizations
-
-### Backend (`server/`)
-- Express REST API
-- Routes mounted at `/api/`
-- SQLite via `better-sqlite3` for local dev, PostgreSQL for production
-- No ORM — raw SQL with parameterized queries
+### File Structure (`src/`)
+```
+src/
+├── types/timeline.ts          # Lane, TimelineEvent type definitions
+├── data/seedData.ts           # Default lanes (10) + sample events
+├── hooks/useTimeline.ts       # State management (lanes, events, CRUD)
+├── lib/utils.ts               # cn() utility for Tailwind class merging
+├── components/
+│   ├── ui/                    # shadcn/ui primitives (button, dialog, etc.)
+│   ├── timeline/
+│   │   ├── TimelineContainer  # Main layout: sidebar + scrollable area
+│   │   ├── TimelineHeader     # Sticky year labels + tick marks
+│   │   ├── TimelineLane       # Single swim lane with events
+│   │   ├── TimelineEvent      # Rendered event (bar for range, dot for point)
+│   │   ├── YearGrid           # Vertical dashed year lines
+│   │   └── LaneSidebar        # Lane labels, visibility toggle, dropdown menu
+│   ├── dialogs/
+│   │   ├── EventDialog        # Add/Edit event form
+│   │   ├── LaneDialog         # Add/Edit lane form
+│   │   └── DeleteConfirmDialog # Confirmation before delete
+│   ├── EventPopover           # Click-on-event detail popover
+│   └── Toolbar                # Top bar: title, zoom slider, add buttons
+├── App.tsx                    # Root component wiring everything together
+├── main.tsx                   # Entry point
+└── index.css                  # Tailwind imports + theme variables
+```
 
 ### Data Model
-- **Event:** id, title, description, date_start, date_end, category, location, metadata (JSON)
-- **Categories:** residence, education, work, financial, achievement, life
-- **Financial entries** are events with category=financial and structured metadata (amount, currency, type)
+- **Lane:** id, name, color, visible, isDefault, order
+- **TimelineEvent:** id, laneId, title, description, type (`range`|`point`), startYear (float), endYear?, color?
+- **Default lanes:** Location, University, Work, Other Activities, Type of House, Wealth, Relations, Kids, Parents, Cars
+
+### Key Patterns
+- `pixelsPerYear` controls zoom (40–200px, default 80)
+- Position formula: `left = (year - yearStart) * pixelsPerYear`
+- Range events → colored rounded bars; point events → colored dots
+- Lane sidebar is `sticky left-0` — scrolls vertically with lanes but not horizontally
+- All state in `useTimeline` hook — no external state library
 
 ## Code Standards
 
 - ES modules (`import/export`), no CommonJS
+- TypeScript strict mode
 - Functional components with hooks only
-- Name components in PascalCase, utilities in camelCase
-- API routes: `GET /api/events`, `POST /api/events`, `PUT /api/events/:id`, `DELETE /api/events/:id`
-- Use parameterized SQL queries — never interpolate user input into SQL
-- Keep components small — extract when a component exceeds ~150 lines
-- Error responses: `{ error: string }` with appropriate HTTP status codes
-
-## File Conventions
-
-- React components: `ComponentName.jsx` in `client/src/components/`
-- Pages: `PageName.jsx` in `client/src/pages/`
-- API routes: `resource.js` in `server/routes/`
-- Database migrations: numbered SQL files in `server/db/migrations/`
+- PascalCase components, camelCase utilities
+- Path alias: `@/` → `src/`
+- Tailwind CSS for styling — no CSS modules or styled-components
 
 ## Git
 
