@@ -1,7 +1,8 @@
 import type { Lane, TimelineEvent } from '@/types/timeline'
-import type { DbPersonaEvent } from '@/types/database'
+import type { AlignedPersonaEvent } from '@/types/database'
 import { TimelineEventBar } from './TimelineEvent'
 import { PersonaEventBar } from './PersonaEventBar'
+import { BASE_LANE_HEIGHT } from '@/lib/constants'
 
 interface TimelineLaneProps {
   lane: Lane
@@ -11,11 +12,12 @@ interface TimelineLaneProps {
   pixelsPerYear: number
   onEventClick: (event: TimelineEvent, element: HTMLElement) => void
   onLaneClick: (laneId: string, year: number) => void
-  personaEvents: DbPersonaEvent[]
+  personaEvents: AlignedPersonaEvent[]
   personaInitialsMap: Map<string, string>
+  laneHeight: number
+  personaSubRowMap: Map<string, number>
+  currentYear: number
 }
-
-const LANE_HEIGHT = 28
 
 export function TimelineLane({
   lane,
@@ -27,6 +29,9 @@ export function TimelineLane({
   onLaneClick,
   personaEvents,
   personaInitialsMap,
+  laneHeight,
+  personaSubRowMap,
+  currentYear,
 }: TimelineLaneProps) {
   const width = (yearEnd - yearStart) * pixelsPerYear
 
@@ -43,9 +48,16 @@ export function TimelineLane({
   return (
     <div
       className="relative border-b border-border/30 cursor-crosshair"
-      style={{ height: LANE_HEIGHT, width }}
+      style={{ height: laneHeight, width }}
       onClick={handleClick}
     >
+      {/* Separator line between user row and persona sub-rows */}
+      {laneHeight > BASE_LANE_HEIGHT && (
+        <div
+          className="absolute left-0 right-0 border-t border-border/20"
+          style={{ top: BASE_LANE_HEIGHT }}
+        />
+      )}
       {events.map(event => (
         <TimelineEventBar
           key={event.id}
@@ -54,6 +66,7 @@ export function TimelineLane({
           pixelsPerYear={pixelsPerYear}
           laneColor={lane.color}
           onClick={onEventClick}
+          currentYear={currentYear}
         />
       ))}
       {personaEvents.map(pe => (
@@ -64,6 +77,8 @@ export function TimelineLane({
           yearStart={yearStart}
           pixelsPerYear={pixelsPerYear}
           laneColor={lane.color}
+          subRowIndex={personaSubRowMap.get(pe.persona_id)}
+          currentYear={currentYear}
         />
       ))}
     </div>

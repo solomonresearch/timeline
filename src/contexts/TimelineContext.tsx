@@ -21,6 +21,8 @@ interface TimelineContextType {
   setPixelsPerYear: (v: number) => void
   yearStart: number
   yearEnd: number
+  dataYearMin: number
+  dataYearMax: number
   addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
   updateEvent: (id: string, updates: Partial<Omit<TimelineEvent, 'id'>>) => Promise<void>
   deleteEvent: (id: string) => Promise<void>
@@ -51,6 +53,8 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     setPixelsPerYear,
     yearStart,
     yearEnd,
+    dataYearMin,
+    dataYearMax,
     addEvent,
     updateEvent,
     deleteEvent,
@@ -77,6 +81,8 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         setPixelsPerYear,
         yearStart,
         yearEnd,
+        dataYearMin,
+        dataYearMax,
         addEvent,
         updateEvent,
         deleteEvent,

@@ -21,21 +21,25 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const { profile, updateProfile } = useProfile()
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
+  const [birthYear, setBirthYear] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (profile && open) {
       setDisplayName(profile.display_name)
       setBio(profile.bio)
+      setBirthYear(profile.birth_year != null ? String(profile.birth_year) : '')
     }
   }, [profile, open])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    const parsedBirthYear = birthYear.trim() ? parseInt(birthYear.trim(), 10) : null
     await updateProfile({
       display_name: displayName.trim(),
       bio: bio.trim(),
+      birth_year: parsedBirthYear && !isNaN(parsedBirthYear) ? parsedBirthYear : null,
     })
     setSaving(false)
     onOpenChange(false)
@@ -57,6 +61,17 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               onChange={e => setDisplayName(e.target.value)}
               placeholder="Your name"
             />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="birthYear">Birth Year</Label>
+            <Input
+              id="birthYear"
+              type="number"
+              value={birthYear}
+              onChange={e => setBirthYear(e.target.value)}
+              placeholder="e.g. 1990"
+            />
+            <p className="text-xs text-muted-foreground">Used to align persona comparisons by age</p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bio">Bio</Label>

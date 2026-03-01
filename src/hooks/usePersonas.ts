@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { fetchPersonas, fetchPersonaEvents } from '@/lib/api'
-import type { DbPersona, DbPersonaEvent } from '@/types/database'
+import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 
 const ACTIVE_PERSONAS_KEY = 'timeline_active_personas'
 
@@ -16,9 +16,9 @@ function saveActiveIds(ids: Set<string>) {
   localStorage.setItem(ACTIVE_PERSONAS_KEY, JSON.stringify([...ids]))
 }
 
-export function usePersonas() {
+export function usePersonas(userBirthYear: number | null = null) {
   const [personas, setPersonas] = useState<DbPersona[]>([])
-  const [allPersonaEvents, setAllPersonaEvents] = useState<DbPersonaEvent[]>([])
+  const [allPersonaEvents, setAllPersonaEvents] = useState<AlignedPersonaEvent[]>([])
   const [activePersonaIds, setActivePersonaIds] = useState<Set<string>>(loadActiveIds)
   const [loading, setLoading] = useState(true)
 
@@ -32,15 +32,41 @@ export function usePersonas() {
 
       // Pre-fetch all persona events
       if (list.length > 0) {
-        const events = await fetchPersonaEvents(list.map(p => p.id))
+        const rawEvents = await fetchPersonaEvents(list.map(p => p.id))
         if (cancelled) return
-        setAllPersonaEvents(events)
+
+        // Build persona birth year lookup
+        const personaBirthYears = new Map<string, number>()
+        for (const p of list) {
+          personaBirthYears.set(p.id, p.birth_year)
+        }
+
+        // Compute aligned events
+        const aligned: AlignedPersonaEvent[] = rawEvents.map(e => {
+          const personaBirth = personaBirthYears.get(e.persona_id)
+          if (userBirthYear != null && personaBirth != null) {
+            const offset = userBirthYear - personaBirth
+            return {
+              ...e,
+              display_start_year: e.start_year + offset,
+              display_end_year: e.end_year != null ? e.end_year + offset : null,
+            }
+          }
+          // No alignment — display at real years
+          return {
+            ...e,
+            display_start_year: e.start_year,
+            display_end_year: e.end_year,
+          }
+        })
+
+        setAllPersonaEvents(aligned)
       }
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [userBirthYear])
 
   const togglePersona = useCallback((personaId: string) => {
     setActivePersonaIds(prev => {

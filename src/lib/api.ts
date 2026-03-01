@@ -56,7 +56,7 @@ export async function fetchProfile(userId: string): Promise<DbProfile | null> {
 
 export async function updateProfile(
   userId: string,
-  updates: { display_name?: string; bio?: string },
+  updates: { display_name?: string; bio?: string; birth_year?: number | null },
 ): Promise<DbProfile | null> {
   const { data, error } = await supabase
     .from('profiles')

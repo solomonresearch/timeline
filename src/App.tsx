@@ -3,6 +3,7 @@ import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
+import { useProfile } from '@/hooks/useProfile'
 import { Toolbar } from '@/components/Toolbar'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
 import { EventPopover } from '@/components/EventPopover'
@@ -21,6 +22,8 @@ function TimelineView() {
     setPixelsPerYear,
     yearStart,
     yearEnd,
+    dataYearMin,
+    dataYearMax,
     addEvent,
     updateEvent,
     deleteEvent,
@@ -30,12 +33,14 @@ function TimelineView() {
     toggleLaneVisibility,
   } = useTimelineContext()
 
+  const { profile } = useProfile()
+
   const {
     personas,
     activePersonaEvents,
     activePersonaIds,
     togglePersona,
-  } = usePersonas()
+  } = usePersonas(profile?.birth_year ?? null)
 
   // Popover state
   const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement } | null>(null)
@@ -163,6 +168,8 @@ function TimelineView() {
           yearStart={yearStart}
           yearEnd={yearEnd}
           pixelsPerYear={pixelsPerYear}
+          dataYearMin={dataYearMin}
+          dataYearMax={dataYearMax}
           onToggleVisibility={toggleLaneVisibility}
           onEditLane={handleEditLane}
           onDeleteLane={handleDeleteLane}

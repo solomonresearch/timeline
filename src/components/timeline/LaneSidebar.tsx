@@ -1,4 +1,5 @@
-import { Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
 import {
   DropdownMenu,
@@ -7,60 +8,133 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } from '@/lib/constants'
 
 interface LaneSidebarProps {
   lanes: Lane[]
+  hiddenLanes: Lane[]
+  laneHeights: number[]
+  lanePersonaLabels: Map<string, { initials: string; name: string }[]>
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
 }
 
-const LANE_HEIGHT = 28
+export function LaneSidebar({
+  lanes,
+  hiddenLanes,
+  laneHeights,
+  lanePersonaLabels,
+  onToggleVisibility,
+  onEditLane,
+  onDeleteLane,
+}: LaneSidebarProps) {
+  const [showHidden, setShowHidden] = useState(false)
 
-export function LaneSidebar({ lanes, onToggleVisibility, onEditLane, onDeleteLane }: LaneSidebarProps) {
   return (
     <div className="sticky left-0 z-20 bg-white border-r" style={{ minWidth: 160, width: 160 }}>
       {/* header spacer */}
       <div className="h-6 border-b bg-white" />
-      {lanes.map(lane => (
-        <div
-          key={lane.id}
-          className="flex items-center gap-1 border-b border-border/30 px-2 group"
-          style={{ height: LANE_HEIGHT }}
-        >
-          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lane.color }} />
-          <span className="text-xs font-medium truncate flex-1" style={{ opacity: lane.visible ? 1 : 0.4 }}>
-            {lane.name}
-          </span>
-          <button
-            onClick={() => onToggleVisibility(lane.id)}
-            className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      {lanes.map((lane, i) => {
+        const height = laneHeights[i] ?? BASE_LANE_HEIGHT
+        const personaLabels = lanePersonaLabels.get(lane.name) ?? []
+        return (
+          <div
+            key={lane.id}
+            className="border-b border-border/30 px-2 group"
+            style={{ height }}
           >
-            {lane.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreHorizontal className="h-3 w-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={4}>
-              <DropdownMenuItem onClick={() => onEditLane(lane)}>
-                <Pencil className="h-3 w-3 mr-2" />
-                Edit Lane
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeleteLane(lane)}
+            {/* Main lane label row */}
+            <div className="flex items-center gap-1" style={{ height: BASE_LANE_HEIGHT }}>
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lane.color }} />
+              <span className="text-xs font-medium truncate flex-1" style={{ opacity: lane.visible ? 1 : 0.4 }}>
+                {lane.name}
+              </span>
+              <button
+                onClick={() => onToggleVisibility(lane.id)}
+                className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <Trash2 className="h-3 w-3 mr-2" />
-                Delete Lane
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {lane.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={4}>
+                  <DropdownMenuItem onClick={() => onEditLane(lane)}>
+                    <Pencil className="h-3 w-3 mr-2" />
+                    Edit Lane
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeleteLane(lane)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-2" />
+                    Delete Lane
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {/* Persona sub-row labels */}
+            {personaLabels.map((pl, j) => (
+              <div
+                key={j}
+                className="flex items-center gap-1 pl-3 text-muted-foreground"
+                style={{ height: PERSONA_SUB_ROW_HEIGHT }}
+              >
+                <span className="text-[9px] font-semibold bg-muted rounded px-1">
+                  {pl.initials}
+                </span>
+                <span className="text-[10px] truncate">{pl.name}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })}
+
+      {/* Hidden lanes recovery section */}
+      {hiddenLanes.length > 0 && (
+        <div className="border-t border-border/50">
+          <button
+            onClick={() => setShowHidden(!showHidden)}
+            className="flex items-center gap-1 w-full px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <ChevronRight
+              className="h-3 w-3 shrink-0 transition-transform"
+              style={{ transform: showHidden ? 'rotate(90deg)' : undefined }}
+            />
+            <EyeOff className="h-3 w-3 shrink-0" />
+            <span>Hidden ({hiddenLanes.length})</span>
+          </button>
+          {showHidden && (
+            <div className="pb-1">
+              {hiddenLanes.map(lane => (
+                <div
+                  key={lane.id}
+                  className="flex items-center gap-1 px-2 py-1 group/hidden"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full shrink-0 opacity-40"
+                    style={{ backgroundColor: lane.color }}
+                  />
+                  <span className="text-xs text-muted-foreground truncate flex-1">
+                    {lane.name}
+                  </span>
+                  <button
+                    onClick={() => onToggleVisibility(lane.id)}
+                    className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover/hidden:opacity-100 transition-opacity"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
+      )}
     </div>
   )
 }

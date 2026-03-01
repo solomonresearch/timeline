@@ -1,9 +1,11 @@
+import { useMemo, useCallback } from 'react'
 import { Plus, Layers, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelineSelector } from '@/components/TimelineSelector'
 import { PersonaToggle } from '@/components/PersonaToggle'
 import type { DbPersona } from '@/types/database'
+import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 
 interface ToolbarProps {
   pixelsPerYear: number
@@ -24,6 +26,28 @@ export function Toolbar({
   activePersonaIds,
   onTogglePersona,
 }: ToolbarProps) {
+  // Logarithmic slider: map linear 0-1000 -> exponential MIN..MAX px/yr
+  const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
+  const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
+
+  const sliderValue = useMemo(() => {
+    const v = (Math.log(pixelsPerYear) - logMin) / (logMax - logMin) * 1000
+    return Math.round(v)
+  }, [pixelsPerYear, logMin, logMax])
+
+  const handleSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = Number(e.target.value)
+      const ppy = Math.exp(logMin + (v / 1000) * (logMax - logMin))
+      onPixelsPerYearChange(Math.round(ppy * 10) / 10)
+    },
+    [logMin, logMax, onPixelsPerYearChange],
+  )
+
+  const zoomLabel = pixelsPerYear >= 10
+    ? `${Math.round(pixelsPerYear)} px/yr`
+    : `${pixelsPerYear.toFixed(1)} px/yr`
+
   return (
     <div className="flex items-center justify-between border-b bg-white px-4 py-2">
       <div className="flex items-center gap-2">
@@ -35,13 +59,14 @@ export function Toolbar({
           <ZoomOut className="h-4 w-4 text-muted-foreground" />
           <input
             type="range"
-            min={40}
-            max={200}
-            value={pixelsPerYear}
-            onChange={e => onPixelsPerYearChange(Number(e.target.value))}
+            min={0}
+            max={1000}
+            value={sliderValue}
+            onChange={handleSliderChange}
             className="h-1 w-24 cursor-pointer accent-primary"
           />
           <ZoomIn className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground ml-1 w-14 text-right">{zoomLabel}</span>
         </div>
         <Button variant="outline" size="sm" onClick={onAddLane}>
           <Layers className="h-4 w-4 mr-1" />

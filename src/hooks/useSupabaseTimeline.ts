@@ -12,21 +12,28 @@ import {
   mapDbLane,
   mapDbEvent,
 } from '@/lib/api'
+import {
+  DEFAULT_PIXELS_PER_YEAR,
+  TIMELINE_YEAR_MIN,
+  TIMELINE_YEAR_MAX,
+} from '@/lib/constants'
 
 export function useSupabaseTimeline(timelineId: string | null) {
   const [lanes, setLanes] = useState<Lane[]>([])
   const [events, setEvents] = useState<TimelineEvent[]>([])
-  const [pixelsPerYear, setPixelsPerYear] = useState(80)
+  const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR)
   const [loading, setLoading] = useState(false)
 
-  // Compute year range from data
+  // Fixed full range for the timeline canvas
+  const yearStart = TIMELINE_YEAR_MIN
+  const yearEnd = TIMELINE_YEAR_MAX
+
+  // Compute data range from events (for scroll-to-center)
   const allYears = events.flatMap(e =>
     e.endYear != null ? [e.startYear, e.endYear] : [e.startYear],
   )
-  const dataMin = allYears.length > 0 ? Math.min(...allYears) : 1990
-  const dataMax = allYears.length > 0 ? Math.max(...allYears) : 2026
-  const yearStart = Math.floor(dataMin) - 2
-  const yearEnd = Math.ceil(dataMax) + 2
+  const dataYearMin = allYears.length > 0 ? Math.floor(Math.min(...allYears)) - 2 : 1990
+  const dataYearMax = allYears.length > 0 ? Math.ceil(Math.max(...allYears)) + 2 : 2026
 
   // Fetch lanes + events when timeline changes
   useEffect(() => {
@@ -207,6 +214,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
     setPixelsPerYear,
     yearStart,
     yearEnd,
+    dataYearMin,
+    dataYearMax,
     addEvent,
     updateEvent,
     deleteEvent,

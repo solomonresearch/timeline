@@ -2,6 +2,7 @@ export interface DbProfile {
   id: string
   display_name: string
   bio: string
+  birth_year: number | null
   created_at: string
   updated_at: string
 }
@@ -54,4 +55,9 @@ export interface DbPersonaEvent {
   start_year: number
   end_year: number | null
   color: string | null
+}
+
+export interface AlignedPersonaEvent extends DbPersonaEvent {
+  display_start_year: number
+  display_end_year: number | null
 }
