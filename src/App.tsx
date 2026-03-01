@@ -1,11 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useSyncExternalStore } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
 import { useProfile } from '@/hooks/useProfile'
-import { Toolbar } from '@/components/Toolbar'
+import { Toolbar, type AppView } from '@/components/Toolbar'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
+import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { EventPopover } from '@/components/EventPopover'
 import { EventDialog } from '@/components/dialogs/EventDialog'
 import { LaneDialog } from '@/components/dialogs/LaneDialog'
@@ -13,6 +14,32 @@ import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthPage } from '@/components/auth/AuthPage'
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm'
+
+// Lightweight URL-based routing (no dependency needed)
+function getViewFromPath(): AppView {
+  return window.location.pathname === '/kanban' ? 'kanban' : 'timeline'
+}
+
+function useAppView(): [AppView, (view: AppView) => void] {
+  const view = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('popstate', cb)
+      return () => window.removeEventListener('popstate', cb)
+    },
+    getViewFromPath,
+  )
+
+  const setView = useCallback((v: AppView) => {
+    const path = v === 'kanban' ? '/kanban' : '/'
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path)
+      // Trigger re-render via popstate
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }, [])
+
+  return [view, setView]
+}
 
 function TimelineView() {
   const {
@@ -41,6 +68,9 @@ function TimelineView() {
     activePersonaIds,
     togglePersona,
   } = usePersonas(profile?.birth_year ?? null)
+
+  // URL-synced view state
+  const [activeView, setActiveView] = useAppView()
 
   // Popover state
   const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement } | null>(null)
@@ -161,59 +191,68 @@ function TimelineView() {
           personas={personas}
           activePersonaIds={activePersonaIds}
           onTogglePersona={togglePersona}
-        />
-        <TimelineContainer
-          lanes={lanes}
-          events={events}
-          yearStart={yearStart}
-          yearEnd={yearEnd}
-          pixelsPerYear={pixelsPerYear}
-          dataYearMin={dataYearMin}
-          dataYearMax={dataYearMax}
-          onToggleVisibility={toggleLaneVisibility}
-          onEditLane={handleEditLane}
-          onDeleteLane={handleDeleteLane}
-          onEventClick={handleEventClick}
-          onLaneClick={handleLaneClick}
-          personaEvents={activePersonaEvents}
-          personas={personas}
+          activeView={activeView}
+          onViewChange={setActiveView}
         />
 
-        {/* Event popover */}
-        {popover && (
-          <EventPopover
-            event={popover.event}
-            anchorEl={popover.anchor}
-            laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
-            onEdit={handleEditEvent}
-            onDelete={handleDeleteEvent}
-            onClose={() => setPopover(null)}
-          />
+        {activeView === 'timeline' ? (
+          <>
+            <TimelineContainer
+              lanes={lanes}
+              events={events}
+              yearStart={yearStart}
+              yearEnd={yearEnd}
+              pixelsPerYear={pixelsPerYear}
+              dataYearMin={dataYearMin}
+              dataYearMax={dataYearMax}
+              onToggleVisibility={toggleLaneVisibility}
+              onEditLane={handleEditLane}
+              onDeleteLane={handleDeleteLane}
+              onEventClick={handleEventClick}
+              onLaneClick={handleLaneClick}
+              personaEvents={activePersonaEvents}
+              personas={personas}
+            />
+
+            {/* Event popover */}
+            {popover && (
+              <EventPopover
+                event={popover.event}
+                anchorEl={popover.anchor}
+                laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
+                onEdit={handleEditEvent}
+                onDelete={handleDeleteEvent}
+                onClose={() => setPopover(null)}
+              />
+            )}
+
+            {/* Dialogs */}
+            <EventDialog
+              open={eventDialogOpen}
+              onOpenChange={setEventDialogOpen}
+              lanes={lanes}
+              editingEvent={editingEvent}
+              onSave={handleSaveEvent}
+              defaultLaneId={defaultLaneId}
+              defaultStartYear={defaultStartYear}
+            />
+            <LaneDialog
+              open={laneDialogOpen}
+              onOpenChange={setLaneDialogOpen}
+              editingLane={editingLane}
+              onSave={handleSaveLane}
+            />
+            <DeleteConfirmDialog
+              open={deleteDialog.open}
+              onOpenChange={open => setDeleteDialog(prev => ({ ...prev, open }))}
+              title={deleteDialog.title}
+              description={deleteDialog.description}
+              onConfirm={deleteDialog.onConfirm}
+            />
+          </>
+        ) : (
+          <KanbanBoard />
         )}
-
-        {/* Dialogs */}
-        <EventDialog
-          open={eventDialogOpen}
-          onOpenChange={setEventDialogOpen}
-          lanes={lanes}
-          editingEvent={editingEvent}
-          onSave={handleSaveEvent}
-          defaultLaneId={defaultLaneId}
-          defaultStartYear={defaultStartYear}
-        />
-        <LaneDialog
-          open={laneDialogOpen}
-          onOpenChange={setLaneDialogOpen}
-          editingLane={editingLane}
-          onSave={handleSaveLane}
-        />
-        <DeleteConfirmDialog
-          open={deleteDialog.open}
-          onOpenChange={open => setDeleteDialog(prev => ({ ...prev, open }))}
-          title={deleteDialog.title}
-          description={deleteDialog.description}
-          onConfirm={deleteDialog.onConfirm}
-        />
       </div>
     </TooltipProvider>
   )

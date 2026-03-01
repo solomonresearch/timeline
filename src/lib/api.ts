@@ -326,3 +326,95 @@ export async function fetchPersonaEvents(personaIds: string[]): Promise<DbPerson
   }
   return data ?? []
 }
+
+// ============================================================
+// Kanban
+// ============================================================
+
+export interface KanbanCardRow {
+  id: string
+  title: string
+  description: string | null
+  status: 'todo' | 'in_progress' | 'done'
+  position: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchKanbanCards(): Promise<KanbanCardRow[]> {
+  const { data, error } = await supabase
+    .from('kanban_cards')
+    .select('*')
+    .eq('archived', false)
+    .order('position', { ascending: true })
+  if (error) {
+    console.error('fetchKanbanCards error:', error)
+    return []
+  }
+  return (data ?? []) as KanbanCardRow[]
+}
+
+export async function createKanbanCard(card: {
+  title: string
+  description: string | null
+  status: string
+}): Promise<KanbanCardRow | null> {
+  // Get next position for the target column
+  const { data: existing } = await supabase
+    .from('kanban_cards')
+    .select('position')
+    .eq('status', card.status)
+    .eq('archived', false)
+    .order('position', { ascending: false })
+    .limit(1)
+
+  const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data, error } = await supabase
+    .from('kanban_cards')
+    .insert({
+      title: card.title,
+      description: card.description,
+      status: card.status,
+      position: nextPosition,
+      created_by: user?.id ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('createKanbanCard error:', error)
+    return null
+  }
+  return data as KanbanCardRow
+}
+
+export async function updateKanbanCard(
+  cardId: string,
+  updates: Partial<{ title: string; description: string | null; status: string; position: number }>,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('kanban_cards')
+    .update(updates)
+    .eq('id', cardId)
+  if (error) {
+    console.error('updateKanbanCard error:', error)
+    return false
+  }
+  return true
+}
+
+export async function deleteKanbanCard(cardId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('kanban_cards')
+    .update({ archived: true })
+    .eq('id', cardId)
+  if (error) {
+    console.error('deleteKanbanCard error:', error)
+    return false
+  }
+  return true
+}
