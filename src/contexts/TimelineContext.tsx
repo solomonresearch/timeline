@@ -1,0 +1,101 @@
+import { createContext, useContext } from 'react'
+import type { Lane, TimelineEvent } from '@/types/timeline'
+import type { DbTimeline } from '@/types/database'
+import { useTimelines } from '@/hooks/useTimelines'
+import { useSupabaseTimeline } from '@/hooks/useSupabaseTimeline'
+
+interface TimelineContextType {
+  // Timeline list
+  timelines: DbTimeline[]
+  selectedTimelineId: string | null
+  selectTimeline: (id: string) => void
+  createTimeline: (name?: string) => Promise<string | null>
+  renameTimeline: (id: string, name: string) => Promise<boolean>
+  deleteTimeline: (id: string) => Promise<boolean>
+  timelinesLoading: boolean
+
+  // Active timeline data
+  lanes: Lane[]
+  events: TimelineEvent[]
+  pixelsPerYear: number
+  setPixelsPerYear: (v: number) => void
+  yearStart: number
+  yearEnd: number
+  addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
+  updateEvent: (id: string, updates: Partial<Omit<TimelineEvent, 'id'>>) => Promise<void>
+  deleteEvent: (id: string) => Promise<void>
+  addLane: (lane: Omit<Lane, 'id' | 'order' | 'isDefault'>) => Promise<Lane | null>
+  updateLane: (id: string, updates: Partial<Omit<Lane, 'id' | 'isDefault'>>) => Promise<void>
+  deleteLane: (id: string) => Promise<void>
+  toggleLaneVisibility: (id: string) => Promise<void>
+  dataLoading: boolean
+}
+
+const TimelineContext = createContext<TimelineContextType | null>(null)
+
+export function TimelineProvider({ children }: { children: React.ReactNode }) {
+  const {
+    timelines,
+    selectedTimelineId,
+    selectTimeline,
+    createTimeline,
+    renameTimeline,
+    deleteTimeline,
+    loading: timelinesLoading,
+  } = useTimelines()
+
+  const {
+    lanes,
+    events,
+    pixelsPerYear,
+    setPixelsPerYear,
+    yearStart,
+    yearEnd,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addLane,
+    updateLane,
+    deleteLane,
+    toggleLaneVisibility,
+    loading: dataLoading,
+  } = useSupabaseTimeline(selectedTimelineId)
+
+  return (
+    <TimelineContext.Provider
+      value={{
+        timelines,
+        selectedTimelineId,
+        selectTimeline,
+        createTimeline,
+        renameTimeline,
+        deleteTimeline,
+        timelinesLoading,
+        lanes,
+        events,
+        pixelsPerYear,
+        setPixelsPerYear,
+        yearStart,
+        yearEnd,
+        addEvent,
+        updateEvent,
+        deleteEvent,
+        addLane,
+        updateLane,
+        deleteLane,
+        toggleLaneVisibility,
+        dataLoading,
+      }}
+    >
+      {children}
+    </TimelineContext.Provider>
+  )
+}
+
+export function useTimelineContext() {
+  const context = useContext(TimelineContext)
+  if (!context) {
+    throw new Error('useTimelineContext must be used within a TimelineProvider')
+  }
+  return context
+}

@@ -25,9 +25,19 @@ interface EventDialogProps {
   lanes: Lane[]
   editingEvent?: TimelineEvent | null
   onSave: (data: Omit<TimelineEvent, 'id'>) => void
+  defaultLaneId?: string
+  defaultStartYear?: number
 }
 
-export function EventDialog({ open, onOpenChange, lanes, editingEvent, onSave }: EventDialogProps) {
+export function EventDialog({
+  open,
+  onOpenChange,
+  lanes,
+  editingEvent,
+  onSave,
+  defaultLaneId,
+  defaultStartYear,
+}: EventDialogProps) {
   const [laneId, setLaneId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -46,15 +56,15 @@ export function EventDialog({ open, onOpenChange, lanes, editingEvent, onSave }:
       setEndYear(editingEvent.endYear != null ? String(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
     } else {
-      setLaneId(lanes[0]?.id ?? '')
+      setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
       setDescription('')
-      setType('range')
-      setStartYear('')
+      setType(defaultStartYear != null ? 'point' : 'range')
+      setStartYear(defaultStartYear != null ? String(defaultStartYear) : '')
       setEndYear('')
       setColor('')
     }
-  }, [editingEvent, open, lanes])
+  }, [editingEvent, open, lanes, defaultLaneId, defaultStartYear])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
