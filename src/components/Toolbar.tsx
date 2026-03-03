@@ -5,6 +5,7 @@ import { UserMenu } from '@/components/UserMenu'
 import { TimelineSelector } from '@/components/TimelineSelector'
 import { PersonaToggle } from '@/components/PersonaToggle'
 import type { DbPersona } from '@/types/database'
+import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 
 export type AppView = 'timeline' | 'kanban'
@@ -17,6 +18,8 @@ interface ToolbarProps {
   personas: DbPersona[]
   activePersonaIds: Set<string>
   onTogglePersona: (id: string) => void
+  personaDisplayModes: Map<string, PersonaDisplayMode>
+  onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
   activeView: AppView
   onViewChange: (view: AppView) => void
 }
@@ -29,6 +32,8 @@ export function Toolbar({
   personas,
   activePersonaIds,
   onTogglePersona,
+  personaDisplayModes,
+  onSetPersonaDisplayMode,
   activeView,
   onViewChange,
 }: ToolbarProps) {
@@ -114,6 +119,8 @@ export function Toolbar({
               personas={personas}
               activePersonaIds={activePersonaIds}
               onToggle={onTogglePersona}
+              personaDisplayModes={personaDisplayModes}
+              onSetDisplayMode={onSetPersonaDisplayMode}
             />
           </>
         )}

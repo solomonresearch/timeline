@@ -1,10 +1,12 @@
 import { useRef, useEffect, useMemo } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
+import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import { LaneSidebar } from './LaneSidebar'
 import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
+import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
 import { computeLaneHeight, getCurrentYearFraction } from '@/lib/constants'
 
 interface TimelineContainerProps {
@@ -20,6 +22,7 @@ interface TimelineContainerProps {
   onLaneClick: (laneId: string, year: number) => void
   personaEvents: AlignedPersonaEvent[]
   personas: DbPersona[]
+  personaDisplayModes: Map<string, PersonaDisplayMode>
   dataYearMin: number
   dataYearMax: number
 }
@@ -37,6 +40,7 @@ export function TimelineContainer({
   onLaneClick,
   personaEvents,
   personas,
+  personaDisplayModes,
   dataYearMin,
   dataYearMax,
 }: TimelineContainerProps) {
@@ -46,6 +50,40 @@ export function TimelineContainer({
   const hiddenLanes = lanes.filter(l => !l.visible)
   const currentYear = getCurrentYearFraction()
   const totalWidth = (yearEnd - yearStart) * pixelsPerYear
+
+  // Split persona events into integrated (sub-rows in lanes) vs separate (own section below)
+  const integratedPersonaEvents = useMemo(
+    () => personaEvents.filter(e => (personaDisplayModes.get(e.persona_id) ?? 'integrated') === 'integrated'),
+    [personaEvents, personaDisplayModes],
+  )
+
+  const separatePersonas = useMemo(() => {
+    const ids = new Set(
+      personaEvents
+        .filter(e => personaDisplayModes.get(e.persona_id) === 'separate')
+        .map(e => e.persona_id),
+    )
+    return personas.filter(p => ids.has(p.id))
+  }, [personas, personaEvents, personaDisplayModes])
+
+  const separatePersonaEventsMap = useMemo(() => {
+    const m = new Map<string, AlignedPersonaEvent[]>()
+    for (const e of personaEvents) {
+      if (personaDisplayModes.get(e.persona_id) === 'separate') {
+        const list = m.get(e.persona_id) ?? []
+        list.push(e)
+        m.set(e.persona_id, list)
+      }
+    }
+    return m
+  }, [personaEvents, personaDisplayModes])
+
+  // Lane name -> color map (for separate persona timelines)
+  const laneColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const lane of lanes) m.set(lane.name, lane.color)
+    return m
+  }, [lanes])
 
   // Build a unique key for the current data range to detect timeline changes
   const dataKey = `${dataYearMin}-${dataYearMax}`
@@ -90,7 +128,7 @@ export function TimelineContainer({
     }[] = []
 
     for (const lane of visibleLanes) {
-      const lanePersonaEvents = personaEvents.filter(pe => pe.lane_name === lane.name)
+      const lanePersonaEvents = integratedPersonaEvents.filter(pe => pe.lane_name === lane.name)
 
       // Collect unique persona IDs in this lane, sorted for determinism
       const personaIdsInLane = [...new Set(lanePersonaEvents.map(pe => pe.persona_id))].sort()
@@ -117,7 +155,7 @@ export function TimelineContainer({
     }
 
     return result
-  }, [visibleLanes, personaEvents, personaInitialsMap, personaNameMap])
+  }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap])
 
   const laneHeights = laneData.map(d => d.laneHeight)
   const totalHeight = laneHeights.reduce((sum, h) => sum + h, 0)
@@ -165,6 +203,18 @@ export function TimelineContainer({
               />
             ))}
           </div>
+          {/* Separate persona timeline sections */}
+          {separatePersonas.map(persona => (
+            <PersonaSeparateTimeline
+              key={persona.id}
+              persona={persona}
+              events={separatePersonaEventsMap.get(persona.id) ?? []}
+              yearStart={yearStart}
+              pixelsPerYear={pixelsPerYear}
+              laneColorMap={laneColorMap}
+              currentYear={currentYear}
+            />
+          ))}
         </div>
       </div>
     </div>
