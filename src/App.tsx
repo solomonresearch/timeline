@@ -67,6 +67,8 @@ function TimelineView() {
     activePersonaEvents,
     activePersonaIds,
     togglePersona,
+    personaDisplayModes,
+    setPersonaDisplayMode,
   } = usePersonas(profile?.birth_year ?? null)
 
   // URL-synced view state
@@ -191,6 +193,8 @@ function TimelineView() {
           personas={personas}
           activePersonaIds={activePersonaIds}
           onTogglePersona={togglePersona}
+          personaDisplayModes={personaDisplayModes}
+          onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
           onViewChange={setActiveView}
         />
@@ -212,6 +216,7 @@ function TimelineView() {
               onLaneClick={handleLaneClick}
               personaEvents={activePersonaEvents}
               personas={personas}
+              personaDisplayModes={personaDisplayModes}
             />
 
             {/* Event popover */}

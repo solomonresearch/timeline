@@ -3,6 +3,9 @@ import { fetchPersonas, fetchPersonaEvents } from '@/lib/api'
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 
 const ACTIVE_PERSONAS_KEY = 'timeline_active_personas'
+const DISPLAY_MODES_KEY = 'timeline_persona_display_modes'
+
+export type PersonaDisplayMode = 'integrated' | 'separate'
 
 function loadActiveIds(): Set<string> {
   try {
@@ -16,10 +19,23 @@ function saveActiveIds(ids: Set<string>) {
   localStorage.setItem(ACTIVE_PERSONAS_KEY, JSON.stringify([...ids]))
 }
 
+function loadDisplayModes(): Map<string, PersonaDisplayMode> {
+  try {
+    const raw = localStorage.getItem(DISPLAY_MODES_KEY)
+    if (raw) return new Map(JSON.parse(raw) as [string, PersonaDisplayMode][])
+  } catch { /* ignore */ }
+  return new Map()
+}
+
+function saveDisplayModes(modes: Map<string, PersonaDisplayMode>) {
+  localStorage.setItem(DISPLAY_MODES_KEY, JSON.stringify([...modes.entries()]))
+}
+
 export function usePersonas(userBirthYear: number | null = null) {
   const [personas, setPersonas] = useState<DbPersona[]>([])
   const [allPersonaEvents, setAllPersonaEvents] = useState<AlignedPersonaEvent[]>([])
   const [activePersonaIds, setActivePersonaIds] = useState<Set<string>>(loadActiveIds)
+  const [personaDisplayModes, setPersonaDisplayModesState] = useState<Map<string, PersonaDisplayMode>>(loadDisplayModes)
   const [loading, setLoading] = useState(true)
 
   // Fetch all personas on mount
@@ -81,6 +97,15 @@ export function usePersonas(userBirthYear: number | null = null) {
     })
   }, [])
 
+  const setPersonaDisplayMode = useCallback((personaId: string, mode: PersonaDisplayMode) => {
+    setPersonaDisplayModesState(prev => {
+      const next = new Map(prev)
+      next.set(personaId, mode)
+      saveDisplayModes(next)
+      return next
+    })
+  }, [])
+
   const activePersonaEvents = useMemo(
     () => allPersonaEvents.filter(e => activePersonaIds.has(e.persona_id)),
     [allPersonaEvents, activePersonaIds],
@@ -91,6 +116,8 @@ export function usePersonas(userBirthYear: number | null = null) {
     activePersonaEvents,
     activePersonaIds,
     togglePersona,
+    personaDisplayModes,
+    setPersonaDisplayMode,
     loading,
   }
 }
