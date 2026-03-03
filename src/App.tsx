@@ -82,6 +82,7 @@ function TimelineView() {
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [defaultLaneId, setDefaultLaneId] = useState<string | undefined>()
   const [defaultStartYear, setDefaultStartYear] = useState<number | undefined>()
+  const [defaultEndYear, setDefaultEndYear] = useState<number | undefined>()
 
   // Lane dialog state
   const [laneDialogOpen, setLaneDialogOpen] = useState(false)
@@ -105,6 +106,7 @@ function TimelineView() {
     setEditingEvent(null)
     setDefaultLaneId(undefined)
     setDefaultStartYear(undefined)
+    setDefaultEndYear(undefined)
     setEventDialogOpen(true)
   }, [])
 
@@ -114,11 +116,21 @@ function TimelineView() {
     setLaneDialogOpen(true)
   }, [])
 
-  // Click on lane -> Add Event with pre-filled lane + year
+  // Click on lane -> Add point event pre-filled with year
   const handleLaneClick = useCallback((laneId: string, year: number) => {
     setEditingEvent(null)
     setDefaultLaneId(laneId)
     setDefaultStartYear(year)
+    setDefaultEndYear(undefined)
+    setEventDialogOpen(true)
+  }, [])
+
+  // Drag on lane -> Add range event pre-filled with start + end year
+  const handleLaneDragRange = useCallback((laneId: string, startYear: number, endYear: number) => {
+    setEditingEvent(null)
+    setDefaultLaneId(laneId)
+    setDefaultStartYear(startYear)
+    setDefaultEndYear(endYear)
     setEventDialogOpen(true)
   }, [])
 
@@ -128,6 +140,7 @@ function TimelineView() {
     setEditingEvent(event)
     setDefaultLaneId(undefined)
     setDefaultStartYear(undefined)
+    setDefaultEndYear(undefined)
     setEventDialogOpen(true)
   }, [])
 
@@ -207,6 +220,7 @@ function TimelineView() {
               yearStart={yearStart}
               yearEnd={yearEnd}
               pixelsPerYear={pixelsPerYear}
+              onZoom={setPixelsPerYear}
               dataYearMin={dataYearMin}
               dataYearMax={dataYearMax}
               onToggleVisibility={toggleLaneVisibility}
@@ -214,6 +228,7 @@ function TimelineView() {
               onDeleteLane={handleDeleteLane}
               onEventClick={handleEventClick}
               onLaneClick={handleLaneClick}
+              onLaneDragRange={handleLaneDragRange}
               personaEvents={activePersonaEvents}
               personas={personas}
               personaDisplayModes={personaDisplayModes}
@@ -240,6 +255,7 @@ function TimelineView() {
               onSave={handleSaveEvent}
               defaultLaneId={defaultLaneId}
               defaultStartYear={defaultStartYear}
+              defaultEndYear={defaultEndYear}
             />
             <LaneDialog
               open={laneDialogOpen}

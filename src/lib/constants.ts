@@ -6,10 +6,18 @@ export const DOT_SIZE = 12
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 200
+export const MAX_PIXELS_PER_YEAR = 250
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = 0
 export const TIMELINE_YEAR_MAX = 2500
+
+/** Which sub-year unit to display based on zoom level. */
+export type ZoomMode = 'year' | 'month' | 'day'
+export function getZoomMode(ppy: number): ZoomMode {
+  if (ppy >= 1825) return 'day'   // ≥ 5 px/day
+  if (ppy >= 120)  return 'month' // ≥ 10 px/month
+  return 'year'
+}
 
 /**
  * Return the label interval (in years) for the header at a given zoom level.
@@ -51,4 +59,12 @@ export function getCurrentYearFraction(): number {
   const start = new Date(year, 0, 1).getTime()
   const end = new Date(year + 1, 0, 1).getTime()
   return year + (now.getTime() - start) / (end - start)
+}
+
+/** Convert a Date to a fractional year value (e.g. 2024.5 ≈ July 2024). */
+export function dateToFracYear(d: Date): number {
+  const year = d.getFullYear()
+  const start = Date.UTC(year, 0, 1)
+  const end   = Date.UTC(year + 1, 0, 1)
+  return year + (d.getTime() - start) / (end - start)
 }

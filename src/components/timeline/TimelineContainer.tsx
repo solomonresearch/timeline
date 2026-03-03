@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
@@ -7,7 +7,7 @@ import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
-import { computeLaneHeight, getCurrentYearFraction } from '@/lib/constants'
+import { computeLaneHeight, getCurrentYearFraction, MAX_PIXELS_PER_YEAR, MIN_PIXELS_PER_YEAR } from '@/lib/constants'
 
 interface TimelineContainerProps {
   lanes: Lane[]
@@ -18,8 +18,10 @@ interface TimelineContainerProps {
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
+  onZoom: (ppy: number) => void
   onEventClick: (event: TimelineEvent, element: HTMLElement) => void
   onLaneClick: (laneId: string, year: number) => void
+  onLaneDragRange: (laneId: string, startYear: number, endYear: number) => void
   personaEvents: AlignedPersonaEvent[]
   personas: DbPersona[]
   personaDisplayModes: Map<string, PersonaDisplayMode>
@@ -33,11 +35,13 @@ export function TimelineContainer({
   yearStart,
   yearEnd,
   pixelsPerYear,
+  onZoom,
   onToggleVisibility,
   onEditLane,
   onDeleteLane,
   onEventClick,
   onLaneClick,
+  onLaneDragRange,
   personaEvents,
   personas,
   personaDisplayModes,
@@ -46,6 +50,77 @@ export function TimelineContainer({
 }: TimelineContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
+  const rafRef = useRef<number | null>(null)
+
+  // Refs for latest values — used in wheel handler to avoid stale closures
+  const ppyRef = useRef(pixelsPerYear)
+  const yearStartRef = useRef(yearStart)
+  useEffect(() => { ppyRef.current = pixelsPerYear }, [pixelsPerYear])
+  useEffect(() => { yearStartRef.current = yearStart }, [yearStart])
+
+  // Pending scroll position — applied after React re-renders new content width
+  const pendingScrollRef = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (pendingScrollRef.current !== null && scrollRef.current) {
+      scrollRef.current.scrollLeft = pendingScrollRef.current
+      pendingScrollRef.current = null
+    }
+  }, [pixelsPerYear])
+
+  // Viewport position — updated on scroll/resize, throttled via rAF
+  const [scrollLeft, setScrollLeft] = useState(0)
+  const [viewportWidth, setViewportWidth] = useState(1200)
+
+  const updateViewport = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setScrollLeft(el.scrollLeft)
+    setViewportWidth(el.clientWidth)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateViewport)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    const ro = new ResizeObserver(updateViewport)
+    ro.observe(el)
+    updateViewport()
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [updateViewport])
+
+  // Wheel zoom toward cursor position
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      // Let horizontal scroll pass through
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+      e.preventDefault()
+      const ppy = ppyRef.current
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const yearAtCursor = yearStartRef.current + (el.scrollLeft + mouseX) / ppy
+      let dy = e.deltaY
+      if (e.deltaMode === 1) dy *= 32   // line mode
+      if (e.deltaMode === 2) dy *= 300  // page mode
+      const factor = Math.exp(-dy * 0.006)
+      const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
+      // Store desired scroll — applied after React re-renders with new content width
+      pendingScrollRef.current = (yearAtCursor - yearStartRef.current) * newPpy - mouseX
+      onZoom(newPpy)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [onZoom])
+
   const visibleLanes = lanes.filter(l => l.visible)
   const hiddenLanes = lanes.filter(l => !l.visible)
   const currentYear = getCurrentYearFraction()
@@ -182,9 +257,24 @@ export function TimelineContainer({
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: totalWidth, minHeight: totalHeight + 24 }}>
-          <TimelineHeader yearStart={yearStart} yearEnd={yearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} />
+          <TimelineHeader
+            yearStart={yearStart}
+            yearEnd={yearEnd}
+            pixelsPerYear={pixelsPerYear}
+            currentYear={currentYear}
+            scrollLeft={scrollLeft}
+            viewportWidth={viewportWidth}
+          />
           <div className="relative">
-            <YearGrid yearStart={yearStart} yearEnd={yearEnd} pixelsPerYear={pixelsPerYear} totalHeight={totalHeight} currentYear={currentYear} />
+            <YearGrid
+              yearStart={yearStart}
+              yearEnd={yearEnd}
+              pixelsPerYear={pixelsPerYear}
+              totalHeight={totalHeight}
+              currentYear={currentYear}
+              scrollLeft={scrollLeft}
+              viewportWidth={viewportWidth}
+            />
             {visibleLanes.map((lane, i) => (
               <TimelineLane
                 key={lane.id}
@@ -195,6 +285,7 @@ export function TimelineContainer({
                 pixelsPerYear={pixelsPerYear}
                 onEventClick={onEventClick}
                 onLaneClick={onLaneClick}
+                onLaneDragRange={onLaneDragRange}
                 personaEvents={laneData[i].filteredPersonaEvents}
                 personaInitialsMap={personaInitialsMap}
                 laneHeight={laneData[i].laneHeight}

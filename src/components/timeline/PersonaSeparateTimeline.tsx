@@ -1,6 +1,6 @@
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 import { PersonaEventBar } from './PersonaEventBar'
-import { BASE_LANE_HEIGHT } from '@/lib/constants'
+import { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } from '@/lib/constants'
 
 const SIDEBAR_WIDTH = 160
 
@@ -31,7 +31,7 @@ export function PersonaSeparateTimeline({
   return (
     <div>
       {/* Persona header */}
-      <div className="relative border-t-2 border-border/60" style={{ height: 24 }}>
+      <div className="relative border-t-2 border-border/60" style={{ height: PERSONA_SUB_ROW_HEIGHT }}>
         <div
           className="h-full flex items-center gap-2 px-2 bg-muted/40 border-r border-border/60"
           style={{ position: 'sticky', left: 0, width: SIDEBAR_WIDTH, zIndex: 10 }}
@@ -70,9 +70,9 @@ export function PersonaSeparateTimeline({
                 currentYear={currentYear}
               />
             ))}
-            {/* Sticky sidebar label — sticks to left, overlays events behind it */}
+            {/* Sticky sidebar label — same compact style as integrated sub-rows */}
             <div
-              className="bg-white border-r border-border/40 flex items-center px-3"
+              className="bg-white border-r border-border/40 flex items-center gap-1 pl-3 text-muted-foreground"
               style={{
                 position: 'sticky',
                 left: 0,
@@ -81,7 +81,8 @@ export function PersonaSeparateTimeline({
                 zIndex: 10,
               }}
             >
-              <span className="text-[10px] text-muted-foreground truncate">{laneName}</span>
+              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: laneColor }} />
+              <span className="text-[10px] truncate">{laneName}</span>
             </div>
           </div>
         )
