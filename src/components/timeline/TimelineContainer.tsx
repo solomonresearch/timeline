@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useMemo, useCallback, useState } from 'react'
+import { useRef, useEffect, useLayoutEffect, useMemo, useCallback, useState, type MutableRefObject } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
@@ -69,6 +69,7 @@ interface TimelineContainerProps {
   personaDisplayModes: Map<string, PersonaDisplayMode>
   dataYearMin: number
   dataYearMax: number
+  scrollToTodayRef?: MutableRefObject<(() => void) | null>
 }
 
 export function TimelineContainer({
@@ -89,6 +90,7 @@ export function TimelineContainer({
   personaDisplayModes,
   dataYearMin,
   dataYearMax,
+  scrollToTodayRef,
 }: TimelineContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
@@ -136,10 +138,24 @@ export function TimelineContainer({
   const pendingScrollRef = useRef<number | null>(null)
   useLayoutEffect(() => {
     if (pendingScrollRef.current !== null && scrollRef.current) {
+      // Read scrollWidth to force browser layout recalculation before setting scrollLeft,
+      // otherwise the browser clamps it to the old content width.
+      void scrollRef.current.scrollWidth
       scrollRef.current.scrollLeft = pendingScrollRef.current
       pendingScrollRef.current = null
     }
   }, [pixelsPerYear])
+
+  // Register scroll-to-today function for external callers (e.g. Toolbar button)
+  useEffect(() => {
+    if (!scrollToTodayRef) return
+    scrollToTodayRef.current = () => {
+      const el = scrollRef.current
+      if (!el) return
+      const today = getCurrentYearFraction()
+      el.scrollLeft = Math.max(0, (today - yearStart) * pixelsPerYear - el.clientWidth / 2)
+    }
+  }, [scrollToTodayRef, yearStart, pixelsPerYear])
 
   // Wheel zoom toward cursor
   useEffect(() => {

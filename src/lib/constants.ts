@@ -6,7 +6,7 @@ export const DOT_SIZE = 12
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 2000
+export const MAX_PIXELS_PER_YEAR = 550
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = 0
 export const TIMELINE_YEAR_MAX = 2500

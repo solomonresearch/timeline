@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore } from 'react'
+import { useState, useCallback, useSyncExternalStore, useRef } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -73,6 +73,8 @@ function TimelineView() {
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
+
+  const scrollToTodayRef = useRef<(() => void) | null>(null)
 
   // Popover state
   const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement; x: number; y: number } | null>(null)
@@ -208,6 +210,7 @@ function TimelineView() {
           onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
           onViewChange={setActiveView}
+          onScrollToToday={() => scrollToTodayRef.current?.()}
         />
 
         {activeView === 'timeline' ? (
@@ -230,6 +233,7 @@ function TimelineView() {
               personaEvents={activePersonaEvents}
               personas={personas}
               personaDisplayModes={personaDisplayModes}
+              scrollToTodayRef={scrollToTodayRef}
             />
 
             {/* Event popover */}

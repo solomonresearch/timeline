@@ -22,6 +22,7 @@ interface ToolbarProps {
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
   activeView: AppView
   onViewChange: (view: AppView) => void
+  onScrollToToday?: () => void
 }
 
 export function Toolbar({
@@ -36,10 +37,16 @@ export function Toolbar({
   onSetPersonaDisplayMode,
   activeView,
   onViewChange,
+  onScrollToToday,
 }: ToolbarProps) {
   // Logarithmic slider: map linear 0-1000 -> exponential MIN..MAX px/yr
   const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
   const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
+
+  const stepZoom = useCallback((factor: number) => {
+    const next = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, pixelsPerYear * factor))
+    onPixelsPerYearChange(Math.round(next * 10) / 10)
+  }, [pixelsPerYear, onPixelsPerYearChange])
 
   const sliderValue = useMemo(() => {
     const v = (Math.log(pixelsPerYear) - logMin) / (logMax - logMin) * 1000
@@ -94,8 +101,15 @@ export function Toolbar({
 
         {activeView === 'timeline' && (
           <>
+            {onScrollToToday && (
+              <Button variant="outline" size="sm" onClick={onScrollToToday}>
+                Today
+              </Button>
+            )}
             <div className="flex items-center gap-1 rounded-md border px-2 py-1">
-              <ZoomOut className="h-4 w-4 text-muted-foreground" />
+              <button onClick={() => stepZoom(1 / 1.3)} className="text-muted-foreground hover:text-foreground">
+                <ZoomOut className="h-4 w-4" />
+              </button>
               <input
                 type="range"
                 min={0}
@@ -104,7 +118,9 @@ export function Toolbar({
                 onChange={handleSliderChange}
                 className="h-1 w-24 cursor-pointer accent-primary"
               />
-              <ZoomIn className="h-4 w-4 text-muted-foreground" />
+              <button onClick={() => stepZoom(1.3)} className="text-muted-foreground hover:text-foreground">
+                <ZoomIn className="h-4 w-4" />
+              </button>
               <span className="text-[10px] text-muted-foreground ml-1 w-14 text-right">{zoomLabel}</span>
             </div>
             <Button variant="outline" size="sm" onClick={onAddLane}>
