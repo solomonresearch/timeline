@@ -26,7 +26,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
     for (let y = first; y <= Math.min(visEnd, yearEnd); y += interval) {
       ticks.push({ key: y, left: (y - yearStart) * pixelsPerYear, label: String(y), major: true })
     }
-  } else {
+  } else if (mode === 'month') {
     // Month mode — generate from Date objects to avoid float drift
     const pxPerMonth = pixelsPerYear / 12
     const showAllMonths = pxPerMonth >= 20 // collapse to quarterly below 20px/month
@@ -41,6 +41,31 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
         const major = m === 0
         const label = major ? String(y) : showAllMonths ? MONTH_ABBR[m] : `Q${Math.floor(m / 3) + 1}`
         ticks.push({ key: y * 100 + m, left, label, major })
+      }
+    }
+  } else {
+    // Day mode — month boundaries (major) + day ticks
+    const pxPerDay = pixelsPerYear / 365.25
+    const dayStep = pxPerDay < 3 ? 10 : pxPerDay < 6 ? 7 : pxPerDay < 10 ? 5 : 1
+    const sy = Math.max(0, Math.floor(visStart) - 1)
+    const ey = Math.min(yearEnd, Math.ceil(visEnd) + 1)
+    for (let y = sy; y <= ey; y++) {
+      for (let m = 0; m < 12; m++) {
+        // Month boundary — major tick
+        const fy0 = dateToFracYear(new Date(y, m, 1))
+        if (fy0 >= visStart && fy0 <= visEnd) {
+          const left = (fy0 - yearStart) * pixelsPerYear
+          const label = m === 0 ? String(y) : MONTH_ABBR[m]
+          ticks.push({ key: y * 1000 + m * 10, left, label, major: true })
+        }
+        // Day ticks (skip day 1, already covered by month boundary)
+        const daysInMonth = new Date(y, m + 1, 0).getDate()
+        for (let d = 1 + dayStep; d <= daysInMonth; d += dayStep) {
+          const fy = dateToFracYear(new Date(y, m, d))
+          if (fy < visStart || fy > visEnd) continue
+          const left = (fy - yearStart) * pixelsPerYear
+          ticks.push({ key: y * 100000 + m * 1000 + d, left, label: String(d), major: false })
+        }
       }
     }
   }

@@ -157,6 +157,7 @@ export function TimelineContainer({
       if (e.deltaMode === 2) dy *= 300
       const factor = Math.exp(-dy * 0.006)
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
+      ppyRef.current = newPpy // optimistic update so rapid wheel events use correct base
       pendingScrollRef.current = (yearAtCursor - yearStartRef.current) * newPpy - mouseX
       onZoom(newPpy)
     }

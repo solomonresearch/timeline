@@ -6,7 +6,7 @@ export const DOT_SIZE = 12
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 500
+export const MAX_PIXELS_PER_YEAR = 2000
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = 0
 export const TIMELINE_YEAR_MAX = 2500
@@ -46,9 +46,11 @@ export function computeLaneHeight(personaCount: number): number {
 }
 
 /** Which sub-year granularity to show based on zoom level. */
-export type ZoomMode = 'year' | 'month'
+export type ZoomMode = 'year' | 'month' | 'day'
 export function getZoomMode(ppy: number): ZoomMode {
-  return ppy >= 120 ? 'month' : 'year'
+  if (ppy >= 600) return 'day'
+  if (ppy >= 120) return 'month'
+  return 'year'
 }
 
 /** Convert a Date to a fractional year (e.g. 2024.5 ≈ July 2024). */
