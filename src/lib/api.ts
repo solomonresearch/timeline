@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Lane, TimelineEvent } from '@/types/timeline'
+import type { Lane, TimelineEvent, ValueDataPoint, ValueProjection } from '@/types/timeline'
 import type {
   DbProfile,
   DbTimeline,
@@ -34,6 +34,12 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
     startYear: row.start_year,
     ...(row.end_year != null ? { endYear: row.end_year } : {}),
     ...(row.color != null ? { color: row.color } : {}),
+    ...(Array.isArray(row.value_points) && row.value_points.length > 0
+      ? { valuePoints: row.value_points as ValueDataPoint[] }
+      : {}),
+    ...(row.value_projection != null
+      ? { valueProjection: row.value_projection as ValueProjection }
+      : {}),
   }
 }
 
@@ -269,6 +275,8 @@ export async function insertEvent(
     start_year: number
     end_year?: number
     color?: string
+    value_points?: ValueDataPoint[]
+    value_projection?: ValueProjection
   },
 ): Promise<DbEvent | null> {
   const { data, error } = await supabase
@@ -282,6 +290,8 @@ export async function insertEvent(
       start_year: event.start_year,
       end_year: event.end_year ?? null,
       color: event.color ?? null,
+      value_points: event.value_points ?? [],
+      value_projection: event.value_projection ?? null,
     })
     .select()
     .single()
@@ -302,6 +312,8 @@ export async function updateEventDb(
     start_year: number
     end_year: number | null
     color: string | null
+    value_points: ValueDataPoint[]
+    value_projection: ValueProjection | null
   }>,
 ): Promise<boolean> {
   const { error } = await supabase
