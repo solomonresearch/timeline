@@ -7,7 +7,7 @@ import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
-import { computeLaneHeight, getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 
 // ── Overlap detection & row assignment ───────────────────────────────────────
 
