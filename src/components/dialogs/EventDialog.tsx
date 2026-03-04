@@ -18,6 +18,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
+import { fracYearToDateStr, dateStrToFracYear } from '@/lib/constants'
 
 interface EventDialogProps {
   open: boolean
@@ -27,6 +28,7 @@ interface EventDialogProps {
   onSave: (data: Omit<TimelineEvent, 'id'>) => void
   defaultLaneId?: string
   defaultStartYear?: number
+  defaultEndYear?: number
 }
 
 export function EventDialog({
@@ -37,13 +39,14 @@ export function EventDialog({
   onSave,
   defaultLaneId,
   defaultStartYear,
+  defaultEndYear,
 }: EventDialogProps) {
   const [laneId, setLaneId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<'range' | 'point'>('range')
-  const [startYear, setStartYear] = useState('')
-  const [endYear, setEndYear] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [color, setColor] = useState('')
 
   useEffect(() => {
@@ -52,32 +55,31 @@ export function EventDialog({
       setTitle(editingEvent.title)
       setDescription(editingEvent.description)
       setType(editingEvent.type)
-      setStartYear(String(editingEvent.startYear))
-      setEndYear(editingEvent.endYear != null ? String(editingEvent.endYear) : '')
+      setStartDate(fracYearToDateStr(editingEvent.startYear))
+      setEndDate(editingEvent.endYear != null ? fracYearToDateStr(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
     } else {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
       setDescription('')
-      setType(defaultStartYear != null ? 'point' : 'range')
-      setStartYear(defaultStartYear != null ? String(defaultStartYear) : '')
-      setEndYear('')
+      setType(defaultEndYear != null ? 'range' : defaultStartYear != null ? 'point' : 'range')
+      setStartDate(defaultStartYear != null ? fracYearToDateStr(defaultStartYear) : '')
+      setEndDate(defaultEndYear != null ? fracYearToDateStr(defaultEndYear) : '')
       setColor('')
     }
-  }, [editingEvent, open, lanes, defaultLaneId, defaultStartYear])
+  }, [editingEvent, open, lanes, defaultLaneId, defaultStartYear, defaultEndYear])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const start = parseFloat(startYear)
-    if (!title.trim() || !laneId || isNaN(start)) return
+    if (!title.trim() || !laneId || !startDate) return
 
     const data: Omit<TimelineEvent, 'id'> = {
       laneId,
       title: title.trim(),
       description: description.trim(),
       type,
-      startYear: start,
-      ...(type === 'range' && endYear ? { endYear: parseFloat(endYear) } : {}),
+      startYear: dateStrToFracYear(startDate),
+      ...(type === 'range' && endDate ? { endYear: dateStrToFracYear(endDate) } : {}),
       ...(color ? { color } : {}),
     }
     onSave(data)
@@ -137,13 +139,25 @@ export function EventDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="start">Start Year</Label>
-              <Input id="start" type="number" step="0.5" value={startYear} onChange={e => setStartYear(e.target.value)} placeholder="e.g. 2020" />
+              <Label htmlFor="start">{type === 'range' ? 'Start Date' : 'Date'}</Label>
+              <Input
+                id="start"
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                required
+              />
             </div>
             {type === 'range' && (
               <div className="grid gap-1.5">
-                <Label htmlFor="end">End Year</Label>
-                <Input id="end" type="number" step="0.5" value={endYear} onChange={e => setEndYear(e.target.value)} placeholder="e.g. 2025" />
+                <Label htmlFor="end">End Date</Label>
+                <Input
+                  id="end"
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  onChange={e => setEndDate(e.target.value)}
+                />
               </div>
             )}
           </div>

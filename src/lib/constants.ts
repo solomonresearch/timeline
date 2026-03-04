@@ -6,7 +6,7 @@ export const DOT_SIZE = 12
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 200
+export const MAX_PIXELS_PER_YEAR = 500
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = 0
 export const TIMELINE_YEAR_MAX = 2500
@@ -43,6 +43,42 @@ export function getGridInterval(pixelsPerYear: number): number {
 export function computeLaneHeight(personaCount: number): number {
   if (personaCount === 0) return BASE_LANE_HEIGHT
   return BASE_LANE_HEIGHT + personaCount * PERSONA_SUB_ROW_HEIGHT
+}
+
+/** Which sub-year granularity to show based on zoom level. */
+export type ZoomMode = 'year' | 'month'
+export function getZoomMode(ppy: number): ZoomMode {
+  return ppy >= 120 ? 'month' : 'year'
+}
+
+/** Convert a Date to a fractional year (e.g. 2024.5 ≈ July 2024). */
+export function dateToFracYear(d: Date): number {
+  const year = d.getFullYear()
+  const start = Date.UTC(year, 0, 1)
+  const end = Date.UTC(year + 1, 0, 1)
+  return year + (d.getTime() - start) / (end - start)
+}
+
+/** Convert a fractional year (e.g. 2024.5) to a "YYYY-MM-DD" string (UTC). */
+export function fracYearToDateStr(fy: number): string {
+  const year = Math.floor(fy)
+  const frac = fy - year
+  const startMs = Date.UTC(year, 0, 1)
+  const endMs = Date.UTC(year + 1, 0, 1)
+  const d = new Date(startMs + frac * (endMs - startMs))
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Convert a "YYYY-MM-DD" string to a fractional year (UTC). */
+export function dateStrToFracYear(s: string): number {
+  const [y, m, d] = s.split('-').map(Number)
+  const startMs = Date.UTC(y, 0, 1)
+  const endMs = Date.UTC(y + 1, 0, 1)
+  const dateMs = Date.UTC(y, m - 1, d)
+  return y + (dateMs - startMs) / (endMs - startMs)
 }
 
 export function getCurrentYearFraction(): number {

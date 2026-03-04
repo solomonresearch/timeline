@@ -8,9 +8,10 @@ interface TimelineEventProps {
   laneColor: string
   onClick: (event: TEvent, element: HTMLElement) => void
   currentYear: number
+  topOffset?: number
 }
 
-export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, onClick, currentYear }: TimelineEventProps) {
+export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, onClick, currentYear, topOffset = 0 }: TimelineEventProps) {
   const color = event.color || laneColor
   const left = (event.startYear - yearStart) * pixelsPerYear
 
@@ -21,7 +22,7 @@ export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, o
   const pastStyle = isPast ? { opacity: 0.35, filter: 'saturate(0.5)' } : undefined
 
   if (event.type === 'point') {
-    const top = (BASE_LANE_HEIGHT - DOT_SIZE) / 2
+    const top = (BASE_LANE_HEIGHT - DOT_SIZE) / 2 + topOffset
     return (
       <div
         className="absolute rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-black/20 transition-shadow"
@@ -40,7 +41,7 @@ export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, o
   }
 
   const width = ((event.endYear ?? event.startYear + 1) - event.startYear) * pixelsPerYear
-  const top = (BASE_LANE_HEIGHT - BAR_HEIGHT) / 2
+  const top = (BASE_LANE_HEIGHT - BAR_HEIGHT) / 2 + topOffset
 
   return (
     <div

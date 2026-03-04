@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
 import {
   DropdownMenu,
@@ -15,6 +15,9 @@ interface LaneSidebarProps {
   hiddenLanes: Lane[]
   laneHeights: number[]
   lanePersonaLabels: Map<string, { initials: string; name: string }[]>
+  laneHasOverlaps: Map<string, boolean>
+  expandedLanes: Set<string>
+  onToggleExpand: (id: string) => void
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
@@ -25,6 +28,9 @@ export function LaneSidebar({
   hiddenLanes,
   laneHeights,
   lanePersonaLabels,
+  laneHasOverlaps,
+  expandedLanes,
+  onToggleExpand,
   onToggleVisibility,
   onEditLane,
   onDeleteLane,
@@ -46,7 +52,19 @@ export function LaneSidebar({
           >
             {/* Main lane label row */}
             <div className="flex items-center gap-1" style={{ height: BASE_LANE_HEIGHT }}>
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lane.color }} />
+              {laneHasOverlaps.get(lane.id) ? (
+                <button
+                  onClick={() => onToggleExpand(lane.id)}
+                  className="p-0.5 text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                  title={expandedLanes.has(lane.id) ? 'Collapse rows' : 'Expand overlapping events'}
+                >
+                  {expandedLanes.has(lane.id)
+                    ? <ChevronDown className="h-3 w-3" />
+                    : <ChevronRight className="h-3 w-3" />}
+                </button>
+              ) : (
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lane.color }} />
+              )}
               <span className="text-xs font-medium truncate flex-1" style={{ opacity: lane.visible ? 1 : 0.4 }}>
                 {lane.name}
               </span>
