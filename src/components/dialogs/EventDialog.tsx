@@ -20,7 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
-import { fracYearToDateStr, dateStrToFracYear } from '@/lib/constants'
+import { fracYearToDMY, dmyToFracYear, formatDMYInput } from '@/lib/constants'
 
 interface EventDialogProps {
   open: boolean
@@ -74,30 +74,30 @@ export function EventDialog({
       setTitle(editingEvent.title)
       setDescription(editingEvent.description)
       setType(editingEvent.type)
-      setStartDate(fracYearToDateStr(editingEvent.startYear))
-      setEndDate(editingEvent.endYear != null ? fracYearToDateStr(editingEvent.endYear) : '')
+      setStartDate(fracYearToDMY(editingEvent.startYear))
+      setEndDate(editingEvent.endYear != null ? fracYearToDMY(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
 
       const pts = editingEvent.valuePoints ?? []
       const proj = editingEvent.valueProjection
       setValueEnabled(pts.length > 0 || !!proj)
-      setValuePoints(pts.map(p => ({ dateStr: fracYearToDateStr(p.year), valueStr: String(p.value) })))
+      setValuePoints(pts.map(p => ({ dateStr: fracYearToDMY(p.year), valueStr: String(p.value) })))
       setGrowthPercent(proj?.growthPercent ? String(proj.growthPercent) : '')
       setDeposits(proj?.deposits?.map(d => ({
         id: d.id,
         label: d.label ?? '',
         amount: String(d.amount),
         frequency: d.frequency,
-        startDateStr: fracYearToDateStr(d.startYear),
-        endDateStr: d.endYear != null ? fracYearToDateStr(d.endYear) : '',
+        startDateStr: fracYearToDMY(d.startYear),
+        endDateStr: d.endYear != null ? fracYearToDMY(d.endYear) : '',
       })) ?? [])
     } else {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
       setDescription('')
       setType(defaultEndYear != null ? 'range' : defaultStartYear != null ? 'point' : 'range')
-      setStartDate(defaultStartYear != null ? fracYearToDateStr(defaultStartYear) : '')
-      setEndDate(defaultEndYear != null ? fracYearToDateStr(defaultEndYear) : '')
+      setStartDate(defaultStartYear != null ? fracYearToDMY(defaultStartYear) : '')
+      setEndDate(defaultEndYear != null ? fracYearToDMY(defaultEndYear) : '')
       setColor('')
       setValueEnabled(false)
       setValuePoints([])
@@ -117,7 +117,7 @@ export function EventDialog({
     if (valueEnabled && type === 'range') {
       const pts = valuePoints
         .filter(p => p.dateStr !== '' && p.valueStr !== '')
-        .map(p => ({ year: dateStrToFracYear(p.dateStr), value: Number(p.valueStr) }))
+        .map(p => ({ year: dmyToFracYear(p.dateStr), value: Number(p.valueStr) }))
         .filter(p => !isNaN(p.value) && !isNaN(p.year))
       if (pts.length > 0) {
         valuePointsOut = pts.sort((a, b) => a.year - b.year)
@@ -128,8 +128,8 @@ export function EventDialog({
             ...(d.label.trim() ? { label: d.label.trim() } : {}),
             amount: Number(d.amount),
             frequency: d.frequency,
-            startYear: dateStrToFracYear(d.startDateStr),
-            ...(d.endDateStr ? { endYear: dateStrToFracYear(d.endDateStr) } : {}),
+            startYear: dmyToFracYear(d.startDateStr),
+            ...(d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
           }))
         if (Number(growthPercent) || deps.length > 0) {
           valueProjectionOut = { growthPercent: Number(growthPercent) || 0, deposits: deps }
@@ -142,11 +142,11 @@ export function EventDialog({
       title: title.trim(),
       description: description.trim(),
       type,
-      startYear: dateStrToFracYear(startDate),
-      ...(type === 'range' && endDate ? { endYear: dateStrToFracYear(endDate) } : {}),
+      startYear: dmyToFracYear(startDate),
+      ...(type === 'range' && endDate ? { endYear: dmyToFracYear(endDate) } : {}),
       ...(color ? { color } : {}),
-      ...(valuePointsOut ? { valuePoints: valuePointsOut } : { valuePoints: [] }),
-      valueProjection: valueProjectionOut,
+      ...(valuePointsOut ? { valuePoints: valuePointsOut } : {}),
+      ...(valueProjectionOut ? { valueProjection: valueProjectionOut } : {}),
     }
     onSave(data)
     onOpenChange(false)
@@ -210,12 +210,12 @@ export function EventDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="start">{type === 'range' ? 'Start Date' : 'Date'}</Label>
-              <Input id="start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required />
+              <Input id="start" type="text" value={startDate} placeholder="DD/MM/YYYY" onChange={e => setStartDate(formatDMYInput(e.target.value))} required />
             </div>
             {type === 'range' && (
               <div className="grid gap-1.5">
                 <Label htmlFor="end">End Date</Label>
-                <Input id="end" type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
+                <Input id="end" type="text" value={endDate} placeholder="DD/MM/YYYY" onChange={e => setEndDate(formatDMYInput(e.target.value))} />
               </div>
             )}
           </div>
@@ -236,8 +236,8 @@ export function EventDialog({
                     {valuePoints.map((pt, i) => (
                       <div key={i} className="flex gap-1.5 items-center">
                         <Input
-                          type="date" value={pt.dateStr}
-                          onChange={e => updatePoint(i, 'dateStr', e.target.value)}
+                          type="text" value={pt.dateStr} placeholder="DD/MM/YYYY"
+                          onChange={e => updatePoint(i, 'dateStr', formatDMYInput(e.target.value))}
                           className="flex-1 h-7 text-xs"
                         />
                         <Input
@@ -301,14 +301,14 @@ export function EventDialog({
                             <div className="flex gap-1 items-center pl-1">
                               <span className="text-[10px] text-muted-foreground w-8">From</span>
                               <Input
-                                type="date" value={dep.startDateStr}
-                                onChange={e => updateDeposit(i, 'startDateStr', e.target.value)}
+                                type="text" value={dep.startDateStr} placeholder="DD/MM/YYYY"
+                                onChange={e => updateDeposit(i, 'startDateStr', formatDMYInput(e.target.value))}
                                 className="flex-1 h-7 text-xs"
                               />
                               <span className="text-[10px] text-muted-foreground w-4">To</span>
                               <Input
-                                type="date" value={dep.endDateStr} placeholder="open"
-                                onChange={e => updateDeposit(i, 'endDateStr', e.target.value)}
+                                type="text" value={dep.endDateStr} placeholder="DD/MM/YYYY"
+                                onChange={e => updateDeposit(i, 'endDateStr', formatDMYInput(e.target.value))}
                                 className="flex-1 h-7 text-xs"
                               />
                             </div>

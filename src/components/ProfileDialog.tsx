@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
+import { iso2dmy, dmy2iso, formatDMYInput } from '@/lib/constants'
 import {
   Dialog,
   DialogContent,
@@ -31,17 +32,16 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       setDisplayName(profile.display_name)
       setBio(profile.bio)
       setBirthYear(profile.birth_year != null ? String(profile.birth_year) : '')
-      setBirthDate(profile.birth_date ?? '')
+      setBirthDate(profile.birth_date ? iso2dmy(profile.birth_date) : '')
     }
   }, [profile, open])
 
   function handleBirthDateChange(value: string) {
-    setBirthDate(value)
-    if (value) {
-      const year = new Date(value).getFullYear()
-      if (!isNaN(year)) {
-        setBirthYear(String(year))
-      }
+    const formatted = formatDMYInput(value)
+    setBirthDate(formatted)
+    if (formatted.length === 10) {
+      const year = parseInt(formatted.slice(6), 10)
+      if (!isNaN(year)) setBirthYear(String(year))
     }
   }
 
@@ -53,7 +53,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       display_name: displayName.trim(),
       bio: bio.trim(),
       birth_year: parsedBirthYear && !isNaN(parsedBirthYear) ? parsedBirthYear : null,
-      birth_date: birthDate || null,
+      birth_date: birthDate ? dmy2iso(birthDate) : null,
     })
     setSaving(false)
     onOpenChange(false)
@@ -91,8 +91,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             <Label htmlFor="profileBirthDate">Birth Date</Label>
             <Input
               id="profileBirthDate"
-              type="date"
+              type="text"
               value={birthDate}
+              placeholder="DD/MM/YYYY"
               onChange={e => handleBirthDateChange(e.target.value)}
             />
           </div>

@@ -290,8 +290,8 @@ export async function insertEvent(
       start_year: event.start_year,
       end_year: event.end_year ?? null,
       color: event.color ?? null,
-      value_points: event.value_points ?? [],
-      value_projection: event.value_projection ?? null,
+      ...(event.value_points && event.value_points.length > 0 ? { value_points: event.value_points } : {}),
+      ...(event.value_projection != null ? { value_projection: event.value_projection } : {}),
     })
     .select()
     .single()

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Pencil, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TimelineEvent } from '@/types/timeline'
+import { fracYearToDMY } from '@/lib/constants'
 
 interface EventPopoverProps {
   event: TimelineEvent
@@ -46,8 +47,8 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEd
       {event.description && <p className="text-xs mb-2">{event.description}</p>}
       <p className="text-xs text-muted-foreground mb-3">
         {event.type === 'point'
-          ? `Year: ${event.startYear}`
-          : `${event.startYear} — ${event.endYear}`}
+          ? fracYearToDMY(event.startYear)
+          : `${fracYearToDMY(event.startYear)} — ${event.endYear != null ? fracYearToDMY(event.endYear) : 'ongoing'}`}
       </p>
       <div className="flex gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(event)}>

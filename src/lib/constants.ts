@@ -88,10 +88,46 @@ export function fracYearToDateStr(fy: number): string {
 /** Convert a "YYYY-MM-DD" string to a fractional year (UTC). */
 export function dateStrToFracYear(s: string): number {
   const [y, m, d] = s.split('-').map(Number)
-  const startMs = Date.UTC(y, 0, 1)
-  const endMs = Date.UTC(y + 1, 0, 1)
-  const dateMs = Date.UTC(y, m - 1, d)
+  const startMs = makeUTCDate(y, 0, 1).getTime()
+  const endMs = makeUTCDate(y + 1, 0, 1).getTime()
+  const dateMs = makeUTCDate(y, m - 1, d).getTime()
   return y + (dateMs - startMs) / (endMs - startMs)
+}
+
+// ── DD/MM/YYYY helpers ────────────────────────────────────────────────────────
+
+/** "2024-03-15" → "15/03/2024" */
+export function iso2dmy(iso: string): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  if (!y || !m || !d) return ''
+  return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+}
+
+/** "15/03/2024" → "2024-03-15" */
+export function dmy2iso(dmy: string): string {
+  if (!dmy) return ''
+  const [d, m, y] = dmy.split('/')
+  if (!d || !m || !y) return ''
+  return `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+/** Fractional year → "15/03/2024" */
+export function fracYearToDMY(fy: number): string {
+  return iso2dmy(fracYearToDateStr(fy))
+}
+
+/** "15/03/2024" → fractional year */
+export function dmyToFracYear(dmy: string): number {
+  return dateStrToFracYear(dmy2iso(dmy))
+}
+
+/** Auto-format typed digits into DD/MM/YYYY as user types */
+export function formatDMYInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
 }
 
 export function getCurrentYearFraction(): number {
