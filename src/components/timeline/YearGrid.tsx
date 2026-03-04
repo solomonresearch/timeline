@@ -1,4 +1,4 @@
-import { getGridInterval, getZoomMode, dateToFracYear } from '@/lib/constants'
+import { getGridInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN } from '@/lib/constants'
 
 interface YearGridProps {
   yearStart: number
@@ -24,11 +24,11 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
     for (let y = first; y <= Math.min(visEnd, yearEnd); y += interval) lines.push(y)
   } else if (mode === 'month') {
     // Month mode — one line per month
-    const sy = Math.max(0, Math.floor(visStart) - 1)
+    const sy = Math.max(TIMELINE_YEAR_MIN, Math.floor(visStart) - 1)
     const ey = Math.min(yearEnd, Math.ceil(visEnd) + 1)
     for (let y = sy; y <= ey; y++) {
       for (let m = 0; m < 12; m++) {
-        const fy = dateToFracYear(new Date(y, m, 1))
+        const fy = dateToFracYear(makeUTCDate(y, m, 1))
         if (fy >= visStart && fy <= visEnd) lines.push(fy)
       }
     }
@@ -36,13 +36,13 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
     // Day mode — daily or weekly lines
     const pxPerDay = pixelsPerYear / 365.25
     const dayStep = pxPerDay < 2 ? 7 : 1
-    const sy = Math.max(0, Math.floor(visStart) - 1)
+    const sy = Math.max(TIMELINE_YEAR_MIN, Math.floor(visStart) - 1)
     const ey = Math.min(yearEnd, Math.ceil(visEnd) + 1)
     for (let y = sy; y <= ey; y++) {
       for (let m = 0; m < 12; m++) {
-        const daysInMonth = new Date(y, m + 1, 0).getDate()
+        const daysInMonth = makeUTCDate(y, m + 1, 0).getUTCDate()
         for (let d = 1; d <= daysInMonth; d += dayStep) {
-          const fy = dateToFracYear(new Date(y, m, d))
+          const fy = dateToFracYear(makeUTCDate(y, m, d))
           if (fy >= visStart && fy <= visEnd) lines.push(fy)
         }
       }

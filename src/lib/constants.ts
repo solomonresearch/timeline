@@ -6,10 +6,10 @@ export const DOT_SIZE = 12
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 550
+export const MAX_PIXELS_PER_YEAR = 500
 export const DEFAULT_PIXELS_PER_YEAR = 80
-export const TIMELINE_YEAR_MIN = 0
-export const TIMELINE_YEAR_MAX = 2500
+export const TIMELINE_YEAR_MIN = -1000
+export const TIMELINE_YEAR_MAX = 5000
 
 /**
  * Return the label interval (in years) for the header at a given zoom level.
@@ -53,11 +53,22 @@ export function getZoomMode(ppy: number): ZoomMode {
   return 'year'
 }
 
+/**
+ * Create a UTC midnight Date for any year, including negative years.
+ * Unlike `new Date(year, m, d)`, this correctly handles years 0–99 and negatives.
+ */
+export function makeUTCDate(year: number, month: number, day: number): Date {
+  const d = new Date(0)
+  d.setUTCFullYear(year, month, day)
+  d.setUTCHours(0, 0, 0, 0)
+  return d
+}
+
 /** Convert a Date to a fractional year (e.g. 2024.5 ≈ July 2024). */
 export function dateToFracYear(d: Date): number {
-  const year = d.getFullYear()
-  const start = Date.UTC(year, 0, 1)
-  const end = Date.UTC(year + 1, 0, 1)
+  const year = d.getUTCFullYear()
+  const start = makeUTCDate(year, 0, 1).getTime()
+  const end = makeUTCDate(year + 1, 0, 1).getTime()
   return year + (d.getTime() - start) / (end - start)
 }
 

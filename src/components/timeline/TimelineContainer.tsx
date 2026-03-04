@@ -167,13 +167,16 @@ export function TimelineContainer({
       const ppy = ppyRef.current
       const rect = el.getBoundingClientRect()
       const mouseX = e.clientX - rect.left
-      const yearAtCursor = yearStartRef.current + (el.scrollLeft + mouseX) / ppy
+      // Use the pending scroll position (if a zoom is already queued) so that
+      // rapid wheel events chain correctly without drifting off-cursor.
+      const scrollLeft = pendingScrollRef.current ?? el.scrollLeft
+      const yearAtCursor = yearStartRef.current + (scrollLeft + mouseX) / ppy
       let dy = e.deltaY
       if (e.deltaMode === 1) dy *= 32
       if (e.deltaMode === 2) dy *= 300
       const factor = Math.exp(-dy * 0.006)
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
-      ppyRef.current = newPpy // optimistic update so rapid wheel events use correct base
+      ppyRef.current = newPpy
       pendingScrollRef.current = (yearAtCursor - yearStartRef.current) * newPpy - mouseX
       onZoom(newPpy)
     }
