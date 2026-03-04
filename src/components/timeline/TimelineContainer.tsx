@@ -61,7 +61,7 @@ interface TimelineContainerProps {
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
   onZoom: (ppy: number) => void
-  onEventClick: (event: TimelineEvent, element: HTMLElement) => void
+  onEventClick: (event: TimelineEvent, element: HTMLElement, clientX: number, clientY: number) => void
   onLaneClick: (laneId: string, year: number) => void
   onLaneDragRange: (laneId: string, startYear: number, endYear: number) => void
   personaEvents: AlignedPersonaEvent[]
@@ -350,6 +350,7 @@ export function TimelineContainer({
                 laneHeight={laneData[i].laneHeight}
                 personaSubRowMap={laneData[i].personaSubRowMap}
                 currentYear={currentYear}
+                scrollLeft={scrollLeft}
               />
             ))}
           </div>

@@ -16,7 +16,7 @@ interface TimelineLaneProps {
   yearStart: number
   yearEnd: number
   pixelsPerYear: number
-  onEventClick: (event: TimelineEvent, element: HTMLElement) => void
+  onEventClick: (event: TimelineEvent, element: HTMLElement, clientX: number, clientY: number) => void
   onLaneClick: (laneId: string, year: number) => void
   onLaneDragRange: (laneId: string, startYear: number, endYear: number) => void
   onPan: (deltaX: number) => void
@@ -26,6 +26,7 @@ interface TimelineLaneProps {
   laneHeight: number
   personaSubRowMap: Map<string, number>
   currentYear: number
+  scrollLeft: number
 }
 
 export function TimelineLane({
@@ -44,6 +45,7 @@ export function TimelineLane({
   laneHeight,
   personaSubRowMap,
   currentYear,
+  scrollLeft,
 }: TimelineLaneProps) {
   const width = (yearEnd - yearStart) * pixelsPerYear
   const laneRef = useRef<HTMLDivElement>(null)
@@ -184,6 +186,7 @@ export function TimelineLane({
           onClick={onEventClick}
           currentYear={currentYear}
           topOffset={(eventRowMap?.get(event.id) ?? 0) * BASE_LANE_HEIGHT}
+          scrollLeft={scrollLeft}
         />
       ))}
       {personaEvents.map(pe => (

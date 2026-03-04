@@ -6,13 +6,15 @@ import type { TimelineEvent } from '@/types/timeline'
 interface EventPopoverProps {
   event: TimelineEvent
   anchorEl: HTMLElement
+  anchorX: number
+  anchorY: number
   laneName: string
   onEdit: (event: TimelineEvent) => void
   onDelete: (event: TimelineEvent) => void
   onClose: () => void
 }
 
-export function EventPopover({ event, anchorEl, laneName, onEdit, onDelete, onClose }: EventPopoverProps) {
+export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEdit, onDelete, onClose }: EventPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,16 +27,14 @@ export function EventPopover({ event, anchorEl, laneName, onEdit, onDelete, onCl
     return () => document.removeEventListener('mousedown', handleClick)
   }, [anchorEl, onClose])
 
-  const rect = anchorEl.getBoundingClientRect()
+  const left = Math.min(anchorX, window.innerWidth - 272)
+  const top = anchorY + 8
 
   return (
     <div
       ref={ref}
       className="fixed z-50 w-64 rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
-      style={{
-        left: rect.left + rect.width / 2 - 128,
-        top: rect.bottom + 6,
-      }}
+      style={{ left, top }}
     >
       <div className="flex items-start justify-between mb-1">
         <h4 className="text-sm font-semibold">{event.title}</h4>

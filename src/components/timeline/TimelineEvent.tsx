@@ -6,12 +6,13 @@ interface TimelineEventProps {
   yearStart: number
   pixelsPerYear: number
   laneColor: string
-  onClick: (event: TEvent, element: HTMLElement) => void
+  onClick: (event: TEvent, element: HTMLElement, clientX: number, clientY: number) => void
   currentYear: number
   topOffset?: number
+  scrollLeft?: number
 }
 
-export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, onClick, currentYear, topOffset = 0 }: TimelineEventProps) {
+export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, onClick, currentYear, topOffset = 0, scrollLeft = 0 }: TimelineEventProps) {
   const color = event.color || laneColor
   const left = (event.startYear - yearStart) * pixelsPerYear
 
@@ -35,13 +36,15 @@ export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, o
           ...pastStyle,
         }}
         title={event.title}
-        onClick={e => onClick(event, e.currentTarget)}
+        onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
       />
     )
   }
 
   const width = ((event.endYear ?? event.startYear + 1) - event.startYear) * pixelsPerYear
   const top = (BASE_LANE_HEIGHT - BAR_HEIGHT) / 2 + topOffset
+  // Keep the title at the visible left edge of the bar as the user scrolls
+  const textLeft = Math.max(4, scrollLeft - left + 4)
 
   return (
     <div
@@ -55,10 +58,13 @@ export function TimelineEventBar({ event, yearStart, pixelsPerYear, laneColor, o
         ...pastStyle,
       }}
       title={event.title}
-      onClick={e => onClick(event, e.currentTarget)}
+      onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
     >
-      {width > 40 && (
-        <span className="px-1.5 text-[10px] leading-[18px] text-white font-medium truncate block">
+      {width > 20 && (
+        <span
+          className="absolute text-[10px] leading-[18px] text-white font-medium whitespace-nowrap"
+          style={{ left: textLeft }}
+        >
           {event.title}
         </span>
       )}

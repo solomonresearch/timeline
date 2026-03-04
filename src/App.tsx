@@ -75,7 +75,7 @@ function TimelineView() {
   const [activeView, setActiveView] = useAppView()
 
   // Popover state
-  const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement } | null>(null)
+  const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement; x: number; y: number } | null>(null)
 
   // Event dialog state
   const [eventDialogOpen, setEventDialogOpen] = useState(false)
@@ -97,8 +97,8 @@ function TimelineView() {
   }>({ open: false, title: '', description: '', onConfirm: () => {} })
 
   // Event click -> show popover
-  const handleEventClick = useCallback((event: TimelineEvent, element: HTMLElement) => {
-    setPopover({ event, anchor: element })
+  const handleEventClick = useCallback((event: TimelineEvent, element: HTMLElement, clientX: number, clientY: number) => {
+    setPopover({ event, anchor: element, x: clientX, y: clientY })
   }, [])
 
   // Toolbar -> Add Event
@@ -237,6 +237,8 @@ function TimelineView() {
               <EventPopover
                 event={popover.event}
                 anchorEl={popover.anchor}
+                anchorX={popover.x}
+                anchorY={popover.y}
                 laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
                 onEdit={handleEditEvent}
                 onDelete={handleDeleteEvent}
