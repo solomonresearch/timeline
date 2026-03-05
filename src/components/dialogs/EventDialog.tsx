@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Smile } from 'lucide-react'
 import type {
   Lane,
   TimelineEvent,
@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,6 +29,16 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { fracYearToDMY, dmyToFracYear, formatDMYInput } from '@/lib/constants'
+
+const EMOJIS = [
+  '👶','🎓','💼','🏠','❤️','💍','🤝','🏆','🎯','🌍',
+  '✈️','🏖️','⛰️','🚗','🚂','🚢','🏡','🌆','🌄','🌊',
+  '📚','✏️','🔬','💡','🖥️','📊','📱','🎵','🎮','🎨',
+  '🏋️','🚴','⚽','🏊','🎉','🎁','🎂','🎭','🎬','🏅',
+  '💰','💳','🏦','📈','📉','💎','🔑','📌','🌟','⭐',
+  '☀️','🌙','❄️','🔥','🌈','⚡','🌱','🌳','🐶','🐱',
+  '😊','🙏','👋','💪','🦁','🐸','🐦','🌺','🍕','🎪',
+]
 
 interface EventDialogProps {
   open: boolean
@@ -47,8 +58,9 @@ interface DraftGrowthPeriod {
 }
 interface DraftDeposit {
   id: string; label: string; amount: string
-  frequency: 'monthly' | 'yearly' | 'weekly'
-  startDateStr: string; endDateStr: string
+  frequency: 'monthly' | 'yearly' | 'weekly' | 'daily' | 'quarterly' | 'custom'
+  customIntervalStr: string; customUnit: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  wholeEvent: boolean; startDateStr: string; endDateStr: string
 }
 
 function newSpotChange(): DraftSpotChange {
@@ -58,7 +70,7 @@ function newGrowthPeriod(): DraftGrowthPeriod {
   return { id: crypto.randomUUID(), startDateStr: '', endDateStr: '', rateStr: '', applyOnNegative: false, wholeEvent: false }
 }
 function newDeposit(): DraftDeposit {
-  return { id: crypto.randomUUID(), label: '', amount: '', frequency: 'monthly', startDateStr: '', endDateStr: '' }
+  return { id: crypto.randomUUID(), label: '', amount: '', frequency: 'monthly', customIntervalStr: '1', customUnit: 'month', wholeEvent: false, startDateStr: '', endDateStr: '' }
 }
 
 export function EventDialog({
@@ -78,8 +90,11 @@ export function EventDialog({
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [color, setColor] = useState('')
+  const [emoji, setEmoji] = useState('')
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [pointValueStr, setPointValueStr] = useState('')
 
-  // Value tracking
+  // Value tracking (range events)
   const [valueEnabled, setValueEnabled] = useState(false)
   const [startValue, setStartValue] = useState('')
   const [spotChanges, setSpotChanges] = useState<DraftSpotChange[]>([])
@@ -95,6 +110,8 @@ export function EventDialog({
       setStartDate(fracYearToDMY(editingEvent.startYear))
       setEndDate(editingEvent.endYear != null ? fracYearToDMY(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
+      setEmoji(editingEvent.emoji ?? '')
+      setPointValueStr(editingEvent.pointValue != null ? String(editingEvent.pointValue) : '')
 
       const proj = editingEvent.valueProjection
       setValueEnabled(!!proj)
@@ -119,6 +136,9 @@ export function EventDialog({
           label: d.label ?? '',
           amount: String(d.amount),
           frequency: d.frequency,
+          customIntervalStr: String(d.customInterval ?? 1),
+          customUnit: d.customUnit ?? 'month',
+          wholeEvent: false,
           startDateStr: fracYearToDMY(d.startYear),
           endDateStr: d.endYear != null ? fracYearToDMY(d.endYear) : '',
         })))
@@ -136,6 +156,8 @@ export function EventDialog({
       setStartDate(defaultStartYear != null ? fracYearToDMY(defaultStartYear) : '')
       setEndDate(defaultEndYear != null ? fracYearToDMY(defaultEndYear) : '')
       setColor('')
+      setEmoji('')
+      setPointValueStr('')
       setValueEnabled(false)
       setStartValue('')
       setSpotChanges([])
@@ -176,14 +198,18 @@ export function EventDialog({
         .filter(p => !isNaN(p.startYear) && !isNaN(p.endYear))
 
       const deps: ValueDeposit[] = deposits
-        .filter(d => d.startDateStr && d.amount && !isNaN(Number(d.amount)))
+        .filter(d => d.amount && !isNaN(Number(d.amount)) && (d.wholeEvent || d.startDateStr))
         .map(d => ({
           id: d.id,
           ...(d.label.trim() ? { label: d.label.trim() } : {}),
           amount: Number(d.amount),
           frequency: d.frequency,
-          startYear: dmyToFracYear(d.startDateStr),
-          ...(d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
+          ...(d.frequency === 'custom' ? {
+            customInterval: Number(d.customIntervalStr) || 1,
+            customUnit: d.customUnit,
+          } : {}),
+          startYear: d.wholeEvent ? evStart : dmyToFracYear(d.startDateStr),
+          ...(d.wholeEvent ? { endYear: evEnd } : d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
         }))
         .filter(d => !isNaN(d.startYear) && d.startYear >= evStart - 0.001)
 
@@ -195,6 +221,9 @@ export function EventDialog({
       }
     }
 
+    const pv = type === 'point' && pointValueStr && !isNaN(Number(pointValueStr))
+      ? Number(pointValueStr) : undefined
+
     const data: Omit<TimelineEvent, 'id'> = {
       laneId,
       title: title.trim(),
@@ -203,6 +232,8 @@ export function EventDialog({
       startYear: dmyToFracYear(startDate),
       ...(type === 'range' && endDate ? { endYear: dmyToFracYear(endDate) } : {}),
       ...(color ? { color } : {}),
+      ...(emoji ? { emoji } : {}),
+      ...(pv != null ? { pointValue: pv } : {}),
       ...(valueProjectionOut ? { valueProjection: valueProjectionOut } : {}),
     }
     onSave(data)
@@ -226,7 +257,7 @@ export function EventDialog({
   // Deposits CRUD
   function addDeposit() { setDeposits(d => [...d, newDeposit()]) }
   function removeDeposit(i: number) { setDeposits(d => d.filter((_, j) => j !== i)) }
-  function updateDeposit(i: number, field: keyof DraftDeposit, val: string) {
+  function updateDeposit(i: number, field: keyof DraftDeposit, val: string | boolean) {
     setDeposits(d => d.map((dep, j) => j === i ? { ...dep, [field]: val } : dep))
   }
 
@@ -257,7 +288,7 @@ export function EventDialog({
             <Label htmlFor="desc">Description</Label>
             <Input id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="type">Type</Label>
               <Select value={type} onValueChange={v => setType(v as 'range' | 'point')}>
@@ -269,8 +300,46 @@ export function EventDialog({
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="color">Color (optional)</Label>
-              <Input id="color" type="color" value={color || '#3b82f6'} onChange={e => setColor(e.target.value)} className="h-9 p-1" />
+              <Label>Color</Label>
+              <Input type="color" value={color || '#3b82f6'} onChange={e => setColor(e.target.value)} className="h-9 p-1" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Emoji</Label>
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-9 w-full border rounded-md flex items-center justify-center text-lg hover:bg-muted/50 transition-colors"
+                    title="Pick emoji"
+                  >
+                    {emoji || <Smile className="h-4 w-4 text-muted-foreground" />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-2" align="start">
+                  <div className="grid grid-cols-10 gap-0.5">
+                    {emoji && (
+                      <button
+                        type="button"
+                        className="h-6 w-6 text-xs text-muted-foreground hover:bg-muted rounded flex items-center justify-center"
+                        title="Clear emoji"
+                        onClick={() => { setEmoji(''); setEmojiOpen(false) }}
+                      >
+                        ×
+                      </button>
+                    )}
+                    {EMOJIS.map(em => (
+                      <button
+                        key={em}
+                        type="button"
+                        className="h-6 w-6 text-base hover:bg-muted rounded flex items-center justify-center leading-none"
+                        onClick={() => { setEmoji(em); setEmojiOpen(false) }}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -278,10 +347,22 @@ export function EventDialog({
               <Label htmlFor="start">{type === 'range' ? 'Start Date' : 'Date'}</Label>
               <Input id="start" type="text" value={startDate} placeholder="DD/MM/YYYY" onChange={e => setStartDate(formatDMYInput(e.target.value))} required />
             </div>
-            {type === 'range' && (
+            {type === 'range' ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="end">End Date</Label>
                 <Input id="end" type="text" value={endDate} placeholder="DD/MM/YYYY" onChange={e => setEndDate(formatDMYInput(e.target.value))} />
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                <Label htmlFor="pointval">Value (optional)</Label>
+                <Input
+                  id="pointval"
+                  type="number"
+                  value={pointValueStr}
+                  placeholder="e.g. 50000"
+                  onChange={e => setPointValueStr(e.target.value)}
+                  className="h-9"
+                />
               </div>
             )}
           </div>
@@ -396,7 +477,7 @@ export function EventDialog({
                   <div className="space-y-1.5 pt-1 border-t">
                     <Label className="text-xs text-muted-foreground">Recurring changes (within event range)</Label>
                     {deposits.map((dep, i) => (
-                      <div key={dep.id} className="grid gap-1">
+                      <div key={dep.id} className="rounded border p-2 space-y-1.5">
                         <div className="flex gap-1 items-center">
                           <Input
                             value={dep.label} placeholder="Label (opt)"
@@ -408,29 +489,66 @@ export function EventDialog({
                             onChange={e => updateDeposit(i, 'amount', e.target.value)}
                             className="w-28 h-7 text-xs"
                           />
+                          <button type="button" onClick={() => removeDeposit(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex gap-1 items-center">
                           <select
                             value={dep.frequency}
                             onChange={e => updateDeposit(i, 'frequency', e.target.value)}
                             className="h-7 text-xs border rounded-md px-1 bg-background"
                           >
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
+                            <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="custom">Each X…</option>
                           </select>
-                          <button type="button" onClick={() => removeDeposit(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
+                          {dep.frequency === 'custom' && (
+                            <>
+                              <Input
+                                type="number" min="1" value={dep.customIntervalStr} placeholder="1"
+                                onChange={e => updateDeposit(i, 'customIntervalStr', e.target.value)}
+                                className="w-14 h-7 text-xs"
+                              />
+                              <select
+                                value={dep.customUnit}
+                                onChange={e => updateDeposit(i, 'customUnit', e.target.value)}
+                                className="h-7 text-xs border rounded-md px-1 bg-background"
+                              >
+                                <option value="day">day(s)</option>
+                                <option value="week">week(s)</option>
+                                <option value="month">month(s)</option>
+                                <option value="quarter">quarter(s)</option>
+                                <option value="year">year(s)</option>
+                              </select>
+                            </>
+                          )}
                         </div>
-                        <div className="flex gap-1 items-center pl-1">
-                          <span className="text-[10px] text-muted-foreground w-8">From</span>
+                        <div className="flex gap-1 items-center">
+                          <label className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 cursor-pointer select-none">
+                            <input
+                              type="checkbox" checked={dep.wholeEvent}
+                              onChange={e => updateDeposit(i, 'wholeEvent', e.target.checked)}
+                              className="h-3 w-3"
+                            />
+                            Whole event
+                          </label>
                           <Input
-                            type="text" value={dep.startDateStr} placeholder="DD/MM/YYYY"
+                            type="text"
+                            value={dep.wholeEvent ? startDate : dep.startDateStr}
+                            placeholder="From DD/MM/YYYY"
+                            disabled={dep.wholeEvent}
                             onChange={e => updateDeposit(i, 'startDateStr', formatDMYInput(e.target.value))}
                             className="flex-1 h-7 text-xs"
                           />
-                          <span className="text-[10px] text-muted-foreground w-4">To</span>
                           <Input
-                            type="text" value={dep.endDateStr} placeholder="DD/MM/YYYY"
+                            type="text"
+                            value={dep.wholeEvent ? endDate : dep.endDateStr}
+                            placeholder="To DD/MM/YYYY"
+                            disabled={dep.wholeEvent}
                             onChange={e => updateDeposit(i, 'endDateStr', formatDMYInput(e.target.value))}
                             className="flex-1 h-7 text-xs"
                           />

@@ -1,6 +1,26 @@
-import type { ValueProjection, ValueGrowthPeriod } from '@/types/timeline'
+import type { ValueProjection, ValueGrowthPeriod, ValueDeposit } from '@/types/timeline'
 
 const DT = 1 / 12 // monthly steps for accuracy
+
+function depositPPY(dep: ValueDeposit): number {
+  switch (dep.frequency) {
+    case 'daily':    return 365
+    case 'weekly':   return 52
+    case 'monthly':  return 12
+    case 'quarterly': return 4
+    case 'yearly':   return 1
+    case 'custom': {
+      const interval = dep.customInterval ?? 1
+      const unitPPY = dep.customUnit === 'day' ? 365
+        : dep.customUnit === 'week' ? 52
+        : dep.customUnit === 'month' ? 12
+        : dep.customUnit === 'quarter' ? 4
+        : 1
+      return unitPPY / Math.max(1, interval)
+    }
+    default: return 12
+  }
+}
 
 function growthAt(
   year: number,
@@ -42,7 +62,7 @@ export function computeValueAtYear(
       const dEnd = dep.endYear ?? targetYear
       if (dep.startYear >= tEnd || dEnd <= t) continue
       const overlap = Math.min(tEnd, dEnd) - Math.max(t, dep.startYear)
-      const ppy = dep.frequency === 'weekly' ? 52 : dep.frequency === 'monthly' ? 12 : 1
+      const ppy = depositPPY(dep)
       value += dep.amount * ppy * overlap
     }
 

@@ -49,13 +49,57 @@ export function TimelineEventBar({
 
   if (event.type === 'point') {
     const top = (BASE_LANE_HEIGHT - DOT_SIZE) / 2 + topOffset
+    const hasPointValue = event.pointValue != null
+
+    if (event.emoji) {
+      // Render emoji instead of colored dot
+      return (
+        <>
+          <div
+            className="absolute flex items-center justify-center cursor-pointer hover:scale-110 transition-transform select-none"
+            style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, fontSize: DOT_SIZE - 2, lineHeight: 1, ...pastStyle }}
+            title={event.title}
+            onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
+            onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
+            onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
+            onMouseLeave={hasPointValue ? () => setTooltip(null) : undefined}
+          >
+            {event.emoji}
+          </div>
+          {tooltip && (
+            <div
+              className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap"
+              style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 36 }}
+            >
+              <span className="opacity-70">{event.title}: </span>
+              <span className="font-semibold">{formatValue(tooltip.value)}</span>
+            </div>
+          )}
+        </>
+      )
+    }
+
     return (
-      <div
-        className="absolute rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-black/20 transition-shadow"
-        style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, backgroundColor: color, ...pastStyle }}
-        title={event.title}
-        onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
-      />
+      <>
+        <div
+          className="absolute rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-black/20 transition-shadow"
+          style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, backgroundColor: color, ...pastStyle }}
+          title={event.title}
+          onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
+          onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
+          onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
+          onMouseLeave={hasPointValue ? () => setTooltip(null) : undefined}
+        />
+        {tooltip && (
+          <div
+            className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap"
+            style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 36 }}
+          >
+            <span className="opacity-70">{event.title}: </span>
+            <span className="font-semibold">{formatValue(tooltip.value)}</span>
+          </div>
+        )}
+      </>
     )
   }
 
@@ -89,6 +133,8 @@ export function TimelineEventBar({
     if (projPts.length >= 2) projectionPath = projPts.map(toXY).join(' ')
   }
 
+  const label = event.emoji ? `${event.emoji} ${event.title}` : event.title
+
   return (
     <>
       <div
@@ -121,7 +167,7 @@ export function TimelineEventBar({
             className="absolute text-[10px] leading-[18px] text-white font-medium whitespace-nowrap drop-shadow-[0_0_2px_rgba(0,0,0,0.6)]"
             style={{ left: textLeft }}
           >
-            {event.title}
+            {label}
           </span>
         )}
       </div>

@@ -26,7 +26,9 @@ export interface ValueDeposit {
   id: string
   label?: string
   amount: number               // negative = withdrawal
-  frequency: 'monthly' | 'yearly' | 'weekly'
+  frequency: 'monthly' | 'yearly' | 'weekly' | 'daily' | 'quarterly' | 'custom'
+  customInterval?: number      // used when frequency === 'custom'
+  customUnit?: 'day' | 'week' | 'month' | 'quarter' | 'year'
   startYear: number
   endYear?: number             // undefined = open-ended
 }
@@ -47,5 +49,7 @@ export interface TimelineEvent {
   startYear: number
   endYear?: number
   color?: string
+  emoji?: string
+  pointValue?: number
   valueProjection?: ValueProjection
 }

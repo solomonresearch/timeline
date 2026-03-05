@@ -36,6 +36,8 @@ export interface DbEvent {
   start_year: number
   end_year: number | null
   color: string | null
+  emoji: string | null
+  point_value: number | null
   value_points: unknown[] | null
   value_projection: unknown | null
 }

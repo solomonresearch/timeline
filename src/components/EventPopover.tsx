@@ -3,6 +3,7 @@ import { Pencil, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TimelineEvent } from '@/types/timeline'
 import { fracYearToDMY } from '@/lib/constants'
+import { formatValue } from '@/lib/valueCompute'
 
 interface EventPopoverProps {
   event: TimelineEvent
@@ -38,18 +39,26 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEd
       style={{ left, top }}
     >
       <div className="flex items-start justify-between mb-1">
-        <h4 className="text-sm font-semibold">{event.title}</h4>
+        <h4 className="text-sm font-semibold">
+          {event.emoji && <span className="mr-1">{event.emoji}</span>}
+          {event.title}
+        </h4>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
       <p className="text-xs text-muted-foreground mb-1">{laneName}</p>
-      {event.description && <p className="text-xs mb-2">{event.description}</p>}
-      <p className="text-xs text-muted-foreground mb-3">
+      {event.description && <p className="text-xs mb-1">{event.description}</p>}
+      <p className={`text-xs text-muted-foreground ${event.pointValue == null ? 'mb-3' : 'mb-1'}`}>
         {event.type === 'point'
           ? fracYearToDMY(event.startYear)
           : `${fracYearToDMY(event.startYear)} — ${event.endYear != null ? fracYearToDMY(event.endYear) : 'ongoing'}`}
       </p>
+      {event.pointValue != null && (
+        <p className="text-xs text-muted-foreground mb-3">
+          Value: <span className="font-medium text-foreground">{formatValue(event.pointValue)}</span>
+        </p>
+      )}
       <div className="flex gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(event)}>
           <Pencil className="h-3 w-3 mr-1" /> Edit

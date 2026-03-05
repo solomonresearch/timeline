@@ -37,6 +37,8 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
     startYear: row.start_year,
     ...(row.end_year != null ? { endYear: row.end_year } : {}),
     ...(row.color != null ? { color: row.color } : {}),
+    ...(row.emoji != null ? { emoji: row.emoji } : {}),
+    ...(row.point_value != null ? { pointValue: row.point_value } : {}),
     ...(validProj != null ? { valueProjection: validProj } : {}),
   }
 }
@@ -273,6 +275,8 @@ export async function insertEvent(
     start_year: number
     end_year?: number
     color?: string
+    emoji?: string
+    point_value?: number
     value_projection?: ValueProjection
   },
 ): Promise<DbEvent | null> {
@@ -287,6 +291,8 @@ export async function insertEvent(
       start_year: event.start_year,
       end_year: event.end_year ?? null,
       color: event.color ?? null,
+      emoji: event.emoji ?? null,
+      point_value: event.point_value ?? null,
       ...(event.value_projection != null ? { value_projection: event.value_projection } : {}),
     })
     .select()
@@ -308,6 +314,8 @@ export async function updateEventDb(
     start_year: number
     end_year: number | null
     color: string | null
+    emoji: string | null
+    point_value: number | null
     value_projection: ValueProjection | null
   }>,
 ): Promise<boolean> {
