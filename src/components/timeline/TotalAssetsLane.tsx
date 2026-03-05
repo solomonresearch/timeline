@@ -22,9 +22,14 @@ interface TotalAssetsLaneProps {
 function computeTotalAtYear(year: number, valueEvents: TimelineEvent[]): number {
   let total = 0
   for (const ev of valueEvents) {
+    if (year < ev.startYear - 1e-9) continue  // before event starts — no contribution yet
     const evEnd = ev.endYear ?? ev.startYear + 100
-    if (year < ev.startYear - 1e-9 || year > evEnd + 1e-9) continue
-    total += computeValueAtYear(year, ev.startYear, ev.valueProjection!)
+    if (year > evEnd + 1e-9) {
+      // After event ends — freeze at the event's end value so it keeps contributing
+      total += computeValueAtYear(evEnd, ev.startYear, ev.valueProjection!)
+    } else {
+      total += computeValueAtYear(year, ev.startYear, ev.valueProjection!)
+    }
   }
   return total
 }
