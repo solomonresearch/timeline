@@ -17,7 +17,6 @@ interface TotalAssetsLaneProps {
   yearStart: number
   yearEnd: number
   pixelsPerYear: number
-  scrollLeft: number
 }
 
 function computeTotalAtYear(year: number, valueEvents: TimelineEvent[]): number {
@@ -35,7 +34,6 @@ export function TotalAssetsLane({
   yearStart,
   yearEnd,
   pixelsPerYear,
-  scrollLeft,
 }: TotalAssetsLaneProps) {
   const totalWidth = (yearEnd - yearStart) * pixelsPerYear
   const [tooltip, setTooltip] = useState<{ clientX: number; clientY: number; value: number } | null>(null)
@@ -130,7 +128,8 @@ export function TotalAssetsLane({
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!computed) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const hoverYear = yearStart + (scrollLeft + (e.clientX - rect.left)) / pixelsPerYear
+    // rect.left already accounts for scroll — do NOT add scrollLeft again
+    const hoverYear = yearStart + (e.clientX - rect.left) / pixelsPerYear
     if (hoverYear < computed.rangeStart - 0.01 || hoverYear > computed.rangeEnd + 0.01) {
       setTooltip(null)
       return

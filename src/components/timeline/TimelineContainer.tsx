@@ -383,7 +383,6 @@ export function TimelineContainer({
                 yearStart={yearStart}
                 yearEnd={yearEnd}
                 pixelsPerYear={pixelsPerYear}
-                scrollLeft={scrollLeft}
               />
             )}
           </div>
