@@ -3,11 +3,14 @@ import type { TimelineEvent } from '@/types/timeline'
 import { computeValueAtYear, formatValue } from '@/lib/valueCompute'
 import { TOTAL_ASSETS_HEIGHT } from '@/lib/constants'
 
-const ACCENT = '#14b8a6'
+const TEAL = '#14b8a6'
+const RED  = '#ef4444'
 const LABEL_HEIGHT = 14
 const PAD_V = 4
 const CHART_H = TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT - PAD_V * 2
-const NUM_SAMPLES = 80
+const NUM_SAMPLES = 120
+
+interface Segment { linePts: string; areaPts: string; positive: boolean }
 
 interface TotalAssetsLaneProps {
   events: TimelineEvent[]
@@ -46,8 +49,8 @@ export function TotalAssetsLane({
     if (valueEvents.length === 0) return null
 
     const rangeStart = Math.min(...valueEvents.map(e => e.startYear))
-    const rangeEnd = Math.max(...valueEvents.map(e => e.endYear ?? e.startYear))
-    const vizWidth = Math.max(4, (rangeEnd - rangeStart) * pixelsPerYear)
+    const rangeEnd   = Math.max(...valueEvents.map(e => e.endYear ?? e.startYear))
+    const vizWidth   = Math.max(4, (rangeEnd - rangeStart) * pixelsPerYear)
     const leftOffset = (rangeStart - yearStart) * pixelsPerYear
 
     const samples: { year: number; total: number }[] = []
@@ -56,10 +59,10 @@ export function TotalAssetsLane({
       samples.push({ year, total: computeTotalAtYear(year, valueEvents) })
     }
 
-    const totals = samples.map(s => s.total)
-    const minV = Math.min(...totals)
-    const maxV = Math.max(...totals)
-    const vRange = maxV - minV || 1
+    const totals  = samples.map(s => s.total)
+    const minV    = Math.min(...totals)
+    const maxV    = Math.max(...totals)
+    const vRange  = maxV - minV || 1
 
     function toXY(year: number, total: number): [number, number] {
       const x = ((year - rangeStart) / (rangeEnd - rangeStart)) * vizWidth
@@ -67,31 +70,61 @@ export function TotalAssetsLane({
       return [x, y]
     }
 
-    const bottomY = PAD_V + CHART_H
+    // y-coordinate of the zero line (value = 0)
+    const y0 = PAD_V + CHART_H - (CHART_H * (0 - minV)) / vRange
+    const showZeroLine = minV < -1e-9 && maxV > 1e-9
 
-    const linePoints = samples
-      .map(s => { const [x, y] = toXY(s.year, s.total); return `${x.toFixed(1)},${y.toFixed(1)}` })
-      .join(' ')
+    // Build colored segments split at zero crossings
+    const segments: Segment[] = []
+    let curPts: string[] = []
+    let curPos: boolean | null = null
 
-    const [fx] = toXY(samples[0].year, samples[0].total)
-    const [lx] = toXY(samples[NUM_SAMPLES].year, samples[NUM_SAMPLES].total)
-    const areaPoints = [
-      `${fx.toFixed(1)},${bottomY}`,
-      ...samples.map(s => { const [x, y] = toXY(s.year, s.total); return `${x.toFixed(1)},${y.toFixed(1)}` }),
-      `${lx.toFixed(1)},${bottomY}`,
-    ].join(' ')
+    const finalizeSeg = (pts: string[], positive: boolean) => {
+      if (pts.length < 2) return
+      const fx = pts[0].split(',')[0]
+      const lx = pts[pts.length - 1].split(',')[0]
+      segments.push({
+        linePts: pts.join(' '),
+        areaPts: [`${fx},${y0.toFixed(1)}`, ...pts, `${lx},${y0.toFixed(1)}`].join(' '),
+        positive,
+      })
+    }
 
-    // Value labels: evenly spaced, count based on pixel width
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i]
+      const [x, y] = toXY(s.year, s.total)
+      const isPos = s.total >= 0
+
+      if (curPos === null) {
+        curPos = isPos
+        curPts = [`${x.toFixed(1)},${y.toFixed(1)}`]
+      } else if (isPos !== curPos) {
+        // Interpolate zero crossing
+        const prev = samples[i - 1]
+        const t = prev.total / (prev.total - s.total)
+        const zYear = prev.year + t * (s.year - prev.year)
+        const [zx] = toXY(zYear, 0)
+        curPts.push(`${zx.toFixed(1)},${y0.toFixed(1)}`)
+        finalizeSeg(curPts, curPos)
+        curPts = [`${zx.toFixed(1)},${y0.toFixed(1)}`, `${x.toFixed(1)},${y.toFixed(1)}`]
+        curPos = isPos
+      } else {
+        curPts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+      }
+    }
+    if (curPts.length >= 2 && curPos !== null) finalizeSeg(curPts, curPos)
+
+    // Value labels evenly spaced
     const numLabels = Math.max(2, Math.min(6, Math.floor(vizWidth / 110)))
     const labels = Array.from({ length: numLabels }, (_, i) => {
       const t = numLabels === 1 ? 0 : i / (numLabels - 1)
-      const year = rangeStart + t * (rangeEnd - rangeStart)
+      const year  = rangeStart + t * (rangeEnd - rangeStart)
       const total = computeTotalAtYear(year, valueEvents)
-      const [x] = toXY(year, total)
+      const [x]   = toXY(year, total)
       return { x, value: total, isFirst: i === 0, isLast: i === numLabels - 1 }
     })
 
-    return { rangeStart, rangeEnd, vizWidth, leftOffset, linePoints, areaPoints, labels, toXY }
+    return { rangeStart, rangeEnd, vizWidth, leftOffset, segments, labels, y0, showZeroLine, toXY }
   }, [valueEvents, pixelsPerYear, yearStart])
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
@@ -109,7 +142,7 @@ export function TotalAssetsLane({
     return <div style={{ height: TOTAL_ASSETS_HEIGHT, width: totalWidth }} className="border-b border-border/30" />
   }
 
-  const { vizWidth, leftOffset, linePoints, areaPoints, labels } = computed
+  const { vizWidth, leftOffset, segments, labels, y0, showZeroLine } = computed
 
   return (
     <>
@@ -123,16 +156,36 @@ export function TotalAssetsLane({
           className="absolute overflow-hidden"
           style={{ left: leftOffset, top: 0, width: vizWidth, height: TOTAL_ASSETS_HEIGHT }}
         >
-          {/* Sparkline + area */}
+          {/* Sparkline + colored areas */}
           <svg width={vizWidth} height={TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT} style={{ display: 'block' }}>
-            <polygon points={areaPoints} fill={`${ACCENT}28`} />
-            <polyline
-              points={linePoints}
-              fill="none"
-              stroke={`${ACCENT}cc`}
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-            />
+            {/* Area fills */}
+            {segments.map((seg, i) => (
+              <polygon
+                key={`a${i}`}
+                points={seg.areaPts}
+                fill={seg.positive ? `${TEAL}28` : `${RED}28`}
+              />
+            ))}
+            {/* Zero line */}
+            {showZeroLine && (
+              <line
+                x1={0} y1={y0} x2={vizWidth} y2={y0}
+                stroke="#9ca3af"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+              />
+            )}
+            {/* Colored line segments */}
+            {segments.map((seg, i) => (
+              <polyline
+                key={`l${i}`}
+                points={seg.linePts}
+                fill="none"
+                stroke={seg.positive ? `${TEAL}cc` : `${RED}cc`}
+                strokeWidth={1.5}
+                strokeLinejoin="round"
+              />
+            ))}
           </svg>
 
           {/* Value labels */}
@@ -140,11 +193,12 @@ export function TotalAssetsLane({
             {labels.map(({ x, value, isFirst, isLast }, i) => (
               <span
                 key={i}
-                className="absolute text-[9px] text-muted-foreground whitespace-nowrap leading-none"
+                className="absolute text-[9px] whitespace-nowrap leading-none"
                 style={{
                   left: x,
                   top: 2,
                   transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
+                  color: value < 0 ? RED : '#6b7280',
                 }}
               >
                 {formatValue(value)}
@@ -160,8 +214,10 @@ export function TotalAssetsLane({
           className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap"
           style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 36 }}
         >
-          <span className="opacity-70">Total Assets: </span>
-          <span className="font-semibold">{formatValue(tooltip.value)}</span>
+          <span className="opacity-70">Total Wealth: </span>
+          <span className="font-semibold" style={{ color: tooltip.value < 0 ? '#fca5a5' : 'white' }}>
+            {formatValue(tooltip.value)}
+          </span>
         </div>
       )}
     </>

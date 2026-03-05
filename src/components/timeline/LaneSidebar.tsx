@@ -122,7 +122,7 @@ export function LaneSidebar({
           style={{ height: totalAssetsHeight }}
         >
           <TrendingUp className="h-3 w-3 shrink-0 text-teal-500" />
-          <span className="text-xs font-medium truncate flex-1 text-teal-600">Total Assets</span>
+          <span className="text-xs font-medium truncate flex-1 text-teal-600">Total Wealth</span>
         </div>
       )}
 
