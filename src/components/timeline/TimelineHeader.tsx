@@ -1,4 +1,7 @@
-import { getYearInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN } from '@/lib/constants'
+import {
+  getYearInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN,
+  getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
+} from '@/lib/constants'
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -43,7 +46,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
         ticks.push({ key: y * 100 + m, left, label, major })
       }
     }
-  } else {
+  } else if (mode === 'day') {
     // Day mode — month boundaries (major) + day ticks
     const pxPerDay = pixelsPerYear / 365.25
     const dayStep = pxPerDay < 3 ? 10 : pxPerDay < 6 ? 7 : pxPerDay < 10 ? 5 : 1
@@ -68,12 +71,48 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
         }
       }
     }
+  } else if (mode === 'hour') {
+    const intervalH = getHourInterval(pixelsPerYear)
+    const intervalMs = intervalH * 3_600_000
+    const visStartMs = fracYearToMs(visStart)
+    const visEndMs = fracYearToMs(Math.min(visEnd, yearEnd))
+    const firstMs = Math.ceil(visStartMs / intervalMs) * intervalMs
+    for (let ms = firstMs; ms <= visEndMs; ms += intervalMs) {
+      const fy = msToFracYear(ms)
+      const left = (fy - yearStart) * pixelsPerYear
+      const d = new Date(ms)
+      const h = d.getUTCHours()
+      const major = h === 0
+      const label = major
+        ? `${d.getUTCDate()} ${MONTH_ABBR[d.getUTCMonth()]}`
+        : `${String(h).padStart(2, '0')}:00`
+      ticks.push({ key: ms, left, label, major })
+    }
+  } else {
+    // Minute mode
+    const intervalM = getMinuteInterval(pixelsPerYear)
+    const intervalMs = intervalM * 60_000
+    const visStartMs = fracYearToMs(visStart)
+    const visEndMs = fracYearToMs(Math.min(visEnd, yearEnd))
+    const firstMs = Math.ceil(visStartMs / intervalMs) * intervalMs
+    for (let ms = firstMs; ms <= visEndMs; ms += intervalMs) {
+      const fy = msToFracYear(ms)
+      const left = (fy - yearStart) * pixelsPerYear
+      const d = new Date(ms)
+      const h = d.getUTCHours()
+      const m = d.getUTCMinutes()
+      const major = h === 0 && m === 0
+      const label = major
+        ? `${d.getUTCDate()} ${MONTH_ABBR[d.getUTCMonth()]}`
+        : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      ticks.push({ key: ms, left, label, major })
+    }
   }
 
   return (
     <div
       className="sticky top-0 z-10 h-6 bg-white border-b"
-      style={{ width: (yearEnd - yearStart) * pixelsPerYear }}
+      style={{ width: '100%' }}
     >
       {ticks.map(({ key, left, label, major }) => (
         <div

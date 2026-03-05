@@ -7,17 +7,34 @@ export const TOTAL_ASSETS_HEIGHT = 64  // height of the Total Assets summary lan
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 10000
+export const MAX_PIXELS_PER_YEAR = 10_000_000  // dynamic canvas windowing keeps DOM elements safe
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = -1000
 export const TIMELINE_YEAR_MAX = 5000
 
 /** Which sub-year unit to display based on zoom level. */
-export type ZoomMode = 'year' | 'month' | 'day'
+export type ZoomMode = 'year' | 'month' | 'day' | 'hour' | 'minute'
 export function getZoomMode(ppy: number): ZoomMode {
-  if (ppy >= 1825) return 'day'   // ≥ 5 px/day
-  if (ppy >= 120)  return 'month' // ≥ 10 px/month
+  if (ppy >= 2_628_000) return 'minute' // ≥ 5 px/min  (5 × 60 × 24 × 365 ≈ 2,628,000)
+  if (ppy >= 43_800)    return 'hour'   // ≥ 5 px/hr   (5 × 24 × 365 = 43,800)
+  if (ppy >= 1825)      return 'day'    // ≥ 5 px/day
+  if (ppy >= 120)       return 'month'  // ≥ 10 px/month
   return 'year'
+}
+
+/** Hour tick interval (in hours) for the header at a given zoom level. */
+export function getHourInterval(ppy: number): number {
+  if (ppy >= 876_000)  return 1   // ≥ 100 px/hr
+  if (ppy >= 262_800)  return 2   // ≥ 30 px/hr
+  if (ppy >= 87_600)   return 6   // ≥ 10 px/hr
+  return 12
+}
+
+/** Minute tick interval (in minutes) for the header at a given zoom level. */
+export function getMinuteInterval(ppy: number): number {
+  if (ppy >= 7_884_000) return 1  // ≥ 15 px/min
+  if (ppy >= 3_942_000) return 2  // ≥ 7.5 px/min
+  return 5
 }
 
 /**
@@ -129,6 +146,46 @@ export function formatDMYInput(raw: string): string {
   if (digits.length <= 2) return digits
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+// ── Sub-day (hour/minute) helpers ────────────────────────────────────────────
+
+/** Fractional year → milliseconds since Unix epoch (UTC). */
+export function fracYearToMs(fy: number): number {
+  const year = Math.floor(fy)
+  const frac = fy - year
+  const startMs = makeUTCDate(year, 0, 1).getTime()
+  const endMs = makeUTCDate(year + 1, 0, 1).getTime()
+  return startMs + frac * (endMs - startMs)
+}
+
+/** Milliseconds since Unix epoch → fractional year (UTC). */
+export function msToFracYear(ms: number): number {
+  const d = new Date(ms)
+  const year = d.getUTCFullYear()
+  const startMs = makeUTCDate(year, 0, 1).getTime()
+  const endMs = makeUTCDate(year + 1, 0, 1).getTime()
+  return year + (ms - startMs) / (endMs - startMs)
+}
+
+/** Fractional year → "HH:MM" string (UTC). */
+export function fracYearToTimeStr(fy: number): string {
+  const d = new Date(fracYearToMs(fy))
+  const h = String(d.getUTCHours()).padStart(2, '0')
+  const m = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/** "DD/MM/YYYY" + "HH:MM" → fractional year (UTC). Empty hhmm = midnight. */
+export function dmyTimeToFracYear(dmy: string, hhmm: string): number {
+  const iso = dmy2iso(dmy)
+  if (!iso) return 0
+  const [y, mo, d] = iso.split('-').map(Number)
+  const [h, mi] = (hhmm || '00:00').split(':').map(Number)
+  const ms = makeUTCDate(y, mo - 1, d).getTime() + ((h || 0) * 60 + (mi || 0)) * 60_000
+  const startMs = makeUTCDate(y, 0, 1).getTime()
+  const endMs = makeUTCDate(y + 1, 0, 1).getTime()
+  return y + (ms - startMs) / (endMs - startMs)
 }
 
 export function getCurrentYearFraction(): number {

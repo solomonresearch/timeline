@@ -1,4 +1,7 @@
-import { getGridInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN } from '@/lib/constants'
+import {
+  getGridInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN,
+  getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
+} from '@/lib/constants'
 
 interface YearGridProps {
   yearStart: number
@@ -32,7 +35,7 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
         if (fy >= visStart && fy <= visEnd) lines.push(fy)
       }
     }
-  } else {
+  } else if (mode === 'day') {
     // Day mode — daily or weekly lines
     const pxPerDay = pixelsPerYear / 365.25
     const dayStep = pxPerDay < 2 ? 7 : 1
@@ -47,12 +50,29 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
         }
       }
     }
+  } else if (mode === 'hour') {
+    const intervalMs = getHourInterval(pixelsPerYear) * 3_600_000
+    const visStartMs = fracYearToMs(visStart)
+    const visEndMs = fracYearToMs(Math.min(visEnd, yearEnd))
+    const firstMs = Math.ceil(visStartMs / intervalMs) * intervalMs
+    for (let ms = firstMs; ms <= visEndMs; ms += intervalMs) {
+      lines.push(msToFracYear(ms))
+    }
+  } else {
+    // Minute mode
+    const intervalMs = getMinuteInterval(pixelsPerYear) * 60_000
+    const visStartMs = fracYearToMs(visStart)
+    const visEndMs = fracYearToMs(Math.min(visEnd, yearEnd))
+    const firstMs = Math.ceil(visStartMs / intervalMs) * intervalMs
+    for (let ms = firstMs; ms <= visEndMs; ms += intervalMs) {
+      lines.push(msToFracYear(ms))
+    }
   }
 
   return (
     <div
       className="pointer-events-none absolute inset-0"
-      style={{ width: (yearEnd - yearStart) * pixelsPerYear, height: totalHeight }}
+      style={{ width: '100%', height: totalHeight }}
     >
       {lines.map(y => (
         <div

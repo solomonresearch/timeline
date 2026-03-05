@@ -28,7 +28,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
-import { fracYearToDMY, dmyToFracYear, formatDMYInput } from '@/lib/constants'
+import { fracYearToDMY, dmyToFracYear, formatDMYInput, fracYearToTimeStr, dmyTimeToFracYear } from '@/lib/constants'
 
 const EMOJIS = [
   '👶','🎓','💼','🏠','❤️','💍','🤝','🏆','🎯','🌍',
@@ -93,6 +93,8 @@ export function EventDialog({
   const [emoji, setEmoji] = useState('')
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [pointValueStr, setPointValueStr] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
 
   // Value tracking (range events)
   const [valueEnabled, setValueEnabled] = useState(false)
@@ -112,6 +114,10 @@ export function EventDialog({
       setColor(editingEvent.color ?? '')
       setEmoji(editingEvent.emoji ?? '')
       setPointValueStr(editingEvent.pointValue != null ? String(editingEvent.pointValue) : '')
+      const st = fracYearToTimeStr(editingEvent.startYear)
+      setStartTime(st === '00:00' ? '' : st)
+      const et = editingEvent.endYear != null ? fracYearToTimeStr(editingEvent.endYear) : ''
+      setEndTime(et === '00:00' ? '' : et)
 
       const proj = editingEvent.valueProjection
       setValueEnabled(!!proj)
@@ -158,6 +164,8 @@ export function EventDialog({
       setColor('')
       setEmoji('')
       setPointValueStr('')
+      setStartTime('')
+      setEndTime('')
       setValueEnabled(false)
       setStartValue('')
       setSpotChanges([])
@@ -173,8 +181,8 @@ export function EventDialog({
     let valueProjectionOut: ValueProjection | undefined
 
     if (valueEnabled && type === 'range') {
-      const evStart = dmyToFracYear(startDate)
-      const evEnd = endDate ? dmyToFracYear(endDate) : evStart + 100
+      const evStart = dmyTimeToFracYear(startDate, startTime)
+      const evEnd = endDate ? dmyTimeToFracYear(endDate, endTime) : evStart + 100
 
       const spots: ValueSpotChange[] = spotChanges
         .filter(s => s.dateStr && s.amountStr && !isNaN(Number(s.amountStr)))
@@ -229,8 +237,8 @@ export function EventDialog({
       title: title.trim(),
       description: description.trim(),
       type,
-      startYear: dmyToFracYear(startDate),
-      ...(type === 'range' && endDate ? { endYear: dmyToFracYear(endDate) } : {}),
+      startYear: dmyTimeToFracYear(startDate, startTime),
+      ...(type === 'range' && endDate ? { endYear: dmyTimeToFracYear(endDate, endTime) } : {}),
       ...(color ? { color } : {}),
       ...(emoji ? { emoji } : {}),
       ...(pv != null ? { pointValue: pv } : {}),
@@ -363,6 +371,18 @@ export function EventDialog({
                   onChange={e => setPointValueStr(e.target.value)}
                   className="h-9"
                 />
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="starttime" className="text-xs text-muted-foreground">Start Time (optional)</Label>
+              <Input id="starttime" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="h-8 text-xs" />
+            </div>
+            {type === 'range' && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="endtime" className="text-xs text-muted-foreground">End Time (optional)</Label>
+                <Input id="endtime" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="h-8 text-xs" />
               </div>
             )}
           </div>

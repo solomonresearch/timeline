@@ -10,6 +10,22 @@ import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
 import { getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 
+// ── Dynamic canvas windowing ──────────────────────────────────────────────────
+
+const MAX_CANVAS_PX = 10_000_000  // safe max element width across browsers
+
+function computeEffWindow(centerYear: number, ppy: number, yrStart: number, yrEnd: number) {
+  const totalW = (yrEnd - yrStart) * ppy
+  if (totalW <= MAX_CANVAS_PX) return { effStart: yrStart, effEnd: yrEnd }
+  let effStart = Math.max(yrStart, centerYear - MAX_CANVAS_PX / (2 * ppy))
+  let effEnd = effStart + MAX_CANVAS_PX / ppy
+  if (effEnd > yrEnd) {
+    effEnd = yrEnd
+    effStart = Math.max(yrStart, yrEnd - MAX_CANVAS_PX / ppy)
+  }
+  return { effStart, effEnd }
+}
+
 // ── Overlap detection & row assignment ───────────────────────────────────────
 
 function eventRange(e: TimelineEvent): [number, number] {
@@ -96,6 +112,15 @@ export function TimelineContainer({
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
 
+  // Dynamic canvas windowing: when total width exceeds MAX_CANVAS_PX, render only a window
+  const [viewCenterYear, setViewCenterYear] = useState(() => getCurrentYearFraction())
+  const viewCenterYearRef = useRef(viewCenterYear)
+
+  // Compute the effective year window for this render
+  const { effStart: effectiveYearStart, effEnd: effectiveYearEnd } =
+    computeEffWindow(viewCenterYear, pixelsPerYear, yearStart, yearEnd)
+  const effectiveTotalWidth = (effectiveYearEnd - effectiveYearStart) * pixelsPerYear
+
   const handlePan = useCallback((dx: number) => {
     if (scrollRef.current) scrollRef.current.scrollLeft -= dx
   }, [])
@@ -130,23 +155,23 @@ export function TimelineContainer({
     }
   }, [])
 
-  // Refs for latest ppy/yearStart — avoid stale closures in wheel handler
+  // Refs for latest ppy/effectiveYearStart — avoid stale closures in wheel handler
   const ppyRef = useRef(pixelsPerYear)
-  const yearStartRef = useRef(yearStart)
+  const yearStartRef = useRef(effectiveYearStart)
   useEffect(() => { ppyRef.current = pixelsPerYear }, [pixelsPerYear])
-  useEffect(() => { yearStartRef.current = yearStart }, [yearStart])
+  // yearStartRef tracks effectiveYearStart; updated synchronously below + in wheel handler
+  yearStartRef.current = effectiveYearStart
 
   // Pending scroll applied after React re-renders new content width
   const pendingScrollRef = useRef<number | null>(null)
   useLayoutEffect(() => {
     if (pendingScrollRef.current !== null && scrollRef.current) {
-      // Read scrollWidth to force browser layout recalculation before setting scrollLeft,
-      // otherwise the browser clamps it to the old content width.
+      // Force layout recalculation before setting scrollLeft (browser may clamp to old width)
       void scrollRef.current.scrollWidth
       scrollRef.current.scrollLeft = pendingScrollRef.current
       pendingScrollRef.current = null
     }
-  }, [pixelsPerYear])
+  }, [pixelsPerYear, viewCenterYear])
 
   // Register scroll-to-today function for external callers (e.g. Toolbar button)
   useEffect(() => {
@@ -155,9 +180,13 @@ export function TimelineContainer({
       const el = scrollRef.current
       if (!el) return
       const today = getCurrentYearFraction()
-      el.scrollLeft = Math.max(0, (today - yearStart) * pixelsPerYear - el.clientWidth / 2)
+      const { effStart } = computeEffWindow(today, pixelsPerYear, yearStart, yearEnd)
+      yearStartRef.current = effStart
+      viewCenterYearRef.current = today
+      pendingScrollRef.current = Math.max(0, (today - effStart) * pixelsPerYear - el.clientWidth / 2)
+      setViewCenterYear(today)
     }
-  }, [scrollToTodayRef, yearStart, pixelsPerYear])
+  }, [scrollToTodayRef, yearStart, yearEnd, pixelsPerYear])
 
   // Wheel zoom toward cursor
   useEffect(() => {
@@ -169,22 +198,25 @@ export function TimelineContainer({
       const ppy = ppyRef.current
       const rect = el.getBoundingClientRect()
       const mouseX = e.clientX - rect.left
-      // Use the pending scroll position (if a zoom is already queued) so that
-      // rapid wheel events chain correctly without drifting off-cursor.
-      const scrollLeft = pendingScrollRef.current ?? el.scrollLeft
-      const yearAtCursor = yearStartRef.current + (scrollLeft + mouseX) / ppy
+      // Chain pending scroll so rapid wheel events don't drift off-cursor
+      const sl = pendingScrollRef.current ?? el.scrollLeft
+      const yearAtCursor = yearStartRef.current + (sl + mouseX) / ppy
       let dy = e.deltaY
       if (e.deltaMode === 1) dy *= 32
       if (e.deltaMode === 2) dy *= 300
       const factor = Math.exp(-dy * 0.006)
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
       ppyRef.current = newPpy
-      pendingScrollRef.current = (yearAtCursor - yearStartRef.current) * newPpy - mouseX
-      // Throttle React re-renders to one per animation frame so the browser
-      // can keep up during fast wheel zooming.
+      // Compute new effective window for the new zoom level
+      const { effStart: newEffStart } = computeEffWindow(yearAtCursor, newPpy, yearStart, yearEnd)
+      yearStartRef.current = newEffStart
+      viewCenterYearRef.current = yearAtCursor
+      pendingScrollRef.current = (yearAtCursor - newEffStart) * newPpy - mouseX
+      // Throttle React re-renders to one per animation frame
       if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
       zoomRafRef.current = requestAnimationFrame(() => {
         zoomRafRef.current = null
+        setViewCenterYear(viewCenterYearRef.current)
         onZoom(ppyRef.current)
       })
     }
@@ -193,7 +225,7 @@ export function TimelineContainer({
       el.removeEventListener('wheel', onWheel)
       if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
     }
-  }, [onZoom])
+  }, [onZoom, yearStart, yearEnd])
 
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   const handleToggleExpand = useCallback((laneId: string) => {
@@ -208,7 +240,6 @@ export function TimelineContainer({
   const visibleLanes = lanes.filter(l => l.visible)
   const hiddenLanes = lanes.filter(l => !l.visible)
   const currentYear = getCurrentYearFraction()
-  const totalWidth = (yearEnd - yearStart) * pixelsPerYear
   const hasValueEvents = events.some(e => e.type === 'range' && !!e.valueProjection)
 
   // Split persona events into integrated (sub-rows in lanes) vs separate (own section below)
@@ -253,11 +284,15 @@ export function TimelineContainer({
     if (!scrollRef.current) return
     if (hasScrolledRef.current === dataKey) return
     const dataCenterYear = (dataYearMin + dataYearMax) / 2
-    const dataCenterPx = (dataCenterYear - yearStart) * pixelsPerYear
+    const { effStart } = computeEffWindow(dataCenterYear, pixelsPerYear, yearStart, yearEnd)
+    yearStartRef.current = effStart
+    viewCenterYearRef.current = dataCenterYear
+    const dataCenterPx = (dataCenterYear - effStart) * pixelsPerYear
     const viewWidth = scrollRef.current.clientWidth
-    scrollRef.current.scrollLeft = dataCenterPx - viewWidth / 2
+    pendingScrollRef.current = Math.max(0, dataCenterPx - viewWidth / 2)
+    setViewCenterYear(dataCenterYear)
     hasScrolledRef.current = dataKey
-  }, [dataKey, dataYearMin, dataYearMax, yearStart, pixelsPerYear])
+  }, [dataKey, dataYearMin, dataYearMax, yearStart, yearEnd, pixelsPerYear])
 
   // Build a map of persona id -> initials + name
   const personaInitialsMap = useMemo(() => {
@@ -362,17 +397,17 @@ export function TimelineContainer({
         totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <div className="relative" style={{ width: totalWidth, minHeight: totalHeight + 24 }}>
-          <TimelineHeader yearStart={yearStart} yearEnd={yearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+        <div className="relative" style={{ width: effectiveTotalWidth, minHeight: totalHeight + 24 }}>
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
           <div className="relative">
-            <YearGrid yearStart={yearStart} yearEnd={yearEnd} pixelsPerYear={pixelsPerYear} totalHeight={totalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={totalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
             {visibleLanes.map((lane, i) => (
               <TimelineLane
                 key={lane.id}
                 lane={lane}
                 events={events.filter(e => e.laneId === lane.id)}
-                yearStart={yearStart}
-                yearEnd={yearEnd}
+                yearStart={effectiveYearStart}
+                yearEnd={effectiveYearEnd}
                 pixelsPerYear={pixelsPerYear}
                 onEventClick={onEventClick}
                 onLaneClick={onLaneClick}
@@ -390,8 +425,8 @@ export function TimelineContainer({
             {hasValueEvents && (
               <TotalAssetsLane
                 events={events}
-                yearStart={yearStart}
-                yearEnd={yearEnd}
+                yearStart={effectiveYearStart}
+                yearEnd={effectiveYearEnd}
                 pixelsPerYear={pixelsPerYear}
               />
             )}
@@ -402,7 +437,7 @@ export function TimelineContainer({
               key={persona.id}
               persona={persona}
               events={separatePersonaEventsMap.get(persona.id) ?? []}
-              yearStart={yearStart}
+              yearStart={effectiveYearStart}
               pixelsPerYear={pixelsPerYear}
               laneColorMap={laneColorMap}
               currentYear={currentYear}

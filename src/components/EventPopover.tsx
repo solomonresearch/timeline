@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Pencil, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TimelineEvent } from '@/types/timeline'
-import { fracYearToDMY } from '@/lib/constants'
+import { fracYearToDMY, fracYearToTimeStr } from '@/lib/constants'
 import { formatValue } from '@/lib/valueCompute'
 
 interface EventPopoverProps {
@@ -51,8 +51,14 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEd
       {event.description && <p className="text-xs mb-1">{event.description}</p>}
       <p className={`text-xs text-muted-foreground ${event.pointValue == null ? 'mb-3' : 'mb-1'}`}>
         {event.type === 'point'
-          ? fracYearToDMY(event.startYear)
-          : `${fracYearToDMY(event.startYear)} — ${event.endYear != null ? fracYearToDMY(event.endYear) : 'ongoing'}`}
+          ? (() => { const t = fracYearToTimeStr(event.startYear); return t !== '00:00' ? `${fracYearToDMY(event.startYear)} ${t}` : fracYearToDMY(event.startYear) })()
+          : (() => {
+              const st = fracYearToTimeStr(event.startYear)
+              const et = event.endYear != null ? fracYearToTimeStr(event.endYear) : null
+              const startStr = st !== '00:00' ? `${fracYearToDMY(event.startYear)} ${st}` : fracYearToDMY(event.startYear)
+              const endStr = event.endYear != null ? (et !== '00:00' ? `${fracYearToDMY(event.endYear)} ${et}` : fracYearToDMY(event.endYear)) : 'ongoing'
+              return `${startStr} — ${endStr}`
+            })()}
       </p>
       {event.pointValue != null && (
         <p className="text-xs text-muted-foreground mb-3">
