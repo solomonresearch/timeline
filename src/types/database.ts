@@ -36,6 +36,8 @@ export interface DbEvent {
   start_year: number
   end_year: number | null
   color: string | null
+  value_points: unknown[] | null
+  value_projection: unknown | null
 }
 
 export interface DbPersona {

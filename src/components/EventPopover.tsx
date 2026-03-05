@@ -2,17 +2,20 @@ import { useEffect, useRef } from 'react'
 import { Pencil, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TimelineEvent } from '@/types/timeline'
+import { fracYearToDMY } from '@/lib/constants'
 
 interface EventPopoverProps {
   event: TimelineEvent
   anchorEl: HTMLElement
+  anchorX: number
+  anchorY: number
   laneName: string
   onEdit: (event: TimelineEvent) => void
   onDelete: (event: TimelineEvent) => void
   onClose: () => void
 }
 
-export function EventPopover({ event, anchorEl, laneName, onEdit, onDelete, onClose }: EventPopoverProps) {
+export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEdit, onDelete, onClose }: EventPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,16 +28,14 @@ export function EventPopover({ event, anchorEl, laneName, onEdit, onDelete, onCl
     return () => document.removeEventListener('mousedown', handleClick)
   }, [anchorEl, onClose])
 
-  const rect = anchorEl.getBoundingClientRect()
+  const left = Math.min(anchorX, window.innerWidth - 272)
+  const top = anchorY + 8
 
   return (
     <div
       ref={ref}
       className="fixed z-50 w-64 rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
-      style={{
-        left: rect.left + rect.width / 2 - 128,
-        top: rect.bottom + 6,
-      }}
+      style={{ left, top }}
     >
       <div className="flex items-start justify-between mb-1">
         <h4 className="text-sm font-semibold">{event.title}</h4>
@@ -46,8 +47,8 @@ export function EventPopover({ event, anchorEl, laneName, onEdit, onDelete, onCl
       {event.description && <p className="text-xs mb-2">{event.description}</p>}
       <p className="text-xs text-muted-foreground mb-3">
         {event.type === 'point'
-          ? `Year: ${event.startYear}`
-          : `${event.startYear} — ${event.endYear}`}
+          ? fracYearToDMY(event.startYear)
+          : `${fracYearToDMY(event.startYear)} — ${event.endYear != null ? fracYearToDMY(event.endYear) : 'ongoing'}`}
       </p>
       <div className="flex gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(event)}>

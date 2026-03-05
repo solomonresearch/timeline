@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { dmy2iso, formatDMYInput } from '@/lib/constants'
 
 interface SignUpFormProps {
   onSwitchToSignIn: () => void
@@ -24,12 +25,11 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   const currentYear = new Date().getFullYear()
 
   function handleBirthDateChange(value: string) {
-    setBirthDate(value)
-    if (value) {
-      const year = new Date(value).getFullYear()
-      if (!isNaN(year)) {
-        setBirthYear(String(year))
-      }
+    const formatted = formatDMYInput(value)
+    setBirthDate(formatted)
+    if (formatted.length === 10) {
+      const year = parseInt(formatted.slice(6), 10)
+      if (!isNaN(year)) setBirthYear(String(year))
     }
   }
 
@@ -63,7 +63,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         'timeline_pending_profile',
         JSON.stringify({
           birth_year: parsedYear,
-          birth_date: birthDate || null,
+          birth_date: birthDate ? dmy2iso(birthDate) : null,
           bio: bio.trim(),
           email,
           created_at: new Date().toISOString(),
@@ -125,8 +125,9 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         <Label htmlFor="signupBirthDate">Birth Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
         <Input
           id="signupBirthDate"
-          type="date"
+          type="text"
           value={birthDate}
+          placeholder="DD/MM/YYYY"
           onChange={e => handleBirthDateChange(e.target.value)}
         />
       </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore } from 'react'
+import { useState, useCallback, useSyncExternalStore, useRef } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -74,14 +74,17 @@ function TimelineView() {
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
 
+  const scrollToTodayRef = useRef<(() => void) | null>(null)
+
   // Popover state
-  const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement } | null>(null)
+  const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement; x: number; y: number } | null>(null)
 
   // Event dialog state
   const [eventDialogOpen, setEventDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [defaultLaneId, setDefaultLaneId] = useState<string | undefined>()
   const [defaultStartYear, setDefaultStartYear] = useState<number | undefined>()
+  const [defaultEndYear, setDefaultEndYear] = useState<number | undefined>()
 
   // Lane dialog state
   const [laneDialogOpen, setLaneDialogOpen] = useState(false)
@@ -96,8 +99,8 @@ function TimelineView() {
   }>({ open: false, title: '', description: '', onConfirm: () => {} })
 
   // Event click -> show popover
-  const handleEventClick = useCallback((event: TimelineEvent, element: HTMLElement) => {
-    setPopover({ event, anchor: element })
+  const handleEventClick = useCallback((event: TimelineEvent, element: HTMLElement, clientX: number, clientY: number) => {
+    setPopover({ event, anchor: element, x: clientX, y: clientY })
   }, [])
 
   // Toolbar -> Add Event
@@ -114,11 +117,21 @@ function TimelineView() {
     setLaneDialogOpen(true)
   }, [])
 
-  // Click on lane -> Add Event with pre-filled lane + year
+  // Click on lane -> Add point event pre-filled with lane + year
   const handleLaneClick = useCallback((laneId: string, year: number) => {
     setEditingEvent(null)
     setDefaultLaneId(laneId)
     setDefaultStartYear(year)
+    setDefaultEndYear(undefined)
+    setEventDialogOpen(true)
+  }, [])
+
+  // Drag on lane -> Add range event pre-filled with start + end year
+  const handleLaneDragRange = useCallback((laneId: string, startYear: number, endYear: number) => {
+    setEditingEvent(null)
+    setDefaultLaneId(laneId)
+    setDefaultStartYear(startYear)
+    setDefaultEndYear(endYear)
     setEventDialogOpen(true)
   }, [])
 
@@ -197,6 +210,7 @@ function TimelineView() {
           onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
           onViewChange={setActiveView}
+          onScrollToToday={() => scrollToTodayRef.current?.()}
         />
 
         {activeView === 'timeline' ? (
@@ -207,6 +221,7 @@ function TimelineView() {
               yearStart={yearStart}
               yearEnd={yearEnd}
               pixelsPerYear={pixelsPerYear}
+              onZoom={setPixelsPerYear}
               dataYearMin={dataYearMin}
               dataYearMax={dataYearMax}
               onToggleVisibility={toggleLaneVisibility}
@@ -214,9 +229,11 @@ function TimelineView() {
               onDeleteLane={handleDeleteLane}
               onEventClick={handleEventClick}
               onLaneClick={handleLaneClick}
+              onLaneDragRange={handleLaneDragRange}
               personaEvents={activePersonaEvents}
               personas={personas}
               personaDisplayModes={personaDisplayModes}
+              scrollToTodayRef={scrollToTodayRef}
             />
 
             {/* Event popover */}
@@ -224,6 +241,8 @@ function TimelineView() {
               <EventPopover
                 event={popover.event}
                 anchorEl={popover.anchor}
+                anchorX={popover.x}
+                anchorY={popover.y}
                 laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
                 onEdit={handleEditEvent}
                 onDelete={handleDeleteEvent}
@@ -240,6 +259,7 @@ function TimelineView() {
               onSave={handleSaveEvent}
               defaultLaneId={defaultLaneId}
               defaultStartYear={defaultStartYear}
+              defaultEndYear={defaultEndYear}
             />
             <LaneDialog
               open={laneDialogOpen}
