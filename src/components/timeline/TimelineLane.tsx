@@ -146,6 +146,7 @@ export function TimelineLane({
     }, RANGE_HOLD_MS)
   }
 
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div
       ref={laneRef}

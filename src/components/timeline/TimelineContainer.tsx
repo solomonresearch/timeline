@@ -193,6 +193,7 @@ export function TimelineContainer({
     })
   }, [])
 
+
   const visibleLanes = lanes.filter(l => l.visible)
   const hiddenLanes = lanes.filter(l => !l.visible)
   const currentYear = getCurrentYearFraction()

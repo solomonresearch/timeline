@@ -108,6 +108,7 @@ function TimelineView() {
     setEditingEvent(null)
     setDefaultLaneId(undefined)
     setDefaultStartYear(undefined)
+    setDefaultEndYear(undefined)
     setEventDialogOpen(true)
   }, [])
 
@@ -141,6 +142,7 @@ function TimelineView() {
     setEditingEvent(event)
     setDefaultLaneId(undefined)
     setDefaultStartYear(undefined)
+    setDefaultEndYear(undefined)
     setEventDialogOpen(true)
   }, [])
 

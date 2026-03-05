@@ -11,6 +11,14 @@ export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = -1000
 export const TIMELINE_YEAR_MAX = 5000
 
+/** Which sub-year unit to display based on zoom level. */
+export type ZoomMode = 'year' | 'month' | 'day'
+export function getZoomMode(ppy: number): ZoomMode {
+  if (ppy >= 1825) return 'day'   // ≥ 5 px/day
+  if (ppy >= 120)  return 'month' // ≥ 10 px/month
+  return 'year'
+}
+
 /**
  * Return the label interval (in years) for the header at a given zoom level.
  * At very low zoom (0.5 px/yr) we show every 100 years;
@@ -43,14 +51,6 @@ export function getGridInterval(pixelsPerYear: number): number {
 export function computeLaneHeight(personaCount: number): number {
   if (personaCount === 0) return BASE_LANE_HEIGHT
   return BASE_LANE_HEIGHT + personaCount * PERSONA_SUB_ROW_HEIGHT
-}
-
-/** Which sub-year granularity to show based on zoom level. */
-export type ZoomMode = 'year' | 'month' | 'day'
-export function getZoomMode(ppy: number): ZoomMode {
-  if (ppy >= 600) return 'day'
-  if (ppy >= 120) return 'month'
-  return 'year'
 }
 
 /**
