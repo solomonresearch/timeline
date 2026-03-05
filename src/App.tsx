@@ -72,7 +72,7 @@ function TimelineView() {
   } = usePersonas(profile?.birth_year ?? null)
 
   // URL-synced view state
-  const [activeView, setActiveView] = useAppView()
+  const [activeView] = useAppView()
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
 
@@ -211,7 +211,6 @@ function TimelineView() {
           personaDisplayModes={personaDisplayModes}
           onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
-          onViewChange={setActiveView}
           onScrollToToday={() => scrollToTodayRef.current?.()}
         />
 

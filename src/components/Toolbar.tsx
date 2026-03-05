@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, LayoutGrid, Clock } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelineSelector } from '@/components/TimelineSelector'
@@ -21,7 +21,6 @@ interface ToolbarProps {
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
   activeView: AppView
-  onViewChange: (view: AppView) => void
   onScrollToToday?: () => void
 }
 
@@ -36,7 +35,6 @@ export function Toolbar({
   personaDisplayModes,
   onSetPersonaDisplayMode,
   activeView,
-  onViewChange,
   onScrollToToday,
 }: ToolbarProps) {
   // Logarithmic slider: map linear 0-1000 -> exponential MIN..MAX px/yr
@@ -73,32 +71,6 @@ export function Toolbar({
         <TimelineSelector />
       </div>
       <div className="flex items-center gap-2">
-        {/* View toggle */}
-        <div className="flex items-center rounded-md border p-0.5">
-          <button
-            onClick={() => onViewChange('timeline')}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-              activeView === 'timeline'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            Timeline
-          </button>
-          <button
-            onClick={() => onViewChange('kanban')}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-              activeView === 'kanban'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Kanban
-          </button>
-        </div>
-
         {activeView === 'timeline' && (
           <>
             {onScrollToToday && (
