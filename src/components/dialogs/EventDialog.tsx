@@ -60,6 +60,7 @@ interface DraftDeposit {
   id: string; label: string; amount: string
   frequency: 'monthly' | 'yearly' | 'weekly' | 'daily' | 'quarterly' | 'custom'
   customIntervalStr: string; customUnit: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  annualGrowthStr: string
   wholeEvent: boolean; startDateStr: string; endDateStr: string
 }
 
@@ -70,7 +71,7 @@ function newGrowthPeriod(): DraftGrowthPeriod {
   return { id: crypto.randomUUID(), startDateStr: '', endDateStr: '', rateStr: '', applyOnNegative: false, wholeEvent: false }
 }
 function newDeposit(): DraftDeposit {
-  return { id: crypto.randomUUID(), label: '', amount: '', frequency: 'monthly', customIntervalStr: '1', customUnit: 'month', wholeEvent: false, startDateStr: '', endDateStr: '' }
+  return { id: crypto.randomUUID(), label: '', amount: '', frequency: 'monthly', customIntervalStr: '1', customUnit: 'month', annualGrowthStr: '', wholeEvent: false, startDateStr: '', endDateStr: '' }
 }
 
 export function EventDialog({
@@ -144,6 +145,7 @@ export function EventDialog({
           frequency: d.frequency,
           customIntervalStr: String(d.customInterval ?? 1),
           customUnit: d.customUnit ?? 'month',
+          annualGrowthStr: d.annualGrowthPercent != null ? String(d.annualGrowthPercent) : '',
           wholeEvent: false,
           startDateStr: fracYearToDMY(d.startYear),
           endDateStr: d.endYear != null ? fracYearToDMY(d.endYear) : '',
@@ -216,6 +218,8 @@ export function EventDialog({
             customInterval: Number(d.customIntervalStr) || 1,
             customUnit: d.customUnit,
           } : {}),
+          ...(d.annualGrowthStr && !isNaN(Number(d.annualGrowthStr)) && Number(d.annualGrowthStr) !== 0
+            ? { annualGrowthPercent: Number(d.annualGrowthStr) } : {}),
           startYear: d.wholeEvent ? evStart : dmyToFracYear(d.startDateStr),
           ...(d.wholeEvent ? { endYear: evEnd } : d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
         }))
@@ -513,7 +517,7 @@ export function EventDialog({
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <div className="flex gap-1 items-center">
+                        <div className="flex gap-1 items-center flex-wrap">
                           <select
                             value={dep.frequency}
                             onChange={e => updateDeposit(i, 'frequency', e.target.value)}
@@ -546,6 +550,13 @@ export function EventDialog({
                               </select>
                             </>
                           )}
+                          <span className="text-[10px] text-muted-foreground shrink-0">grows</span>
+                          <Input
+                            type="number" step="0.1" value={dep.annualGrowthStr} placeholder="0"
+                            onChange={e => updateDeposit(i, 'annualGrowthStr', e.target.value)}
+                            className="w-16 h-7 text-xs"
+                          />
+                          <span className="text-[10px] text-muted-foreground shrink-0">%/yr</span>
                         </div>
                         <div className="flex gap-1 items-center">
                           <label className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 cursor-pointer select-none">

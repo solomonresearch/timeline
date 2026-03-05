@@ -63,7 +63,14 @@ export function computeValueAtYear(
       if (dep.startYear >= tEnd || dEnd <= t) continue
       const overlap = Math.min(tEnd, dEnd) - Math.max(t, dep.startYear)
       const ppy = depositPPY(dep)
-      value += dep.amount * ppy * overlap
+      // Apply compound annual growth to the deposit amount if specified.
+      // Use the midpoint of the current step relative to dep.startYear.
+      const midT = Math.max(t, dep.startYear) + overlap * 0.5
+      const yearsElapsed = midT - dep.startYear
+      const growthFactor = dep.annualGrowthPercent
+        ? Math.pow(1 + dep.annualGrowthPercent / 100, yearsElapsed)
+        : 1
+      value += dep.amount * growthFactor * ppy * overlap
     }
 
     // Compound growth for this step

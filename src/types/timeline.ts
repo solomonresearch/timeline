@@ -29,6 +29,7 @@ export interface ValueDeposit {
   frequency: 'monthly' | 'yearly' | 'weekly' | 'daily' | 'quarterly' | 'custom'
   customInterval?: number      // used when frequency === 'custom'
   customUnit?: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  annualGrowthPercent?: number // optional compound annual growth applied to the recurring amount
   startYear: number
   endYear?: number             // undefined = open-ended
 }
