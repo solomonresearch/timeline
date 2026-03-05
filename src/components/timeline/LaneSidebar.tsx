@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, TrendingUp } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ interface LaneSidebarProps {
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
+  totalAssetsHeight?: number
 }
 
 export function LaneSidebar({
@@ -34,6 +35,7 @@ export function LaneSidebar({
   onToggleVisibility,
   onEditLane,
   onDeleteLane,
+  totalAssetsHeight,
 }: LaneSidebarProps) {
   const [showHidden, setShowHidden] = useState(false)
 
@@ -112,6 +114,17 @@ export function LaneSidebar({
           </div>
         )
       })}
+
+      {/* Total Assets summary row */}
+      {totalAssetsHeight != null && totalAssetsHeight > 0 && (
+        <div
+          className="border-b border-border/30 px-2 flex items-center gap-1.5 bg-muted/10"
+          style={{ height: totalAssetsHeight }}
+        >
+          <TrendingUp className="h-3 w-3 shrink-0 text-teal-500" />
+          <span className="text-xs font-medium truncate flex-1 text-teal-600">Total Assets</span>
+        </div>
+      )}
 
       {/* Hidden lanes recovery section */}
       {hiddenLanes.length > 0 && (

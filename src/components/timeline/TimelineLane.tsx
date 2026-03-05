@@ -147,6 +147,13 @@ export function TimelineLane({
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
+  // Separator is only drawn at the boundary between event rows and persona sub-rows,
+  // NOT between stacked event rows. This prevents grey lines inside expanded lanes.
+  const numEventRows = eventRowMap && eventRowMap.size > 0
+    ? Math.max(...eventRowMap.values()) + 1
+    : 1
+  const hasPersonaRows = personaEvents.length > 0
+
   return (
     <div
       ref={laneRef}
@@ -154,11 +161,11 @@ export function TimelineLane({
       style={{ height: laneHeight, width }}
       onMouseDown={handleMouseDown}
     >
-      {/* Separator between user row and persona sub-rows */}
-      {laneHeight > BASE_LANE_HEIGHT && (
+      {/* Separator only at event-rows / persona-sub-rows boundary */}
+      {hasPersonaRows && (
         <div
           className="absolute left-0 right-0 border-t border-border/20"
-          style={{ top: BASE_LANE_HEIGHT }}
+          style={{ top: numEventRows * BASE_LANE_HEIGHT }}
         />
       )}
 

@@ -3,6 +3,7 @@ export const BASE_LANE_HEIGHT = 28
 export const PERSONA_SUB_ROW_HEIGHT = 22
 export const BAR_HEIGHT = 18
 export const DOT_SIZE = 12
+export const TOTAL_ASSETS_HEIGHT = 64  // height of the Total Assets summary lane
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5

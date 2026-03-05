@@ -6,8 +6,9 @@ import { LaneSidebar } from './LaneSidebar'
 import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
+import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
-import { getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 
 // ── Overlap detection & row assignment ───────────────────────────────────────
 
@@ -198,6 +199,7 @@ export function TimelineContainer({
   const hiddenLanes = lanes.filter(l => !l.visible)
   const currentYear = getCurrentYearFraction()
   const totalWidth = (yearEnd - yearStart) * pixelsPerYear
+  const hasValueEvents = events.some(e => e.type === 'range' && !!e.valueProjection)
 
   // Split persona events into integrated (sub-rows in lanes) vs separate (own section below)
   const integratedPersonaEvents = useMemo(
@@ -317,7 +319,7 @@ export function TimelineContainer({
   }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap, events, expandedLanes])
 
   const laneHeights = laneData.map(d => d.laneHeight)
-  const totalHeight = laneHeights.reduce((sum, h) => sum + h, 0)
+  const totalHeight = laneHeights.reduce((sum, h) => sum + h, 0) + (hasValueEvents ? TOTAL_ASSETS_HEIGHT : 0)
 
   // Build sidebar maps: lane name -> persona labels, lane id -> hasOverlaps
   const sidebarPersonaLabels = useMemo(() => {
@@ -347,6 +349,7 @@ export function TimelineContainer({
         onToggleVisibility={onToggleVisibility}
         onEditLane={onEditLane}
         onDeleteLane={onDeleteLane}
+        totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: totalWidth, minHeight: totalHeight + 24 }}>
@@ -374,6 +377,15 @@ export function TimelineContainer({
                 scrollLeft={scrollLeft}
               />
             ))}
+            {hasValueEvents && (
+              <TotalAssetsLane
+                events={events}
+                yearStart={yearStart}
+                yearEnd={yearEnd}
+                pixelsPerYear={pixelsPerYear}
+                scrollLeft={scrollLeft}
+              />
+            )}
           </div>
           {/* Separate persona timeline sections */}
           {separatePersonas.map(persona => (

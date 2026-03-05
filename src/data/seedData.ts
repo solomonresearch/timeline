@@ -6,7 +6,7 @@ export const defaultLanes: Lane[] = [
   { id: 'work',        name: 'Work',              color: '#10b981', visible: true, isDefault: true, order: 2 },
   { id: 'activities',  name: 'Other Activities',  color: '#f59e0b', visible: true, isDefault: true, order: 3 },
   { id: 'house',       name: 'Type of House',     color: '#6366f1', visible: true, isDefault: true, order: 4 },
-  { id: 'wealth',      name: 'Wealth',            color: '#14b8a6', visible: true, isDefault: true, order: 5 },
+  { id: 'wealth',      name: 'Assets',            color: '#14b8a6', visible: true, isDefault: true, order: 5 },
   { id: 'relations',   name: 'Relations',         color: '#ec4899', visible: true, isDefault: true, order: 6 },
   { id: 'kids',        name: 'Kids',              color: '#f97316', visible: true, isDefault: true, order: 7 },
   { id: 'parents',     name: 'Parents',           color: '#84cc16', visible: true, isDefault: true, order: 8 },
@@ -40,7 +40,7 @@ export const seedEvents: TimelineEvent[] = [
   { id: 'e15', laneId: 'house',      title: 'Apartment',        description: 'Rented apartment in SF',      type: 'range', startYear: 2012, endYear: 2019 },
   { id: 'e16', laneId: 'house',      title: 'Own House',        description: 'Bought a house in Austin',    type: 'range', startYear: 2019, endYear: 2026 },
 
-  // Wealth
+  // Assets
   { id: 'e17', laneId: 'wealth',     title: 'First $100k',      description: 'Savings milestone',           type: 'point', startYear: 2015 },
   { id: 'e18', laneId: 'wealth',     title: 'First $1M',        description: 'Net worth milestone',         type: 'point', startYear: 2021 },
 
