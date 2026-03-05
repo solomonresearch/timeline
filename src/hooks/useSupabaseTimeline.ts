@@ -79,7 +79,6 @@ export function useSupabaseTimeline(timelineId: string | null) {
         start_year: event.startYear,
         end_year: event.endYear,
         color: event.color,
-        value_points: event.valuePoints,
         value_projection: event.valueProjection,
       })
 
@@ -109,7 +108,6 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if (updates.startYear !== undefined) dbUpdates.start_year = updates.startYear
       if ('endYear' in updates) dbUpdates.end_year = updates.endYear ?? null
       if ('color' in updates) dbUpdates.color = updates.color ?? null
-      if ('valuePoints' in updates) dbUpdates.value_points = updates.valuePoints ?? []
       if ('valueProjection' in updates) dbUpdates.value_projection = updates.valueProjection ?? null
 
       const ok = await updateEventDb(id, dbUpdates as Parameters<typeof updateEventDb>[1])

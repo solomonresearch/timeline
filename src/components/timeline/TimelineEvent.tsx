@@ -28,23 +28,23 @@ export function TimelineEventBar({
 
   const pastStyle = isPast ? { opacity: 0.35, filter: 'saturate(0.5)' } : undefined
 
-  const hasValue = !!event.valuePoints?.length
+  const hasValue = !!event.valueProjection
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   // Build sparkline series (memoised — only recalculates when data changes)
   const sparklineSeries = useMemo(() => {
-    if (!hasValue || event.type !== 'range') return []
+    if (!hasValue || event.type !== 'range' || !event.valueProjection) return []
     const endY = event.endYear ?? currentYear
-    return generateSparklineSeries(event.startYear, endY, event.valuePoints!, event.valueProjection)
-  }, [hasValue, event.startYear, event.endYear, event.valuePoints, event.valueProjection, event.type, currentYear])
+    return generateSparklineSeries(event.startYear, endY, event.valueProjection, currentYear)
+  }, [hasValue, event.startYear, event.endYear, event.valueProjection, event.type, currentYear])
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (!hasValue || !event.valuePoints) return
+    if (!hasValue || !event.valueProjection) return
     const rect = e.currentTarget.getBoundingClientRect()
     const relX = e.clientX - rect.left
     const hoverYear = event.startYear + relX / pixelsPerYear
-    const val = computeValueAtYear(hoverYear, event.valuePoints, event.valueProjection)
-    if (val !== null) setTooltip({ clientX: e.clientX, clientY: e.clientY, value: val })
+    const val = computeValueAtYear(hoverYear, event.startYear, event.valueProjection)
+    setTooltip({ clientX: e.clientX, clientY: e.clientY, value: val })
   }
 
   if (event.type === 'point') {

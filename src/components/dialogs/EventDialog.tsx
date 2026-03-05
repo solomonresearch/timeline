@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Plus, X } from 'lucide-react'
-import type { Lane, TimelineEvent, ValueDataPoint, ValueDeposit, ValueProjection } from '@/types/timeline'
+import type {
+  Lane,
+  TimelineEvent,
+  ValueDeposit,
+  ValueProjection,
+  ValueSpotChange,
+  ValueGrowthPeriod,
+} from '@/types/timeline'
 import {
   Dialog,
   DialogContent,
@@ -33,13 +40,23 @@ interface EventDialogProps {
   defaultEndYear?: number
 }
 
-interface DraftPoint { dateStr: string; valueStr: string }
+interface DraftSpotChange { id: string; dateStr: string; amountStr: string; label: string }
+interface DraftGrowthPeriod {
+  id: string; startDateStr: string; endDateStr: string
+  rateStr: string; applyOnNegative: boolean; wholeEvent: boolean
+}
 interface DraftDeposit {
   id: string; label: string; amount: string
   frequency: 'monthly' | 'yearly' | 'weekly'
   startDateStr: string; endDateStr: string
 }
 
+function newSpotChange(): DraftSpotChange {
+  return { id: crypto.randomUUID(), dateStr: '', amountStr: '', label: '' }
+}
+function newGrowthPeriod(): DraftGrowthPeriod {
+  return { id: crypto.randomUUID(), startDateStr: '', endDateStr: '', rateStr: '', applyOnNegative: false, wholeEvent: false }
+}
 function newDeposit(): DraftDeposit {
   return { id: crypto.randomUUID(), label: '', amount: '', frequency: 'monthly', startDateStr: '', endDateStr: '' }
 }
@@ -64,8 +81,9 @@ export function EventDialog({
 
   // Value tracking
   const [valueEnabled, setValueEnabled] = useState(false)
-  const [valuePoints, setValuePoints] = useState<DraftPoint[]>([])
-  const [growthPercent, setGrowthPercent] = useState('')
+  const [startValue, setStartValue] = useState('')
+  const [spotChanges, setSpotChanges] = useState<DraftSpotChange[]>([])
+  const [growthPeriods, setGrowthPeriods] = useState<DraftGrowthPeriod[]>([])
   const [deposits, setDeposits] = useState<DraftDeposit[]>([])
 
   useEffect(() => {
@@ -78,19 +96,38 @@ export function EventDialog({
       setEndDate(editingEvent.endYear != null ? fracYearToDMY(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
 
-      const pts = editingEvent.valuePoints ?? []
       const proj = editingEvent.valueProjection
-      setValueEnabled(pts.length > 0 || !!proj)
-      setValuePoints(pts.map(p => ({ dateStr: fracYearToDMY(p.year), valueStr: String(p.value) })))
-      setGrowthPercent(proj?.growthPercent ? String(proj.growthPercent) : '')
-      setDeposits(proj?.deposits?.map(d => ({
-        id: d.id,
-        label: d.label ?? '',
-        amount: String(d.amount),
-        frequency: d.frequency,
-        startDateStr: fracYearToDMY(d.startYear),
-        endDateStr: d.endYear != null ? fracYearToDMY(d.endYear) : '',
-      })) ?? [])
+      setValueEnabled(!!proj)
+      if (proj) {
+        setStartValue(proj.startValue != null ? String(proj.startValue) : '')
+        setSpotChanges((proj.spotChanges ?? []).map(s => ({
+          id: s.id,
+          dateStr: fracYearToDMY(s.year),
+          amountStr: String(s.amount),
+          label: s.label ?? '',
+        })))
+        setGrowthPeriods((proj.growthPeriods ?? []).map(g => ({
+          id: g.id,
+          startDateStr: fracYearToDMY(g.startYear),
+          endDateStr: fracYearToDMY(g.endYear),
+          rateStr: String(g.growthPercent),
+          applyOnNegative: g.applyOnNegative,
+          wholeEvent: false,
+        })))
+        setDeposits((proj.deposits ?? []).map(d => ({
+          id: d.id,
+          label: d.label ?? '',
+          amount: String(d.amount),
+          frequency: d.frequency,
+          startDateStr: fracYearToDMY(d.startYear),
+          endDateStr: d.endYear != null ? fracYearToDMY(d.endYear) : '',
+        })))
+      } else {
+        setStartValue('')
+        setSpotChanges([])
+        setGrowthPeriods([])
+        setDeposits([])
+      }
     } else {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
@@ -100,8 +137,9 @@ export function EventDialog({
       setEndDate(defaultEndYear != null ? fracYearToDMY(defaultEndYear) : '')
       setColor('')
       setValueEnabled(false)
-      setValuePoints([])
-      setGrowthPercent('')
+      setStartValue('')
+      setSpotChanges([])
+      setGrowthPeriods([])
       setDeposits([])
     }
   }, [editingEvent, open, lanes, defaultLaneId, defaultStartYear, defaultEndYear])
@@ -110,30 +148,50 @@ export function EventDialog({
     e.preventDefault()
     if (!title.trim() || !laneId || !startDate) return
 
-    // Build value fields
-    let valuePointsOut: ValueDataPoint[] | undefined
     let valueProjectionOut: ValueProjection | undefined
 
     if (valueEnabled && type === 'range') {
-      const pts = valuePoints
-        .filter(p => p.dateStr !== '' && p.valueStr !== '')
-        .map(p => ({ year: dmyToFracYear(p.dateStr), value: Number(p.valueStr) }))
-        .filter(p => !isNaN(p.value) && !isNaN(p.year))
-      if (pts.length > 0) {
-        valuePointsOut = pts.sort((a, b) => a.year - b.year)
-        const deps: ValueDeposit[] = deposits
-          .filter(d => d.startDateStr && d.amount && !isNaN(Number(d.amount)))
-          .map(d => ({
-            id: d.id,
-            ...(d.label.trim() ? { label: d.label.trim() } : {}),
-            amount: Number(d.amount),
-            frequency: d.frequency,
-            startYear: dmyToFracYear(d.startDateStr),
-            ...(d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
-          }))
-        if (Number(growthPercent) || deps.length > 0) {
-          valueProjectionOut = { growthPercent: Number(growthPercent) || 0, deposits: deps }
-        }
+      const evStart = dmyToFracYear(startDate)
+      const evEnd = endDate ? dmyToFracYear(endDate) : evStart + 100
+
+      const spots: ValueSpotChange[] = spotChanges
+        .filter(s => s.dateStr && s.amountStr && !isNaN(Number(s.amountStr)))
+        .map(s => ({
+          id: s.id,
+          year: dmyToFracYear(s.dateStr),
+          amount: Number(s.amountStr),
+          ...(s.label.trim() ? { label: s.label.trim() } : {}),
+        }))
+        .filter(s => !isNaN(s.year) && s.year >= evStart - 0.001 && s.year <= evEnd + 0.001)
+
+      const periods: ValueGrowthPeriod[] = growthPeriods
+        .filter(g => g.rateStr && !isNaN(Number(g.rateStr)))
+        .map(g => ({
+          id: g.id,
+          startYear: g.wholeEvent ? evStart : dmyToFracYear(g.startDateStr),
+          endYear: g.wholeEvent ? evEnd : dmyToFracYear(g.endDateStr),
+          growthPercent: Number(g.rateStr),
+          applyOnNegative: g.applyOnNegative,
+        }))
+        .filter(p => !isNaN(p.startYear) && !isNaN(p.endYear))
+
+      const deps: ValueDeposit[] = deposits
+        .filter(d => d.startDateStr && d.amount && !isNaN(Number(d.amount)))
+        .map(d => ({
+          id: d.id,
+          ...(d.label.trim() ? { label: d.label.trim() } : {}),
+          amount: Number(d.amount),
+          frequency: d.frequency,
+          startYear: dmyToFracYear(d.startDateStr),
+          ...(d.endDateStr ? { endYear: dmyToFracYear(d.endDateStr) } : {}),
+        }))
+        .filter(d => !isNaN(d.startYear) && d.startYear >= evStart - 0.001)
+
+      valueProjectionOut = {
+        startValue: Number(startValue) || 0,
+        spotChanges: spots,
+        growthPeriods: periods,
+        deposits: deps,
       }
     }
 
@@ -145,19 +203,27 @@ export function EventDialog({
       startYear: dmyToFracYear(startDate),
       ...(type === 'range' && endDate ? { endYear: dmyToFracYear(endDate) } : {}),
       ...(color ? { color } : {}),
-      ...(valuePointsOut ? { valuePoints: valuePointsOut } : {}),
       ...(valueProjectionOut ? { valueProjection: valueProjectionOut } : {}),
     }
     onSave(data)
     onOpenChange(false)
   }
 
-  function addPoint() { setValuePoints(p => [...p, { dateStr: '', valueStr: '' }]) }
-  function removePoint(i: number) { setValuePoints(p => p.filter((_, j) => j !== i)) }
-  function updatePoint(i: number, field: keyof DraftPoint, val: string) {
-    setValuePoints(p => p.map((pt, j) => j === i ? { ...pt, [field]: val } : pt))
+  // Spot changes CRUD
+  function addSpotChange() { setSpotChanges(s => [...s, newSpotChange()]) }
+  function removeSpotChange(i: number) { setSpotChanges(s => s.filter((_, j) => j !== i)) }
+  function updateSpotChange(i: number, field: keyof DraftSpotChange, val: string) {
+    setSpotChanges(s => s.map((sc, j) => j === i ? { ...sc, [field]: val } : sc))
   }
 
+  // Growth periods CRUD
+  function addGrowthPeriod() { setGrowthPeriods(g => [...g, newGrowthPeriod()]) }
+  function removeGrowthPeriod(i: number) { setGrowthPeriods(g => g.filter((_, j) => j !== i)) }
+  function updateGrowthPeriod(i: number, field: keyof DraftGrowthPeriod, val: string | boolean) {
+    setGrowthPeriods(g => g.map((gp, j) => j === i ? { ...gp, [field]: val } : gp))
+  }
+
+  // Deposits CRUD
   function addDeposit() { setDeposits(d => [...d, newDeposit()]) }
   function removeDeposit(i: number) { setDeposits(d => d.filter((_, j) => j !== i)) }
   function updateDeposit(i: number, field: keyof DraftDeposit, val: string) {
@@ -230,92 +296,147 @@ export function EventDialog({
 
               {valueEnabled && (
                 <>
-                  {/* Historical data points */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Historical data points</Label>
-                    {valuePoints.map((pt, i) => (
-                      <div key={i} className="flex gap-1.5 items-center">
+                  {/* Starting value */}
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs shrink-0 text-muted-foreground">Starting value</Label>
+                    <Input
+                      type="number" value={startValue} placeholder="0"
+                      onChange={e => setStartValue(e.target.value)}
+                      className="w-36 h-7 text-xs"
+                    />
+                  </div>
+
+                  {/* Spot changes */}
+                  <div className="space-y-1.5 pt-1 border-t">
+                    <Label className="text-xs text-muted-foreground">Spot changes (one-time, within event range)</Label>
+                    {spotChanges.map((sc, i) => (
+                      <div key={sc.id} className="flex gap-1.5 items-center">
                         <Input
-                          type="text" value={pt.dateStr} placeholder="DD/MM/YYYY"
-                          onChange={e => updatePoint(i, 'dateStr', formatDMYInput(e.target.value))}
+                          type="text" value={sc.dateStr} placeholder="DD/MM/YYYY"
+                          onChange={e => updateSpotChange(i, 'dateStr', formatDMYInput(e.target.value))}
+                          className="w-28 h-7 text-xs"
+                        />
+                        <Input
+                          type="number" value={sc.amountStr} placeholder="Amount (+/-)"
+                          onChange={e => updateSpotChange(i, 'amountStr', e.target.value)}
                           className="flex-1 h-7 text-xs"
                         />
                         <Input
-                          type="number" value={pt.valueStr} placeholder="Value"
-                          onChange={e => updatePoint(i, 'valueStr', e.target.value)}
+                          value={sc.label} placeholder="Label (opt)"
+                          onChange={e => updateSpotChange(i, 'label', e.target.value)}
                           className="flex-1 h-7 text-xs"
                         />
-                        <button type="button" onClick={() => removePoint(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                        <button type="button" onClick={() => removeSpotChange(i)} className="text-muted-foreground hover:text-destructive shrink-0">
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={addPoint} className="h-7 text-xs">
-                      <Plus className="h-3 w-3 mr-1" /> Add data point
+                    <Button type="button" variant="outline" size="sm" onClick={addSpotChange} className="h-7 text-xs">
+                      <Plus className="h-3 w-3 mr-1" /> Add spot change
                     </Button>
                   </div>
 
-                  {/* Future projection */}
+                  {/* Growth periods */}
                   <div className="space-y-1.5 pt-1 border-t">
-                    <Label className="text-xs text-muted-foreground">Future projection</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs shrink-0">Annual growth</span>
-                      <Input
-                        type="number" step="0.1" value={growthPercent} placeholder="0"
-                        onChange={e => setGrowthPercent(e.target.value)}
-                        className="w-20 h-7 text-xs"
-                      />
-                      <span className="text-xs">%</span>
-                    </div>
-
-                    {/* Recurring deposits / withdrawals */}
-                    {deposits.length > 0 && (
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Recurring changes</Label>
-                        {deposits.map((dep, i) => (
-                          <div key={dep.id} className="grid gap-1">
-                            <div className="flex gap-1 items-center">
-                              <Input
-                                value={dep.label} placeholder="Label (opt)"
-                                onChange={e => updateDeposit(i, 'label', e.target.value)}
-                                className="flex-1 h-7 text-xs"
-                              />
-                              <Input
-                                type="number" value={dep.amount} placeholder="Amount (+/-)"
-                                onChange={e => updateDeposit(i, 'amount', e.target.value)}
-                                className="w-28 h-7 text-xs"
-                              />
-                              <select
-                                value={dep.frequency}
-                                onChange={e => updateDeposit(i, 'frequency', e.target.value)}
-                                className="h-7 text-xs border rounded-md px-1 bg-background"
-                              >
-                                <option value="monthly">Monthly</option>
-                                <option value="yearly">Yearly</option>
-                                <option value="weekly">Weekly</option>
-                              </select>
-                              <button type="button" onClick={() => removeDeposit(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                            <div className="flex gap-1 items-center pl-1">
-                              <span className="text-[10px] text-muted-foreground w-8">From</span>
-                              <Input
-                                type="text" value={dep.startDateStr} placeholder="DD/MM/YYYY"
-                                onChange={e => updateDeposit(i, 'startDateStr', formatDMYInput(e.target.value))}
-                                className="flex-1 h-7 text-xs"
-                              />
-                              <span className="text-[10px] text-muted-foreground w-4">To</span>
-                              <Input
-                                type="text" value={dep.endDateStr} placeholder="DD/MM/YYYY"
-                                onChange={e => updateDeposit(i, 'endDateStr', formatDMYInput(e.target.value))}
-                                className="flex-1 h-7 text-xs"
-                              />
-                            </div>
-                          </div>
-                        ))}
+                    <Label className="text-xs text-muted-foreground">Annual growth periods</Label>
+                    {growthPeriods.map((gp, i) => (
+                      <div key={gp.id} className="rounded border p-2 space-y-1.5">
+                        <div className="flex gap-1 items-center">
+                          <label className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 cursor-pointer select-none">
+                            <input
+                              type="checkbox" checked={gp.wholeEvent}
+                              onChange={e => updateGrowthPeriod(i, 'wholeEvent', e.target.checked)}
+                              className="h-3 w-3"
+                            />
+                            Whole event
+                          </label>
+                          <Input
+                            type="text"
+                            value={gp.wholeEvent ? startDate : gp.startDateStr}
+                            placeholder="DD/MM/YYYY"
+                            disabled={gp.wholeEvent}
+                            onChange={e => updateGrowthPeriod(i, 'startDateStr', formatDMYInput(e.target.value))}
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <span className="text-[10px] text-muted-foreground shrink-0">→</span>
+                          <Input
+                            type="text"
+                            value={gp.wholeEvent ? endDate : gp.endDateStr}
+                            placeholder="DD/MM/YYYY"
+                            disabled={gp.wholeEvent}
+                            onChange={e => updateGrowthPeriod(i, 'endDateStr', formatDMYInput(e.target.value))}
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <Input
+                            type="number" step="0.1" value={gp.rateStr} placeholder="Rate"
+                            onChange={e => updateGrowthPeriod(i, 'rateStr', e.target.value)}
+                            className="w-16 h-7 text-xs"
+                          />
+                          <span className="text-[10px] shrink-0">%</span>
+                          <button type="button" onClick={() => removeGrowthPeriod(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer select-none">
+                          <input
+                            type="checkbox" checked={gp.applyOnNegative}
+                            onChange={e => updateGrowthPeriod(i, 'applyOnNegative', e.target.checked)}
+                            className="h-3 w-3"
+                          />
+                          Apply growth on negative balance
+                        </label>
                       </div>
-                    )}
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addGrowthPeriod} className="h-7 text-xs">
+                      <Plus className="h-3 w-3 mr-1" /> Add growth period
+                    </Button>
+                  </div>
+
+                  {/* Recurring changes */}
+                  <div className="space-y-1.5 pt-1 border-t">
+                    <Label className="text-xs text-muted-foreground">Recurring changes (within event range)</Label>
+                    {deposits.map((dep, i) => (
+                      <div key={dep.id} className="grid gap-1">
+                        <div className="flex gap-1 items-center">
+                          <Input
+                            value={dep.label} placeholder="Label (opt)"
+                            onChange={e => updateDeposit(i, 'label', e.target.value)}
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <Input
+                            type="number" value={dep.amount} placeholder="Amount (+/-)"
+                            onChange={e => updateDeposit(i, 'amount', e.target.value)}
+                            className="w-28 h-7 text-xs"
+                          />
+                          <select
+                            value={dep.frequency}
+                            onChange={e => updateDeposit(i, 'frequency', e.target.value)}
+                            className="h-7 text-xs border rounded-md px-1 bg-background"
+                          >
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="weekly">Weekly</option>
+                          </select>
+                          <button type="button" onClick={() => removeDeposit(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex gap-1 items-center pl-1">
+                          <span className="text-[10px] text-muted-foreground w-8">From</span>
+                          <Input
+                            type="text" value={dep.startDateStr} placeholder="DD/MM/YYYY"
+                            onChange={e => updateDeposit(i, 'startDateStr', formatDMYInput(e.target.value))}
+                            className="flex-1 h-7 text-xs"
+                          />
+                          <span className="text-[10px] text-muted-foreground w-4">To</span>
+                          <Input
+                            type="text" value={dep.endDateStr} placeholder="DD/MM/YYYY"
+                            onChange={e => updateDeposit(i, 'endDateStr', formatDMYInput(e.target.value))}
+                            className="flex-1 h-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                    ))}
                     <Button type="button" variant="outline" size="sm" onClick={addDeposit} className="h-7 text-xs">
                       <Plus className="h-3 w-3 mr-1" /> Add recurring change
                     </Button>
