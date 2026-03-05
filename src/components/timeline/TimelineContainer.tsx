@@ -130,13 +130,35 @@ export function TimelineContainer({
   const [viewportWidth, setViewportWidth] = useState(1200)
   const rafRef = useRef<number | null>(null)
   const zoomRafRef = useRef<number | null>(null)
+  const shiftingWindowRef = useRef(false)
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     const onScroll = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(() => {
-        setScrollLeft(el.scrollLeft)
+        const sl = el.scrollLeft
+        const totalW = (yearEnd - yearStart) * ppyRef.current
+        // When windowed: shift the effective window if user scrolls near either edge,
+        // so they can always reach any event by scrolling (infinite-scroll effect).
+        if (totalW > MAX_CANVAS_PX && !shiftingWindowRef.current) {
+          const edgeThreshold = MAX_CANVAS_PX * 0.2
+          if (sl < edgeThreshold || sl > MAX_CANVAS_PX - edgeThreshold - el.clientWidth) {
+            const centerPx = sl + el.clientWidth / 2
+            const newCenterYear = yearStartRef.current + centerPx / ppyRef.current
+            const { effStart: newEffStart } = computeEffWindow(newCenterYear, ppyRef.current, yearStart, yearEnd)
+            if (newEffStart !== yearStartRef.current) {
+              shiftingWindowRef.current = true
+              yearStartRef.current = newEffStart
+              viewCenterYearRef.current = newCenterYear
+              pendingScrollRef.current = (newCenterYear - newEffStart) * ppyRef.current - el.clientWidth / 2
+              setViewCenterYear(newCenterYear)
+              return
+            }
+          }
+        }
+        shiftingWindowRef.current = false
+        setScrollLeft(sl)
         setViewportWidth(el.clientWidth)
       })
     }
@@ -153,7 +175,7 @@ export function TimelineContainer({
       ro.disconnect()
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [])
+  }, [yearStart, yearEnd])
 
   // Refs for latest ppy/effectiveYearStart — avoid stale closures in wheel handler
   const ppyRef = useRef(pixelsPerYear)
@@ -170,6 +192,7 @@ export function TimelineContainer({
       void scrollRef.current.scrollWidth
       scrollRef.current.scrollLeft = pendingScrollRef.current
       pendingScrollRef.current = null
+      shiftingWindowRef.current = false  // allow edge detection again after shift is applied
     }
   }, [pixelsPerYear, viewCenterYear])
 
@@ -204,7 +227,7 @@ export function TimelineContainer({
       let dy = e.deltaY
       if (e.deltaMode === 1) dy *= 32
       if (e.deltaMode === 2) dy *= 300
-      const factor = Math.exp(-dy * 0.006)
+      const factor = Math.exp(-dy * 0.012)
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
       ppyRef.current = newPpy
       // Compute new effective window for the new zoom level

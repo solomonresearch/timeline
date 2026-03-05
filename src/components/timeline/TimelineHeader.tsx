@@ -109,12 +109,27 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
     }
   }
 
+  // Post-filter: ensure minimum pixel spacing between consecutive tick labels.
+  // When two ticks are too close, keep the major one; drop the minor one.
+  const MIN_TICK_PX = 26  // roughly the width of the widest label ("14:30")
+  const filtered: typeof ticks = []
+  for (const tick of ticks) {
+    if (filtered.length === 0) { filtered.push(tick); continue }
+    const prev = filtered[filtered.length - 1]
+    if (tick.left - prev.left >= MIN_TICK_PX) {
+      filtered.push(tick)
+    } else if (tick.major && !prev.major) {
+      filtered[filtered.length - 1] = tick  // prefer major over minor
+    }
+    // else: too close and not higher priority — skip
+  }
+
   return (
     <div
       className="sticky top-0 z-10 h-6 bg-white border-b"
       style={{ width: '100%' }}
     >
-      {ticks.map(({ key, left, label, major }) => (
+      {filtered.map(({ key, left, label, major }) => (
         <div
           key={key}
           className="absolute top-0 h-full text-[10px] text-muted-foreground select-none"

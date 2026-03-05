@@ -32,9 +32,10 @@ export function getHourInterval(ppy: number): number {
 
 /** Minute tick interval (in minutes) for the header at a given zoom level. */
 export function getMinuteInterval(ppy: number): number {
-  if (ppy >= 7_884_000) return 1  // ≥ 15 px/min
-  if (ppy >= 3_942_000) return 2  // ≥ 7.5 px/min
-  return 5
+  // pxPerMin = ppy / 525_960 (minutes per year)
+  if (ppy >= 7_884_000) return 1   // ≥ 15 px/min → 1-min ticks (15px+)
+  if (ppy >= 4_207_680) return 5   // ≥  8 px/min → 5-min ticks (40px+)
+  return 15                         //  < 8 px/min → 15-min ticks (75px+)
 }
 
 /**
