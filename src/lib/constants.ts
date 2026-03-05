@@ -7,7 +7,7 @@ export const TOTAL_ASSETS_HEIGHT = 64  // height of the Total Assets summary lan
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 10_000_000  // dynamic canvas windowing keeps DOM elements safe
+export const MAX_PIXELS_PER_YEAR = 300_000  // dynamic canvas windowing keeps DOM elements safe
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = -1000
 export const TIMELINE_YEAR_MAX = 5000
