@@ -7,7 +7,7 @@ export const TOTAL_ASSETS_HEIGHT = 64  // height of the Total Assets summary lan
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5
-export const MAX_PIXELS_PER_YEAR = 1000
+export const MAX_PIXELS_PER_YEAR = 10000
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = -1000
 export const TIMELINE_YEAR_MAX = 5000

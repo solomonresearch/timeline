@@ -104,6 +104,7 @@ export function TimelineContainer({
   const [scrollLeft, setScrollLeft] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(1200)
   const rafRef = useRef<number | null>(null)
+  const zoomRafRef = useRef<number | null>(null)
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -179,10 +180,19 @@ export function TimelineContainer({
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
       ppyRef.current = newPpy
       pendingScrollRef.current = (yearAtCursor - yearStartRef.current) * newPpy - mouseX
-      onZoom(newPpy)
+      // Throttle React re-renders to one per animation frame so the browser
+      // can keep up during fast wheel zooming.
+      if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
+      zoomRafRef.current = requestAnimationFrame(() => {
+        zoomRafRef.current = null
+        onZoom(ppyRef.current)
+      })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
+    }
   }, [onZoom])
 
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
