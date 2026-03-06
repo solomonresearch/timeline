@@ -56,9 +56,9 @@ export function LaneSidebar({
   const iconPad = Math.round(ICON_SIZE / 12)
 
   return (
-    <div className="sticky left-0 z-20 bg-white border-r self-start" style={{ minWidth: SIDEBAR_WIDTH, width: SIDEBAR_WIDTH }}>
-      {/* header spacer — sticky top-0 so it stays aligned with the sticky year header during vertical scroll */}
-      <div className="sticky top-0 z-10 border-b bg-white" style={{ height: HEADER_HEIGHT }} />
+    <div className="sticky left-0 z-20 bg-white border-r" style={{ minWidth: SIDEBAR_WIDTH, width: SIDEBAR_WIDTH }}>
+      {/* header spacer */}
+      <div className="border-b bg-white" style={{ height: HEADER_HEIGHT }} />
 
       {lanes.map((lane, i) => {
         const height = laneHeights[i] ?? BASE_LANE_HEIGHT
