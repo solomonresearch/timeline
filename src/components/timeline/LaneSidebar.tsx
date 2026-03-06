@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, TrendingUp } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
 import {
@@ -52,11 +52,20 @@ export function LaneSidebar({
   const { sc } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, SIDEBAR_WIDTH, HEADER_HEIGHT, SIDEBAR_FONT, ICON_SIZE } = sc
 
+  // Compress sidebar on narrow viewports so more horizontal space goes to the timeline
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  useEffect(() => {
+    const update = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  const W = Math.min(SIDEBAR_WIDTH, Math.max(72, Math.round(viewportWidth * 0.28)))
+
   const dotSize = Math.round(ICON_SIZE / 3)
   const iconPad = Math.round(ICON_SIZE / 12)
 
   return (
-    <div className="sticky left-0 z-20 bg-white border-r" style={{ minWidth: SIDEBAR_WIDTH, width: SIDEBAR_WIDTH }}>
+    <div className="sticky left-0 z-20 bg-white border-r" style={{ minWidth: W, width: W }}>
       {/* header spacer */}
       <div className="border-b bg-white" style={{ height: HEADER_HEIGHT }} />
 
@@ -67,7 +76,7 @@ export function LaneSidebar({
           <div
             key={lane.id}
             className="border-b border-border/30 group"
-            style={{ height, paddingLeft: Math.round(SIDEBAR_WIDTH * 0.04), paddingRight: Math.round(SIDEBAR_WIDTH * 0.04) }}
+            style={{ height, paddingLeft: Math.round(W * 0.04), paddingRight: Math.round(W * 0.04) }}
           >
             {/* Main lane label row */}
             <div className="flex items-center" style={{ height: BASE_LANE_HEIGHT, gap: Math.round(ICON_SIZE / 6) }}>
@@ -134,7 +143,7 @@ export function LaneSidebar({
                 className="flex items-center text-muted-foreground"
                 style={{
                   height: PERSONA_SUB_ROW_HEIGHT,
-                  paddingLeft: Math.round(SIDEBAR_WIDTH * 0.08),
+                  paddingLeft: Math.round(W * 0.08),
                   gap: Math.round(ICON_SIZE / 6),
                 }}
               >
@@ -159,8 +168,8 @@ export function LaneSidebar({
           className="border-b border-border/30 flex items-center bg-muted/10"
           style={{
             height: totalAssetsHeight,
-            paddingLeft: Math.round(SIDEBAR_WIDTH * 0.04),
-            paddingRight: Math.round(SIDEBAR_WIDTH * 0.04),
+            paddingLeft: Math.round(W * 0.04),
+            paddingRight: Math.round(W * 0.04),
             gap: Math.round(ICON_SIZE / 4),
           }}
         >
@@ -179,8 +188,8 @@ export function LaneSidebar({
             className="border-t-2 border-border/60 flex items-center bg-muted/40"
             style={{
               height: PERSONA_SUB_ROW_HEIGHT,
-              paddingLeft: Math.round(SIDEBAR_WIDTH * 0.04),
-              paddingRight: Math.round(SIDEBAR_WIDTH * 0.04),
+              paddingLeft: Math.round(W * 0.04),
+              paddingRight: Math.round(W * 0.04),
               gap: Math.round(ICON_SIZE / 6),
             }}
           >
@@ -207,8 +216,8 @@ export function LaneSidebar({
               className="border-b border-border/30 flex items-center text-muted-foreground"
               style={{
                 height: BASE_LANE_HEIGHT,
-                paddingLeft: Math.round(SIDEBAR_WIDTH * 0.08),
-                paddingRight: Math.round(SIDEBAR_WIDTH * 0.04),
+                paddingLeft: Math.round(W * 0.08),
+                paddingRight: Math.round(W * 0.04),
                 gap: Math.round(ICON_SIZE / 4),
               }}
             >
@@ -226,7 +235,7 @@ export function LaneSidebar({
             className="flex items-center w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             style={{
               gap: Math.round(ICON_SIZE / 6),
-              padding: `${Math.round(SIDEBAR_FONT * 0.4)}px ${Math.round(SIDEBAR_WIDTH * 0.04)}px`,
+              padding: `${Math.round(SIDEBAR_FONT * 0.4)}px ${Math.round(W * 0.04)}px`,
               fontSize: SIDEBAR_FONT,
             }}
           >
@@ -246,7 +255,7 @@ export function LaneSidebar({
                   className="flex items-center group/hidden"
                   style={{
                     gap: Math.round(ICON_SIZE / 6),
-                    padding: `${Math.round(SIDEBAR_FONT * 0.25)}px ${Math.round(SIDEBAR_WIDTH * 0.04)}px`,
+                    padding: `${Math.round(SIDEBAR_FONT * 0.25)}px ${Math.round(W * 0.04)}px`,
                   }}
                 >
                   <div

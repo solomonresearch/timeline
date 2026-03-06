@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -77,9 +78,10 @@ export function Toolbar({
     : `${pixelsPerYear.toFixed(1)} px/yr`
 
   return (
-    <div className="flex items-center justify-between border-b bg-white px-4 py-2">
-      <div className="flex items-center gap-2">
-        <h1 className="text-lg font-semibold">Life Timeline</h1>
+    <div className="flex items-center justify-between border-b bg-white px-3 py-2 gap-2">
+      {/* ── Left side ── */}
+      <div className="flex items-center gap-2 min-w-0">
+        <h1 className="text-lg font-semibold shrink-0 hidden sm:block">Life Timeline</h1>
         <TimelinePersonaSelector
           personas={personas}
           activePersonaIds={activePersonaIds}
@@ -87,10 +89,11 @@ export function Toolbar({
           personaDisplayModes={personaDisplayModes}
           onSetPersonaDisplayMode={onSetPersonaDisplayMode}
         />
-        {/* Size selector */}
+
+        {/* Size selector — desktop only */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1 w-20">
+            <Button variant="outline" size="sm" className="gap-1 w-20 hidden md:flex">
               <span className="text-xs text-muted-foreground">Size:</span>
               <span className="font-medium">{SIZE_LABELS[size]}</span>
               <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
@@ -110,9 +113,12 @@ export function Toolbar({
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* ── Right side ── */}
+      <div className="flex items-center gap-2 shrink-0">
+
+        {/* Desktop controls */}
         {activeView === 'timeline' && (
-          <>
+          <div className="hidden md:flex items-center gap-2">
             {onScrollToToday && (
               <Button variant="outline" size="sm" onClick={onScrollToToday}>
                 Today
@@ -143,16 +149,72 @@ export function Toolbar({
               <Plus className="h-4 w-4 mr-1" />
               Add Event
             </Button>
-          </>
+          </div>
         )}
+
+        {/* Desktop kanban toggle */}
         <Button
           variant={activeView === 'kanban' ? 'default' : 'outline'}
           size="sm"
+          className="hidden md:flex"
           onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}
         >
           <Kanban className="h-4 w-4 mr-1" />
           Kanban
         </Button>
+
+        {/* Mobile meatball menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="flex md:hidden px-2">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {activeView === 'timeline' && (
+              <>
+                {onScrollToToday && (
+                  <DropdownMenuItem onClick={onScrollToToday}>
+                    Today
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => stepZoom(1.3)}>
+                  <ZoomIn className="h-4 w-4 mr-2" />
+                  Zoom In
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => stepZoom(1 / 1.3)}>
+                  <ZoomOut className="h-4 w-4 mr-2" />
+                  Zoom Out
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onAddLane}>
+                  <Layers className="h-4 w-4 mr-2" />
+                  Add Lane
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onAddEvent}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}>
+              <Kanban className="h-4 w-4 mr-2" />
+              {activeView === 'kanban' ? 'View Timeline' : 'View Kanban'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {(['small', 'medium', 'large', 'fitscreen'] as UiSize[]).map(s => (
+              <DropdownMenuItem
+                key={s}
+                onClick={() => setSize(s)}
+                className={size === s ? 'font-semibold' : ''}
+              >
+                {SIZE_NAMES[s]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <UserMenu />
       </div>
     </div>
