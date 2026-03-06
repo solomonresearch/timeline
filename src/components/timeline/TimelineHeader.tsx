@@ -23,13 +23,13 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
   const visEnd = yearStart + (scrollLeft + viewportWidth + bufferPx) / pixelsPerYear
   const currentYearLeft = (currentYear - yearStart) * pixelsPerYear
 
-  const ticks: { key: number; left: number; label: string; major: boolean }[] = []
+  const ticks: { key: number; left: number; label: string; major: boolean; year: number }[] = []
 
   if (mode === 'year') {
     const interval = getYearInterval(pixelsPerYear)
     const first = Math.ceil(visStart / interval) * interval
     for (let y = first; y <= Math.min(visEnd, yearEnd); y += interval) {
-      ticks.push({ key: y, left: (y - yearStart) * pixelsPerYear, label: String(y), major: true })
+      ticks.push({ key: y, left: (y - yearStart) * pixelsPerYear, label: String(y), major: true, year: y })
     }
   } else if (mode === 'month') {
     const pxPerMonth = pixelsPerYear / 12
@@ -44,7 +44,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
         const left = (fy - yearStart) * pixelsPerYear
         const major = m === 0
         const label = major ? String(y) : showAllMonths ? MONTH_ABBR[m] : `Q${Math.floor(m / 3) + 1}`
-        ticks.push({ key: y * 100 + m, left, label, major })
+        ticks.push({ key: y * 100 + m, left, label, major, year: y })
       }
     }
   } else if (mode === 'day') {
@@ -58,14 +58,14 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
         if (fy0 >= visStart && fy0 <= visEnd) {
           const left = (fy0 - yearStart) * pixelsPerYear
           const label = m === 0 ? String(y) : MONTH_ABBR[m]
-          ticks.push({ key: y * 1000 + m * 10, left, label, major: true })
+          ticks.push({ key: y * 1000 + m * 10, left, label, major: true, year: y })
         }
         const daysInMonth = makeUTCDate(y, m + 1, 0).getUTCDate()
         for (let d = 1 + dayStep; d <= daysInMonth; d += dayStep) {
           const fy = dateToFracYear(makeUTCDate(y, m, d))
           if (fy < visStart || fy > visEnd) continue
           const left = (fy - yearStart) * pixelsPerYear
-          ticks.push({ key: y * 100000 + m * 1000 + d, left, label: String(d), major: false })
+          ticks.push({ key: y * 100000 + m * 1000 + d, left, label: String(d), major: false, year: y })
         }
       }
     }
@@ -84,7 +84,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       const label = major
         ? `${d.getUTCDate()} ${MONTH_ABBR[d.getUTCMonth()]}`
         : `${String(h).padStart(2, '0')}:00`
-      ticks.push({ key: ms, left, label, major })
+      ticks.push({ key: ms, left, label, major, year: d.getUTCFullYear() })
     }
   } else {
     const intervalM = getMinuteInterval(pixelsPerYear)
@@ -102,7 +102,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       const label = major
         ? `${d.getUTCDate()} ${MONTH_ABBR[d.getUTCMonth()]}`
         : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-      ticks.push({ key: ms, left, label, major })
+      ticks.push({ key: ms, left, label, major, year: d.getUTCFullYear() })
     }
   }
 
@@ -114,6 +114,18 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       filtered.push(tick)
     } else if (tick.major && !prev.major) {
       filtered[filtered.length - 1] = tick
+    }
+  }
+
+  // If no tick already shows the year as its label (e.g. the Jan boundary is off-screen),
+  // append the year to the first major tick so the user always has year context.
+  if (mode !== 'year' && filtered.length > 0) {
+    const yearShown = filtered.some(t => t.label === String(t.year))
+    if (!yearShown) {
+      const firstMajorIdx = filtered.findIndex(t => t.major)
+      const idx = firstMajorIdx >= 0 ? firstMajorIdx : 0
+      const t = filtered[idx]
+      filtered[idx] = { ...t, label: `${t.label} ${t.year}` }
     }
   }
 
