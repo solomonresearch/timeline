@@ -31,8 +31,8 @@ interface ToolbarProps {
   onScrollToToday?: () => void
 }
 
-const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L' }
-const SIZE_NAMES: Record<UiSize, string> = { small: 'Small', medium: 'Medium', large: 'Large' }
+const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
+const SIZE_NAMES: Record<UiSize, string> = { small: 'Small', medium: 'Medium', large: 'Large', fitscreen: 'Fit Screen' }
 
 export function Toolbar({
   pixelsPerYear,
@@ -97,7 +97,7 @@ export function Toolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {(['small', 'medium', 'large'] as UiSize[]).map(s => (
+            {(['small', 'medium', 'large', 'fitscreen'] as UiSize[]).map(s => (
               <DropdownMenuItem
                 key={s}
                 onClick={() => setSize(s)}

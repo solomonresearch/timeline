@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
-export type UiSize = 'small' | 'medium' | 'large'
+export type UiSize = 'small' | 'medium' | 'large' | 'fitscreen'
 
 export interface SizeConfig {
   BASE_LANE_HEIGHT: number
@@ -20,7 +20,7 @@ export interface SizeConfig {
   TOTAL_PAD_V: number
 }
 
-export const SIZE_PRESETS: Record<UiSize, SizeConfig> = {
+export const SIZE_PRESETS: Record<Exclude<UiSize, 'fitscreen'>, SizeConfig> = {
   small: {
     BASE_LANE_HEIGHT: 28, PERSONA_SUB_ROW_HEIGHT: 22, BAR_HEIGHT: 18, DOT_SIZE: 12,
     TOTAL_ASSETS_HEIGHT: 64, HEADER_HEIGHT: 24, SIDEBAR_WIDTH: 160,
@@ -47,30 +47,64 @@ export const SIZE_PRESETS: Record<UiSize, SizeConfig> = {
   },
 }
 
+/** Scale a SizeConfig proportionally by `scale`, clamping each field to a minimum. */
+export function scaleSizeConfig(ref: SizeConfig, scale: number): SizeConfig {
+  const s = (v: number, min: number) => Math.max(min, Math.round(v * scale))
+  return {
+    BASE_LANE_HEIGHT:       s(ref.BASE_LANE_HEIGHT, 12),
+    PERSONA_SUB_ROW_HEIGHT: s(ref.PERSONA_SUB_ROW_HEIGHT, 10),
+    BAR_HEIGHT:             s(ref.BAR_HEIGHT, 8),
+    DOT_SIZE:               s(ref.DOT_SIZE, 6),
+    TOTAL_ASSETS_HEIGHT:    s(ref.TOTAL_ASSETS_HEIGHT, 32),
+    HEADER_HEIGHT:          s(ref.HEADER_HEIGHT, 16),
+    SIDEBAR_WIDTH:          s(ref.SIDEBAR_WIDTH, 80),
+    TICK_FONT:              s(ref.TICK_FONT, 7),
+    MIN_TICK_PX:            s(ref.MIN_TICK_PX, 12),
+    EVENT_FONT:             s(ref.EVENT_FONT, 7),
+    EVENT_LINE_HEIGHT:      s(ref.EVENT_LINE_HEIGHT, 8),
+    SIDEBAR_FONT:           s(ref.SIDEBAR_FONT, 7),
+    ICON_SIZE:              s(ref.ICON_SIZE, 8),
+    TOTAL_LABEL_HEIGHT:     s(ref.TOTAL_LABEL_HEIGHT, 8),
+    TOTAL_PAD_V:            s(ref.TOTAL_PAD_V, 2),
+  }
+}
+
 interface UiSizeContextValue {
   size: UiSize
   sc: SizeConfig
   setSize: (s: UiSize) => void
+  updateFitScreenConfig: (config: SizeConfig) => void
 }
 
 const UiSizeContext = createContext<UiSizeContextValue>({
   size: 'medium',
   sc: SIZE_PRESETS.medium,
   setSize: () => {},
+  updateFitScreenConfig: () => {},
 })
 
 export function UiSizeProvider({ children }: { children: ReactNode }) {
   const [size, setSize] = useState<UiSize>(() =>
     (localStorage.getItem('ui-size') as UiSize | null) ?? 'medium'
   )
+  const [fitScreenConfig, setFitScreenConfig] = useState<SizeConfig>(SIZE_PRESETS.large)
 
   function handleSetSize(s: UiSize) {
     setSize(s)
     localStorage.setItem('ui-size', s)
   }
 
+  // Only update when BASE_LANE_HEIGHT actually changes to avoid render loops
+  const updateFitScreenConfig = useCallback((config: SizeConfig) => {
+    setFitScreenConfig(prev =>
+      prev.BASE_LANE_HEIGHT === config.BASE_LANE_HEIGHT ? prev : config
+    )
+  }, [])
+
+  const sc = size === 'fitscreen' ? fitScreenConfig : SIZE_PRESETS[size]
+
   return (
-    <UiSizeContext.Provider value={{ size, sc: SIZE_PRESETS[size], setSize: handleSetSize }}>
+    <UiSizeContext.Provider value={{ size, sc, setSize: handleSetSize, updateFitScreenConfig }}>
       {children}
     </UiSizeContext.Provider>
   )

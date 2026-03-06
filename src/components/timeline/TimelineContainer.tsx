@@ -9,7 +9,7 @@ import { TimelineLane } from './TimelineLane'
 import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
 import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
-import { useSizeConfig } from '@/contexts/UiSizeContext'
+import { useSizeConfig, scaleSizeConfig, SIZE_PRESETS } from '@/contexts/UiSizeContext'
 
 // ── Dynamic canvas windowing ──────────────────────────────────────────────────
 
@@ -110,8 +110,9 @@ export function TimelineContainer({
   dataYearMax,
   scrollToTodayRef,
 }: TimelineContainerProps) {
-  const { sc } = useSizeConfig()
+  const { sc, size, updateFitScreenConfig } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT } = sc
+  const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
 
@@ -431,8 +432,46 @@ export function TimelineContainer({
   const personaSectionsTotalHeight = separatePersonas.length * (PERSONA_SUB_ROW_HEIGHT + visibleLaneNames.length * BASE_LANE_HEIGHT)
   const grandTotalHeight = totalHeight + personaSectionsTotalHeight
 
+  // Fit-screen: recompute sizes whenever grandTotalHeight or container height changes.
+  // All heights are linear in BASE_LANE_HEIGHT, so K = grandTotalHeight / BASE_LANE_HEIGHT
+  // is scale-invariant. We solve: containerHeight = HEADER_HEIGHT + grandTotalHeight
+  // ⟹ newBLH = containerHeight / (headerRatio + K).
+  const fitRef = useRef({ grandTotalHeight, blh: sc.BASE_LANE_HEIGHT, hr: sc.HEADER_HEIGHT })
+  fitRef.current = { grandTotalHeight, blh: sc.BASE_LANE_HEIGHT, hr: sc.HEADER_HEIGHT }
+
+  const computeFitScreen = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const containerHeight = el.clientHeight
+    if (containerHeight <= 0) return
+    const { grandTotalHeight: gh, blh, hr } = fitRef.current
+    if (gh <= 0 || blh <= 0) return
+    const K = gh / blh
+    const headerRatio = hr / blh
+    const newBLH = containerHeight / (headerRatio + K)
+    const scale = newBLH / SIZE_PRESETS.large.BASE_LANE_HEIGHT
+    updateFitScreenConfig(scaleSizeConfig(SIZE_PRESETS.large, scale))
+  }, [updateFitScreenConfig])
+
+  // Set up ResizeObserver on the container (fires when window/panel resizes)
+  useEffect(() => {
+    if (size !== 'fitscreen') return
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(computeFitScreen)
+    ro.observe(el)
+    computeFitScreen()
+    return () => ro.disconnect()
+  }, [size, computeFitScreen])
+
+  // Also recompute when lane structure changes (lanes added/removed/persona sections)
+  useEffect(() => {
+    if (size !== 'fitscreen') return
+    computeFitScreen()
+  }, [size, grandTotalHeight, computeFitScreen])
+
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div ref={containerRef} className="flex flex-1 overflow-hidden">
       <LaneSidebar
         lanes={visibleLanes}
         hiddenLanes={hiddenLanes}
