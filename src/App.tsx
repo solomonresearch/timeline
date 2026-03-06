@@ -14,6 +14,7 @@ import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthPage } from '@/components/auth/AuthPage'
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm'
+import { UiSizeProvider } from '@/contexts/UiSizeContext'
 
 // Lightweight URL-based routing (no dependency needed)
 function getViewFromPath(): AppView {
@@ -72,7 +73,7 @@ function TimelineView() {
   } = usePersonas(profile?.birth_year ?? null)
 
   // URL-synced view state
-  const [activeView] = useAppView()
+  const [activeView, setActiveView] = useAppView()
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
 
@@ -211,6 +212,7 @@ function TimelineView() {
           personaDisplayModes={personaDisplayModes}
           onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
+          onSetActiveView={setActiveView}
           onScrollToToday={() => scrollToTodayRef.current?.()}
         />
 
@@ -304,9 +306,11 @@ function App() {
   }
 
   return (
-    <TimelineProvider>
-      <TimelineView />
-    </TimelineProvider>
+    <UiSizeProvider>
+      <TimelineProvider>
+        <TimelineView />
+      </TimelineProvider>
+    </UiSizeProvider>
   )
 }
 

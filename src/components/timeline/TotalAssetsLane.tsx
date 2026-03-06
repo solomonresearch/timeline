@@ -1,13 +1,10 @@
 import { useState, useMemo } from 'react'
 import type { TimelineEvent } from '@/types/timeline'
 import { computeValueAtYear, formatValue } from '@/lib/valueCompute'
-import { TOTAL_ASSETS_HEIGHT } from '@/lib/constants'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 const TEAL = '#14b8a6'
 const RED  = '#ef4444'
-const LABEL_HEIGHT = 14
-const PAD_V = 4
-const CHART_H = TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT - PAD_V * 2
 const NUM_SAMPLES = 120
 
 interface Segment { linePts: string; areaPts: string; positive: boolean }
@@ -22,10 +19,9 @@ interface TotalAssetsLaneProps {
 function computeTotalAtYear(year: number, valueEvents: TimelineEvent[]): number {
   let total = 0
   for (const ev of valueEvents) {
-    if (year < ev.startYear - 1e-9) continue  // before event starts — no contribution yet
+    if (year < ev.startYear - 1e-9) continue
     const evEnd = ev.endYear ?? ev.startYear + 100
     if (year > evEnd + 1e-9) {
-      // After event ends — freeze at the event's end value so it keeps contributing
       total += computeValueAtYear(evEnd, ev.startYear, ev.valueProjection!)
     } else {
       total += computeValueAtYear(year, ev.startYear, ev.valueProjection!)
@@ -40,6 +36,10 @@ export function TotalAssetsLane({
   yearEnd,
   pixelsPerYear,
 }: TotalAssetsLaneProps) {
+  const { sc } = useSizeConfig()
+  const { TOTAL_ASSETS_HEIGHT, TOTAL_LABEL_HEIGHT: LABEL_HEIGHT, TOTAL_PAD_V: PAD_V } = sc
+  const CHART_H = TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT - PAD_V * 2
+
   const totalWidth = (yearEnd - yearStart) * pixelsPerYear
   const [tooltip, setTooltip] = useState<{ clientX: number; clientY: number; value: number } | null>(null)
 
@@ -73,11 +73,9 @@ export function TotalAssetsLane({
       return [x, y]
     }
 
-    // y-coordinate of the zero line (value = 0)
     const y0 = PAD_V + CHART_H - (CHART_H * (0 - minV)) / vRange
     const showZeroLine = minV < -1e-9 && maxV > 1e-9
 
-    // Build colored segments split at zero crossings
     const segments: Segment[] = []
     let curPts: string[] = []
     let curPos: boolean | null = null
@@ -102,7 +100,6 @@ export function TotalAssetsLane({
         curPos = isPos
         curPts = [`${x.toFixed(1)},${y.toFixed(1)}`]
       } else if (isPos !== curPos) {
-        // Interpolate zero crossing
         const prev = samples[i - 1]
         const t = prev.total / (prev.total - s.total)
         const zYear = prev.year + t * (s.year - prev.year)
@@ -117,7 +114,6 @@ export function TotalAssetsLane({
     }
     if (curPts.length >= 2 && curPos !== null) finalizeSeg(curPts, curPos)
 
-    // Value labels evenly spaced
     const numLabels = Math.max(2, Math.min(6, Math.floor(vizWidth / 110)))
     const labels = Array.from({ length: numLabels }, (_, i) => {
       const t = numLabels === 1 ? 0 : i / (numLabels - 1)
@@ -128,12 +124,11 @@ export function TotalAssetsLane({
     })
 
     return { rangeStart, rangeEnd, vizWidth, leftOffset, segments, labels, y0, showZeroLine, toXY }
-  }, [valueEvents, pixelsPerYear, yearStart])
+  }, [valueEvents, pixelsPerYear, yearStart, CHART_H, PAD_V])
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!computed) return
     const rect = e.currentTarget.getBoundingClientRect()
-    // rect.left already accounts for scroll — do NOT add scrollLeft again
     const hoverYear = yearStart + (e.clientX - rect.left) / pixelsPerYear
     if (hoverYear < computed.rangeStart - 0.01 || hoverYear > computed.rangeEnd + 0.01) {
       setTooltip(null)
@@ -160,26 +155,13 @@ export function TotalAssetsLane({
           className="absolute overflow-hidden"
           style={{ left: leftOffset, top: 0, width: vizWidth, height: TOTAL_ASSETS_HEIGHT }}
         >
-          {/* Sparkline + colored areas */}
           <svg width={vizWidth} height={TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT} style={{ display: 'block' }}>
-            {/* Area fills */}
             {segments.map((seg, i) => (
-              <polygon
-                key={`a${i}`}
-                points={seg.areaPts}
-                fill={seg.positive ? `${TEAL}28` : `${RED}28`}
-              />
+              <polygon key={`a${i}`} points={seg.areaPts} fill={seg.positive ? `${TEAL}28` : `${RED}28`} />
             ))}
-            {/* Zero line */}
             {showZeroLine && (
-              <line
-                x1={0} y1={y0} x2={vizWidth} y2={y0}
-                stroke="#9ca3af"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-              />
+              <line x1={0} y1={y0} x2={vizWidth} y2={y0} stroke="#9ca3af" strokeWidth={1} strokeDasharray="3 3" />
             )}
-            {/* Colored line segments */}
             {segments.map((seg, i) => (
               <polyline
                 key={`l${i}`}
@@ -192,15 +174,15 @@ export function TotalAssetsLane({
             ))}
           </svg>
 
-          {/* Value labels */}
           <div className="relative" style={{ height: LABEL_HEIGHT }}>
             {labels.map(({ x, value, isFirst, isLast }, i) => (
               <span
                 key={i}
-                className="absolute text-[9px] whitespace-nowrap leading-none"
+                className="absolute whitespace-nowrap leading-none"
                 style={{
                   left: x,
                   top: 2,
+                  fontSize: Math.round(LABEL_HEIGHT * 0.65),
                   transform: isFirst ? 'none' : isLast ? 'translateX(-100%)' : 'translateX(-50%)',
                   color: value < 0 ? RED : '#6b7280',
                 }}
@@ -212,7 +194,6 @@ export function TotalAssetsLane({
         </div>
       </div>
 
-      {/* Hover tooltip — fixed to escape overflow */}
       {tooltip && (
         <div
           className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap"

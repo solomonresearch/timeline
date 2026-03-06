@@ -2,6 +2,7 @@ import {
   getYearInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN,
   getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
 } from '@/lib/constants'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -15,6 +16,7 @@ interface TimelineHeaderProps {
 }
 
 export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth }: TimelineHeaderProps) {
+  const { sc } = useSizeConfig()
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 2
   const visStart = yearStart + Math.max(0, scrollLeft - bufferPx) / pixelsPerYear
@@ -30,9 +32,8 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       ticks.push({ key: y, left: (y - yearStart) * pixelsPerYear, label: String(y), major: true })
     }
   } else if (mode === 'month') {
-    // Month mode — generate from Date objects to avoid float drift
     const pxPerMonth = pixelsPerYear / 12
-    const showAllMonths = pxPerMonth >= 20 // collapse to quarterly below 20px/month
+    const showAllMonths = pxPerMonth >= 20
     const sy = Math.max(TIMELINE_YEAR_MIN, Math.floor(visStart) - 1)
     const ey = Math.min(yearEnd, Math.ceil(visEnd) + 1)
     for (let y = sy; y <= ey; y++) {
@@ -47,21 +48,18 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       }
     }
   } else if (mode === 'day') {
-    // Day mode — month boundaries (major) + day ticks
     const pxPerDay = pixelsPerYear / 365.25
     const dayStep = pxPerDay < 3 ? 10 : pxPerDay < 6 ? 7 : pxPerDay < 10 ? 5 : 1
     const sy = Math.max(TIMELINE_YEAR_MIN, Math.floor(visStart) - 1)
     const ey = Math.min(yearEnd, Math.ceil(visEnd) + 1)
     for (let y = sy; y <= ey; y++) {
       for (let m = 0; m < 12; m++) {
-        // Month boundary — major tick
         const fy0 = dateToFracYear(makeUTCDate(y, m, 1))
         if (fy0 >= visStart && fy0 <= visEnd) {
           const left = (fy0 - yearStart) * pixelsPerYear
           const label = m === 0 ? String(y) : MONTH_ABBR[m]
           ticks.push({ key: y * 1000 + m * 10, left, label, major: true })
         }
-        // Day ticks (skip day 1, already covered by month boundary)
         const daysInMonth = makeUTCDate(y, m + 1, 0).getUTCDate()
         for (let d = 1 + dayStep; d <= daysInMonth; d += dayStep) {
           const fy = dateToFracYear(makeUTCDate(y, m, d))
@@ -89,7 +87,6 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       ticks.push({ key: ms, left, label, major })
     }
   } else {
-    // Minute mode
     const intervalM = getMinuteInterval(pixelsPerYear)
     const intervalMs = intervalM * 60_000
     const visStartMs = fracYearToMs(visStart)
@@ -109,34 +106,39 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
     }
   }
 
-  // Post-filter: ensure minimum pixel spacing between consecutive tick labels.
-  // When two ticks are too close, keep the major one; drop the minor one.
-  const MIN_TICK_PX = 26  // roughly the width of the widest label ("14:30")
   const filtered: typeof ticks = []
   for (const tick of ticks) {
     if (filtered.length === 0) { filtered.push(tick); continue }
     const prev = filtered[filtered.length - 1]
-    if (tick.left - prev.left >= MIN_TICK_PX) {
+    if (tick.left - prev.left >= sc.MIN_TICK_PX) {
       filtered.push(tick)
     } else if (tick.major && !prev.major) {
-      filtered[filtered.length - 1] = tick  // prefer major over minor
+      filtered[filtered.length - 1] = tick
     }
-    // else: too close and not higher priority — skip
   }
+
+  const majorTickH = Math.round(sc.HEADER_HEIGHT / 2)
+  const minorTickH = Math.round(sc.HEADER_HEIGHT / 4)
 
   return (
     <div
-      className="sticky top-0 z-10 h-6 bg-white border-b"
-      style={{ width: '100%' }}
+      className="sticky top-0 z-10 bg-white border-b"
+      style={{ width: '100%', height: sc.HEADER_HEIGHT }}
     >
       {filtered.map(({ key, left, label, major }) => (
         <div
           key={key}
-          className="absolute top-0 h-full text-[10px] text-muted-foreground select-none"
-          style={{ left }}
+          className="absolute top-0 h-full text-muted-foreground select-none"
+          style={{ left, fontSize: sc.TICK_FONT }}
         >
-          <div className={`absolute bottom-0 w-px bg-border ${major ? 'h-3' : 'h-1.5'}`} />
-          <span className={`absolute -translate-x-1/2 top-0.5 whitespace-nowrap ${major ? 'font-semibold' : ''}`}>
+          <div
+            className="absolute bottom-0 w-px bg-border"
+            style={{ height: major ? majorTickH : minorTickH }}
+          />
+          <span
+            className={`absolute -translate-x-1/2 whitespace-nowrap ${major ? 'font-semibold' : ''}`}
+            style={{ top: Math.round(sc.HEADER_HEIGHT * 0.08) }}
+          >
             {label}
           </span>
         </div>

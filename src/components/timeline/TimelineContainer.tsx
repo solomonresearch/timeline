@@ -8,7 +8,8 @@ import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
 import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
-import { getCurrentYearFraction, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 // ── Dynamic canvas windowing ──────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ export function TimelineContainer({
   dataYearMax,
   scrollToTodayRef,
 }: TimelineContainerProps) {
+  const { sc } = useSizeConfig()
+  const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT } = sc
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
 
@@ -384,7 +387,8 @@ export function TimelineContainer({
     }
 
     return result
-  }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap, events, expandedLanes])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap, events, expandedLanes, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT])
 
   const laneHeights = laneData.map(d => d.laneHeight)
   const totalHeight = laneHeights.reduce((sum, h) => sum + h, 0) + (hasValueEvents ? TOTAL_ASSETS_HEIGHT : 0)
