@@ -254,6 +254,67 @@ export function TimelineContainer({
     }
   }, [onZoom, yearStart, yearEnd])
 
+  // Touch pinch-to-zoom — mirrors wheel zoom logic but uses finger distance as the scale signal
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    let lastDist = 0
+
+    const touchDist = (t: TouchList) => {
+      const dx = t[1].clientX - t[0].clientX
+      const dy = t[1].clientY - t[0].clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) lastDist = touchDist(e.touches)
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return
+      e.preventDefault() // block browser page-zoom
+
+      const dist = touchDist(e.touches)
+      if (lastDist === 0) { lastDist = dist; return }
+
+      const factor = dist / lastDist
+      lastDist = dist
+
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const rect = el.getBoundingClientRect()
+      const touchX = midX - rect.left
+
+      const ppy = ppyRef.current
+      const yearAtPinch = yearStartRef.current + (el.scrollLeft + touchX) / ppy
+      const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
+      ppyRef.current = newPpy
+
+      const { effStart: newEffStart } = computeEffWindow(yearAtPinch, newPpy, yearStart, yearEnd)
+      yearStartRef.current = newEffStart
+      viewCenterYearRef.current = yearAtPinch
+      pendingScrollRef.current = (yearAtPinch - newEffStart) * newPpy - touchX
+
+      if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
+      zoomRafRef.current = requestAnimationFrame(() => {
+        zoomRafRef.current = null
+        setViewCenterYear(viewCenterYearRef.current)
+        onZoom(ppyRef.current)
+      })
+    }
+
+    const onTouchEnd = () => { lastDist = 0 }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [onZoom, yearStart, yearEnd])
+
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   const handleToggleExpand = useCallback((laneId: string) => {
     setExpandedLanes(prev => {
