@@ -60,7 +60,7 @@ export function TimelineEventBar({
           <div
             className="absolute flex items-center justify-center cursor-pointer hover:scale-110 transition-transform select-none"
             style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, fontSize: DOT_SIZE - 2, lineHeight: 1, ...pastStyle }}
-            title={event.title}
+  
             onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
             onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
             onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
@@ -86,7 +86,7 @@ export function TimelineEventBar({
         <div
           className="absolute rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-black/20 transition-shadow"
           style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, backgroundColor: color, ...pastStyle }}
-          title={event.title}
+
           onClick={e => onClick(event, e.currentTarget, e.clientX, e.clientY)}
           onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
           onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
