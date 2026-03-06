@@ -3,7 +3,7 @@ import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { AlignedPersonaEvent } from '@/types/database'
 import { TimelineEventBar } from './TimelineEvent'
 import { PersonaEventBar } from './PersonaEventBar'
-import { BASE_LANE_HEIGHT } from '@/lib/constants'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 const RANGE_HOLD_MS = 1000  // hold this long without moving to enter range-draw mode
 const PAN_THRESHOLD_PX = 4  // move this far within RANGE_HOLD_MS to enter pan mode
@@ -47,6 +47,8 @@ export function TimelineLane({
   currentYear,
   scrollLeft,
 }: TimelineLaneProps) {
+  const { sc } = useSizeConfig()
+  const { BASE_LANE_HEIGHT } = sc
   const width = (yearEnd - yearStart) * pixelsPerYear
   const laneRef = useRef<HTMLDivElement>(null)
   const modeRef = useRef<Mode>('idle')

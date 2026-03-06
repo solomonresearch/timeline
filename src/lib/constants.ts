@@ -1,9 +1,11 @@
 // Layout constants
-export const BASE_LANE_HEIGHT = 28
-export const PERSONA_SUB_ROW_HEIGHT = 22
-export const BAR_HEIGHT = 18
-export const DOT_SIZE = 12
-export const TOTAL_ASSETS_HEIGHT = 64  // height of the Total Assets summary lane
+export const BASE_LANE_HEIGHT = 56
+export const PERSONA_SUB_ROW_HEIGHT = 44
+export const BAR_HEIGHT = 36
+export const DOT_SIZE = 24
+export const TOTAL_ASSETS_HEIGHT = 128  // height of the Total Assets summary lane
+export const HEADER_HEIGHT = 48         // sticky timeline header height in px
+export const SIDEBAR_WIDTH = 280        // lane sidebar width in px
 
 // Zoom & year range
 export const MIN_PIXELS_PER_YEAR = 0.5

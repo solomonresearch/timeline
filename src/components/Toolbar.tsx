@@ -1,12 +1,18 @@
 import { useMemo, useCallback } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
-import { TimelineSelector } from '@/components/TimelineSelector'
-import { PersonaToggle } from '@/components/PersonaToggle'
+import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
 import type { DbPersona } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { useSizeConfig, type UiSize } from '@/contexts/UiSizeContext'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export type AppView = 'timeline' | 'kanban'
 
@@ -21,8 +27,12 @@ interface ToolbarProps {
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
   activeView: AppView
+  onSetActiveView: (v: AppView) => void
   onScrollToToday?: () => void
 }
+
+const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L' }
+const SIZE_NAMES: Record<UiSize, string> = { small: 'Small', medium: 'Medium', large: 'Large' }
 
 export function Toolbar({
   pixelsPerYear,
@@ -35,9 +45,11 @@ export function Toolbar({
   personaDisplayModes,
   onSetPersonaDisplayMode,
   activeView,
+  onSetActiveView,
   onScrollToToday,
 }: ToolbarProps) {
-  // Logarithmic slider: map linear 0-1000 -> exponential MIN..MAX px/yr
+  const { size, setSize } = useSizeConfig()
+
   const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
   const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
 
@@ -68,8 +80,36 @@ export function Toolbar({
     <div className="flex items-center justify-between border-b bg-white px-4 py-2">
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-semibold">Life Timeline</h1>
-        <TimelineSelector />
+        <TimelinePersonaSelector
+          personas={personas}
+          activePersonaIds={activePersonaIds}
+          onTogglePersona={onTogglePersona}
+          personaDisplayModes={personaDisplayModes}
+          onSetPersonaDisplayMode={onSetPersonaDisplayMode}
+        />
+        {/* Size selector */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1 w-20">
+              <span className="text-xs text-muted-foreground">Size:</span>
+              <span className="font-medium">{SIZE_LABELS[size]}</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(['small', 'medium', 'large'] as UiSize[]).map(s => (
+              <DropdownMenuItem
+                key={s}
+                onClick={() => setSize(s)}
+                className={size === s ? 'font-semibold' : ''}
+              >
+                {SIZE_NAMES[s]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
       <div className="flex items-center gap-2">
         {activeView === 'timeline' && (
           <>
@@ -103,15 +143,16 @@ export function Toolbar({
               <Plus className="h-4 w-4 mr-1" />
               Add Event
             </Button>
-            <PersonaToggle
-              personas={personas}
-              activePersonaIds={activePersonaIds}
-              onToggle={onTogglePersona}
-              personaDisplayModes={personaDisplayModes}
-              onSetDisplayMode={onSetPersonaDisplayMode}
-            />
           </>
         )}
+        <Button
+          variant={activeView === 'kanban' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}
+        >
+          <Kanban className="h-4 w-4 mr-1" />
+          Kanban
+        </Button>
         <UserMenu />
       </div>
     </div>

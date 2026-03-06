@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { TimelineEvent as TEvent } from '@/types/timeline'
-import { BASE_LANE_HEIGHT, BAR_HEIGHT, DOT_SIZE } from '@/lib/constants'
 import { computeValueAtYear, generateSparklineSeries, formatValue } from '@/lib/valueCompute'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 interface TimelineEventProps {
   event: TEvent
@@ -19,6 +19,8 @@ interface TooltipState { clientX: number; clientY: number; value: number }
 export function TimelineEventBar({
   event, yearStart, pixelsPerYear, laneColor, onClick, currentYear, topOffset = 0, scrollLeft = 0,
 }: TimelineEventProps) {
+  const { sc } = useSizeConfig()
+  const { BASE_LANE_HEIGHT, BAR_HEIGHT, DOT_SIZE, EVENT_FONT, EVENT_LINE_HEIGHT } = sc
   const color = event.color || laneColor
   const left = (event.startYear - yearStart) * pixelsPerYear
 
@@ -162,10 +164,10 @@ export function TimelineEventBar({
         )}
 
         {/* Title — sticky at visible left edge */}
-        {width > 20 && (
+        {width > EVENT_FONT * 2 && (
           <span
-            className="absolute text-[10px] leading-[18px] text-white font-medium whitespace-nowrap drop-shadow-[0_0_2px_rgba(0,0,0,0.6)]"
-            style={{ left: textLeft }}
+            className="absolute text-white font-medium whitespace-nowrap drop-shadow-[0_0_2px_rgba(0,0,0,0.6)]"
+            style={{ left: textLeft, fontSize: EVENT_FONT, lineHeight: `${EVENT_LINE_HEIGHT}px` }}
           >
             {label}
           </span>

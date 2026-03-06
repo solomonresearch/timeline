@@ -1,8 +1,6 @@
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 import { PersonaEventBar } from './PersonaEventBar'
-import { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } from '@/lib/constants'
-
-const SIDEBAR_WIDTH = 160
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 interface PersonaSeparateTimelineProps {
   persona: DbPersona
@@ -25,6 +23,9 @@ export function PersonaSeparateTimeline({
   laneColorMap,
   currentYear,
 }: PersonaSeparateTimelineProps) {
+  const { sc } = useSizeConfig()
+  const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, SIDEBAR_WIDTH, SIDEBAR_FONT } = sc
+
   const initials = getInitials(persona.name)
   const laneNames = [...new Set(events.map(e => e.lane_name))].sort()
 
@@ -33,16 +34,22 @@ export function PersonaSeparateTimeline({
       {/* Persona header */}
       <div className="relative border-t-2 border-border/60" style={{ height: PERSONA_SUB_ROW_HEIGHT }}>
         <div
-          className="h-full flex items-center gap-2 px-2 bg-muted/40 border-r border-border/60"
-          style={{ position: 'sticky', left: 0, width: SIDEBAR_WIDTH, zIndex: 10 }}
+          className="h-full flex items-center gap-2 bg-muted/40 border-r border-border/60"
+          style={{ position: 'sticky', left: 0, width: SIDEBAR_WIDTH, zIndex: 10, paddingLeft: Math.round(SIDEBAR_WIDTH * 0.04) }}
         >
-          <span className="text-[9px] font-bold bg-muted-foreground/20 rounded px-1 py-0.5 shrink-0">
+          <span
+            className="font-bold bg-muted-foreground/20 rounded shrink-0"
+            style={{ fontSize: Math.round(SIDEBAR_FONT * 0.85), padding: '1px 4px' }}
+          >
             {initials}
           </span>
-          <span className="text-[10px] font-semibold text-muted-foreground truncate">
+          <span className="font-semibold text-muted-foreground truncate" style={{ fontSize: SIDEBAR_FONT }}>
             {persona.name}
           </span>
-          <span className="text-[9px] text-muted-foreground/60 shrink-0 hidden xl:inline">
+          <span
+            className="text-muted-foreground/60 shrink-0 hidden xl:inline"
+            style={{ fontSize: Math.round(SIDEBAR_FONT * 0.85) }}
+          >
             {persona.birth_year}–{persona.death_year ?? 'present'}
           </span>
         </div>
@@ -58,7 +65,6 @@ export function PersonaSeparateTimeline({
             className="relative border-b border-border/30"
             style={{ height: BASE_LANE_HEIGHT }}
           >
-            {/* Events positioned absolute (rendered behind sidebar) */}
             {laneEvents.map(e => (
               <PersonaEventBar
                 key={e.id}
@@ -70,19 +76,23 @@ export function PersonaSeparateTimeline({
                 currentYear={currentYear}
               />
             ))}
-            {/* Sticky sidebar label — same compact style as integrated sub-rows */}
             <div
-              className="bg-white border-r border-border/40 flex items-center gap-1 pl-3 text-muted-foreground"
+              className="bg-white border-r border-border/40 flex items-center text-muted-foreground"
               style={{
                 position: 'sticky',
                 left: 0,
                 width: SIDEBAR_WIDTH,
                 height: BASE_LANE_HEIGHT,
                 zIndex: 10,
+                paddingLeft: Math.round(SIDEBAR_WIDTH * 0.08),
+                gap: Math.round(SIDEBAR_FONT / 3),
               }}
             >
-              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: laneColor }} />
-              <span className="text-[10px] truncate">{laneName}</span>
+              <div
+                className="rounded-full shrink-0"
+                style={{ width: Math.round(SIDEBAR_FONT / 2), height: Math.round(SIDEBAR_FONT / 2), backgroundColor: laneColor }}
+              />
+              <span className="truncate" style={{ fontSize: SIDEBAR_FONT }}>{laneName}</span>
             </div>
           </div>
         )

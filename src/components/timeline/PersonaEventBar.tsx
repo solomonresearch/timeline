@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { AlignedPersonaEvent } from '@/types/database'
-import { BASE_LANE_HEIGHT, BAR_HEIGHT, DOT_SIZE } from '@/lib/constants'
+import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 interface PersonaEventBarProps {
   event: AlignedPersonaEvent
@@ -21,6 +21,9 @@ export function PersonaEventBar({
   subRowIndex,
   currentYear,
 }: PersonaEventBarProps) {
+  const { sc } = useSizeConfig()
+  const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, BAR_HEIGHT, DOT_SIZE, EVENT_FONT, EVENT_LINE_HEIGHT } = sc
+
   const color = event.color || laneColor
   const left = (event.display_start_year - yearStart) * pixelsPerYear
   const label = `${personaInitials}: ${event.title}`
@@ -33,15 +36,14 @@ export function PersonaEventBar({
   const pastOpacity = isPast ? 0.2 : baseOpacity
   const pastFilter = isPast ? 'saturate(0.5)' : undefined
 
-  // Compute vertical offset: if subRowIndex is given, place in sub-row area below user events
   const verticalOffset = subRowIndex != null
-    ? BASE_LANE_HEIGHT + subRowIndex * 22 // PERSONA_SUB_ROW_HEIGHT
+    ? BASE_LANE_HEIGHT + subRowIndex * PERSONA_SUB_ROW_HEIGHT
     : 0
 
   if (event.type === 'point') {
     const top = verticalOffset + (BASE_LANE_HEIGHT - DOT_SIZE) / 2
     const adjustedTop = subRowIndex != null
-      ? verticalOffset + (22 - DOT_SIZE) / 2
+      ? verticalOffset + (PERSONA_SUB_ROW_HEIGHT - DOT_SIZE) / 2
       : top
     return (
       <Tooltip>
@@ -73,9 +75,9 @@ export function PersonaEventBar({
 
   const displayEnd = event.display_end_year ?? event.display_start_year + 1
   const width = (displayEnd - event.display_start_year) * pixelsPerYear
-  const barHeight = subRowIndex != null ? 14 : BAR_HEIGHT
+  const barHeight = subRowIndex != null ? Math.round(BAR_HEIGHT * 0.75) : BAR_HEIGHT
   const top = subRowIndex != null
-    ? verticalOffset + (22 - barHeight) / 2
+    ? verticalOffset + (PERSONA_SUB_ROW_HEIGHT - barHeight) / 2
     : (BASE_LANE_HEIGHT - BAR_HEIGHT) / 2
 
   return (
@@ -93,8 +95,11 @@ export function PersonaEventBar({
             filter: pastFilter,
           }}
         >
-          {width > 50 && (
-            <span className="px-1 text-[9px] leading-[14px] text-white/80 font-medium truncate block">
+          {width > EVENT_FONT * 5 && (
+            <span
+              className="px-1 text-white/80 font-medium truncate block"
+              style={{ fontSize: Math.round(EVENT_FONT * 0.9), lineHeight: `${EVENT_LINE_HEIGHT}px` }}
+            >
               {label}
             </span>
           )}
