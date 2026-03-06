@@ -41,7 +41,12 @@ export function TotalAssetsLane({
   const CHART_H = TOTAL_ASSETS_HEIGHT - LABEL_HEIGHT - PAD_V * 2
 
   const totalWidth = (yearEnd - yearStart) * pixelsPerYear
-  const [tooltip, setTooltip] = useState<{ clientX: number; clientY: number; value: number } | null>(null)
+  const [tooltip, setTooltip] = useState<{
+    clientX: number
+    clientY: number
+    items: { label: string; value: number }[]
+    total: number
+  } | null>(null)
 
   const valueEvents = useMemo(
     () => events.filter(e => e.type === 'range' && !!e.valueProjection),
@@ -134,7 +139,18 @@ export function TotalAssetsLane({
       setTooltip(null)
       return
     }
-    setTooltip({ clientX: e.clientX, clientY: e.clientY, value: computeTotalAtYear(hoverYear, valueEvents) })
+    const items: { label: string; value: number }[] = []
+    let total = 0
+    for (const ev of valueEvents) {
+      if (hoverYear < ev.startYear - 1e-9) continue
+      const evEnd = ev.endYear ?? ev.startYear + 100
+      const val = hoverYear > evEnd + 1e-9
+        ? computeValueAtYear(evEnd, ev.startYear, ev.valueProjection!)
+        : computeValueAtYear(hoverYear, ev.startYear, ev.valueProjection!)
+      items.push({ label: ev.title, value: val })
+      total += val
+    }
+    setTooltip({ clientX: e.clientX, clientY: e.clientY, items, total })
   }
 
   if (!computed) {
@@ -196,13 +212,27 @@ export function TotalAssetsLane({
 
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap"
-          style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 36 }}
+          className="fixed z-50 pointer-events-none rounded bg-black/80 text-white px-3 py-2"
+          style={{
+            left: tooltip.clientX + 16,
+            top: tooltip.clientY - (tooltip.items.length * 20 + 44),
+            minWidth: 180,
+          }}
         >
-          <span className="opacity-70">Total Wealth: </span>
-          <span className="font-semibold" style={{ color: tooltip.value < 0 ? '#fca5a5' : 'white' }}>
-            {formatValue(tooltip.value)}
-          </span>
+          {tooltip.items.map((item, i) => (
+            <div key={i} className="flex justify-between gap-6 text-xs leading-5">
+              <span className="opacity-70 truncate max-w-[140px]">{item.label}</span>
+              <span style={{ color: item.value < 0 ? '#fca5a5' : 'inherit' }}>
+                {formatValue(item.value)}
+              </span>
+            </div>
+          ))}
+          <div className="flex justify-between gap-6 text-xs leading-5 font-bold border-t border-white/30 mt-1 pt-1">
+            <span>Total</span>
+            <span style={{ color: tooltip.total < 0 ? '#fca5a5' : 'inherit' }}>
+              {formatValue(tooltip.total)}
+            </span>
+          </div>
         </div>
       )}
     </>
