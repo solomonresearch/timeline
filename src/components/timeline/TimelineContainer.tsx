@@ -2,7 +2,7 @@ import { useRef, useEffect, useLayoutEffect, useMemo, useCallback, useState, typ
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
-import { LaneSidebar } from './LaneSidebar'
+import { LaneSidebar, type PersonaSidebarSection } from './LaneSidebar'
 import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
@@ -408,6 +408,29 @@ export function TimelineContainer({
     return m
   }, [visibleLanes, laneData])
 
+  // Lane names in visible order — used for separate persona sections
+  const visibleLaneNames = useMemo(() => visibleLanes.map(l => l.name), [visibleLanes])
+
+  // Build sidebar sections for separate personas
+  const separatePersonaSections = useMemo<PersonaSidebarSection[]>(() => {
+    return separatePersonas.map(p => {
+      const parts = p.name.split(' ')
+      const initials = parts.map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+      return {
+        personaId: p.id,
+        name: p.name,
+        initials,
+        birthYear: p.birth_year,
+        deathYear: p.death_year,
+        laneNames: visibleLaneNames,
+      }
+    })
+  }, [separatePersonas, visibleLaneNames])
+
+  // Grand total height includes persona section rows for YearGrid coverage
+  const personaSectionsTotalHeight = separatePersonas.length * (PERSONA_SUB_ROW_HEIGHT + visibleLaneNames.length * BASE_LANE_HEIGHT)
+  const grandTotalHeight = totalHeight + personaSectionsTotalHeight
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <LaneSidebar
@@ -417,6 +440,7 @@ export function TimelineContainer({
         lanePersonaLabels={sidebarPersonaLabels}
         laneHasOverlaps={laneHasOverlaps}
         expandedLanes={expandedLanes}
+        separatePersonaSections={separatePersonaSections}
         onToggleExpand={handleToggleExpand}
         onToggleVisibility={onToggleVisibility}
         onEditLane={onEditLane}
@@ -424,10 +448,10 @@ export function TimelineContainer({
         totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <div className="relative" style={{ width: effectiveTotalWidth, minHeight: totalHeight + 24 }}>
+        <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
           <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
           <div className="relative">
-            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={totalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
             {visibleLanes.map((lane, i) => (
               <TimelineLane
                 key={lane.id}
@@ -464,7 +488,9 @@ export function TimelineContainer({
               key={persona.id}
               persona={persona}
               events={separatePersonaEventsMap.get(persona.id) ?? []}
+              laneNames={visibleLaneNames}
               yearStart={effectiveYearStart}
+              yearEnd={effectiveYearEnd}
               pixelsPerYear={pixelsPerYear}
               laneColorMap={laneColorMap}
               currentYear={currentYear}

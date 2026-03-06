@@ -10,6 +10,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
 
+export interface PersonaSidebarSection {
+  personaId: string
+  name: string
+  initials: string
+  birthYear: number
+  deathYear?: number | null
+  laneNames: string[]
+}
+
 interface LaneSidebarProps {
   lanes: Lane[]
   hiddenLanes: Lane[]
@@ -17,6 +26,7 @@ interface LaneSidebarProps {
   lanePersonaLabels: Map<string, { initials: string; name: string }[]>
   laneHasOverlaps: Map<string, boolean>
   expandedLanes: Set<string>
+  separatePersonaSections?: PersonaSidebarSection[]
   onToggleExpand: (id: string) => void
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
@@ -31,6 +41,7 @@ export function LaneSidebar({
   lanePersonaLabels,
   laneHasOverlaps,
   expandedLanes,
+  separatePersonaSections = [],
   onToggleExpand,
   onToggleVisibility,
   onEditLane,
@@ -159,6 +170,53 @@ export function LaneSidebar({
           </span>
         </div>
       )}
+
+      {/* Separate persona sections */}
+      {separatePersonaSections.map(section => (
+        <div key={section.personaId}>
+          {/* Persona header row */}
+          <div
+            className="border-t-2 border-border/60 flex items-center bg-muted/40"
+            style={{
+              height: PERSONA_SUB_ROW_HEIGHT,
+              paddingLeft: Math.round(SIDEBAR_WIDTH * 0.04),
+              paddingRight: Math.round(SIDEBAR_WIDTH * 0.04),
+              gap: Math.round(ICON_SIZE / 6),
+            }}
+          >
+            <span
+              className="font-bold bg-muted-foreground/20 rounded shrink-0"
+              style={{ fontSize: Math.round(SIDEBAR_FONT * 0.85), padding: '1px 4px' }}
+            >
+              {section.initials}
+            </span>
+            <span className="font-semibold text-muted-foreground truncate" style={{ fontSize: SIDEBAR_FONT }}>
+              {section.name}
+            </span>
+            <span
+              className="text-muted-foreground/60 shrink-0 hidden xl:inline"
+              style={{ fontSize: Math.round(SIDEBAR_FONT * 0.75) }}
+            >
+              {section.birthYear}–{section.deathYear ?? 'present'}
+            </span>
+          </div>
+          {/* One label row per lane */}
+          {section.laneNames.map(laneName => (
+            <div
+              key={laneName}
+              className="border-b border-border/30 flex items-center text-muted-foreground"
+              style={{
+                height: BASE_LANE_HEIGHT,
+                paddingLeft: Math.round(SIDEBAR_WIDTH * 0.08),
+                paddingRight: Math.round(SIDEBAR_WIDTH * 0.04),
+                gap: Math.round(ICON_SIZE / 4),
+              }}
+            >
+              <span className="truncate" style={{ fontSize: SIDEBAR_FONT }}>{laneName}</span>
+            </div>
+          ))}
+        </div>
+      ))}
 
       {/* Hidden lanes recovery section */}
       {hiddenLanes.length > 0 && (
