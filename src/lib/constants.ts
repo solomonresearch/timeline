@@ -8,7 +8,7 @@ export const HEADER_HEIGHT = 48         // sticky timeline header height in px
 export const SIDEBAR_WIDTH = 280        // lane sidebar width in px
 
 // Zoom & year range
-export const MIN_PIXELS_PER_YEAR = 0.5
+export const MIN_PIXELS_PER_YEAR = 3.5
 export const MAX_PIXELS_PER_YEAR = 300_000  // dynamic canvas windowing keeps DOM elements safe
 export const DEFAULT_PIXELS_PER_YEAR = 80
 export const TIMELINE_YEAR_MIN = 1700
