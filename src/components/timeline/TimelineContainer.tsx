@@ -237,6 +237,24 @@ export function TimelineContainer({
 
   // Pending scroll applied after React re-renders new content width
   const pendingScrollRef = useRef<number | null>(null)
+  const prevPpyRef = useRef(pixelsPerYear)
+
+  // Zoom toward center when pixelsPerYear changes from toolbar slider/buttons (not from wheel/pinch,
+  // which set pendingScrollRef themselves before triggering a re-render).
+  useLayoutEffect(() => {
+    const prev = prevPpyRef.current
+    prevPpyRef.current = pixelsPerYear
+    if (prev === pixelsPerYear || pendingScrollRef.current !== null) return
+    const el = scrollRef.current
+    if (!el) return
+    const centerPx = el.scrollLeft + el.clientWidth / 2
+    const centerYear = yearStartRef.current + centerPx / prev
+    const { effStart } = computeEffWindow(centerYear, pixelsPerYear, yearStart, yearEnd)
+    yearStartRef.current = effStart
+    viewCenterYearRef.current = centerYear
+    pendingScrollRef.current = Math.max(0, (centerYear - effStart) * pixelsPerYear - el.clientWidth / 2)
+  }, [pixelsPerYear, yearStart, yearEnd])
+
   useLayoutEffect(() => {
     if (pendingScrollRef.current !== null && scrollRef.current) {
       // Force layout recalculation before setting scrollLeft (browser may clamp to old width)
