@@ -11,8 +11,8 @@ export const SIDEBAR_WIDTH = 280        // lane sidebar width in px
 export const MIN_PIXELS_PER_YEAR = 0.5
 export const MAX_PIXELS_PER_YEAR = 300_000  // dynamic canvas windowing keeps DOM elements safe
 export const DEFAULT_PIXELS_PER_YEAR = 80
-export const TIMELINE_YEAR_MIN = -1000
-export const TIMELINE_YEAR_MAX = 5000
+export const TIMELINE_YEAR_MIN = 1700
+export const TIMELINE_YEAR_MAX = 2300
 
 /** Which sub-year unit to display based on zoom level. */
 export type ZoomMode = 'year' | 'month' | 'day' | 'hour' | 'minute'
