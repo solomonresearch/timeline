@@ -14,7 +14,6 @@ import {
   MIN_PIXELS_PER_YEAR,
   MAX_PIXELS_PER_YEAR,
   fracYearToMs,
-  fracYearToDateLabel,
 } from '@/lib/constants'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
 import { TimelineHeader } from './timeline/TimelineHeader'
@@ -81,7 +80,6 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
   // ── Scroll state ──────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null)
   const cursorHeaderRef = useRef<HTMLDivElement>(null)
-  const cursorLabelRef = useRef<HTMLSpanElement>(null)
   const [scrollLeft, setScrollLeft] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(1200)
 
@@ -304,9 +302,6 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
       cursorHeaderRef.current.style.left = `${viewX}px`
       cursorHeaderRef.current.style.display = 'block'
     }
-    if (cursorLabelRef.current) {
-      cursorLabelRef.current.textContent = fracYearToDateLabel(year)
-    }
     setHover({ timelineId, year, clientX: e.clientX, clientY: e.clientY })
   }, [])
 
@@ -377,7 +372,6 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
             scrollLeft={scrollLeft}
             viewportWidth={viewportWidth}
             cursorRef={cursorHeaderRef}
-            cursorLabelRef={cursorLabelRef}
           />
 
           <div className="relative">

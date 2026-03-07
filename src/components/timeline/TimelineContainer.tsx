@@ -119,7 +119,7 @@ export function TimelineContainer({
   const hasScrolledRef = useRef<string | null>(null)
   const cursorLaneRef = useRef<HTMLDivElement>(null)
   const cursorHeaderRef = useRef<HTMLDivElement>(null)
-  const cursorLabelRef = useRef<HTMLSpanElement>(null)
+  const cursorPopupRef = useRef<HTMLDivElement>(null)
 
   // Dynamic canvas windowing: when total width exceeds MAX_CANVAS_PX, render only a window
   const [viewCenterYear, setViewCenterYear] = useState(() => getCurrentYearFraction())
@@ -191,7 +191,7 @@ export function TimelineContainer({
     const el = scrollRef.current
     if (!el) return
 
-    const show = (clientX: number) => {
+    const show = (clientX: number, clientY: number) => {
       const rect = el.getBoundingClientRect()
       const viewX = clientX - rect.left          // viewport-relative (for header)
       const contentX = el.scrollLeft + viewX     // content-relative (for lanes)
@@ -203,21 +203,25 @@ export function TimelineContainer({
         cursorHeaderRef.current.style.left = `${viewX}px`
         cursorHeaderRef.current.style.display = 'block'
       }
-      if (cursorLabelRef.current) {
+      if (cursorPopupRef.current) {
         const year = yearStartRef.current + contentX / ppyRef.current
-        cursorLabelRef.current.textContent = fracYearToDateLabel(year)
+        cursorPopupRef.current.textContent = fracYearToDateLabel(year)
+        cursorPopupRef.current.style.left = `${clientX + 14}px`
+        cursorPopupRef.current.style.top = `${clientY - 36}px`
+        cursorPopupRef.current.style.display = 'block'
       }
     }
 
     const hide = () => {
       if (cursorLaneRef.current) cursorLaneRef.current.style.display = 'none'
       if (cursorHeaderRef.current) cursorHeaderRef.current.style.display = 'none'
+      if (cursorPopupRef.current) cursorPopupRef.current.style.display = 'none'
     }
 
-    const onMouseMove = (e: MouseEvent) => show(e.clientX)
+    const onMouseMove = (e: MouseEvent) => show(e.clientX, e.clientY)
     const onMouseLeave = () => hide()
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) show(e.touches[0].clientX)
+      if (e.touches.length === 1) show(e.touches[0].clientX, e.touches[0].clientY)
     }
     const onTouchEnd = () => hide()
 
@@ -620,6 +624,12 @@ export function TimelineContainer({
 
   return (
     <div ref={containerRef} className="flex flex-1 overflow-hidden">
+      {/* Floating cursor date popup — fixed so it always appears next to the mouse */}
+      <div
+        ref={cursorPopupRef}
+        className="fixed z-50 pointer-events-none rounded-md border bg-popover text-popover-foreground shadow-sm px-2 py-1 text-xs font-medium whitespace-nowrap"
+        style={{ display: 'none', left: 0, top: 0 }}
+      />
       <LaneSidebar
         lanes={visibleLanes}
         hiddenLanes={hiddenLanes}
@@ -636,7 +646,7 @@ export function TimelineContainer({
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
-          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} cursorLabelRef={cursorLabelRef} timelineMeta={timelineMeta} />
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} timelineMeta={timelineMeta} />
           <div className="relative">
             <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} timelineMeta={timelineMeta} />
             {/* Cursor line — positioned in content space, updated via ref */}
