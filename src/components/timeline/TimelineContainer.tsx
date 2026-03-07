@@ -260,6 +260,8 @@ export function TimelineContainer({
     if (!el) return
 
     let lastDist = 0
+    let lastMidX = 0
+    let lastMidY = 0
 
     const touchDist = (t: TouchList) => {
       const dx = t[1].clientX - t[0].clientX
@@ -268,7 +270,12 @@ export function TimelineContainer({
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) lastDist = touchDist(e.touches)
+      if (e.touches.length === 2) {
+        e.preventDefault() // prevent browser from starting its own scroll/zoom gesture
+        lastDist = touchDist(e.touches)
+        lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+        lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+      }
     }
 
     const onTouchMove = (e: TouchEvent) => {
@@ -276,24 +283,34 @@ export function TimelineContainer({
       e.preventDefault() // block browser page-zoom
 
       const dist = touchDist(e.touches)
-      if (lastDist === 0) { lastDist = dist; return }
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+
+      if (lastDist === 0) { lastDist = dist; lastMidX = midX; lastMidY = midY; return }
 
       const factor = dist / lastDist
-      lastDist = dist
+      const dMidX = midX - lastMidX
+      const dMidY = midY - lastMidY
+      lastDist = dist; lastMidX = midX; lastMidY = midY
 
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
       const rect = el.getBoundingClientRect()
       const touchX = midX - rect.left
 
       const ppy = ppyRef.current
-      const yearAtPinch = yearStartRef.current + (el.scrollLeft + touchX) / ppy
+      // Use pendingScrollRef to avoid stale scrollLeft during rapid events
+      const sl = pendingScrollRef.current ?? el.scrollLeft
+      const yearAtPinch = yearStartRef.current + (sl + touchX) / ppy
       const newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, ppy * factor))
       ppyRef.current = newPpy
 
       const { effStart: newEffStart } = computeEffWindow(yearAtPinch, newPpy, yearStart, yearEnd)
       yearStartRef.current = newEffStart
       viewCenterYearRef.current = yearAtPinch
-      pendingScrollRef.current = (yearAtPinch - newEffStart) * newPpy - touchX
+      // Compensate for finger translation (dMidX) so the pinch anchor stays fixed
+      pendingScrollRef.current = (yearAtPinch - newEffStart) * newPpy - touchX - dMidX
+
+      // Vertical pan from finger translation
+      el.scrollTop -= dMidY
 
       if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current)
       zoomRafRef.current = requestAnimationFrame(() => {
@@ -303,9 +320,9 @@ export function TimelineContainer({
       })
     }
 
-    const onTouchEnd = () => { lastDist = 0 }
+    const onTouchEnd = () => { lastDist = 0; lastMidX = 0; lastMidY = 0 }
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchstart', onTouchStart, { passive: false }) // must be non-passive to call preventDefault
     el.addEventListener('touchmove', onTouchMove, { passive: false })
     el.addEventListener('touchend', onTouchEnd, { passive: true })
     return () => {
