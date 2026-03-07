@@ -134,7 +134,7 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
 
   return (
     <div
-      className="sticky top-0 z-10 bg-white border-b"
+      className="sticky top-0 z-10 bg-background border-b"
       style={{ width: '100%', height: sc.HEADER_HEIGHT }}
     >
       {filtered.map(({ key, left, label, major }) => (

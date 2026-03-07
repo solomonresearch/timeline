@@ -15,6 +15,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthPage } from '@/components/auth/AuthPage'
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm'
 import { UiSizeProvider } from '@/contexts/UiSizeContext'
+import { SkinProvider } from '@/contexts/SkinContext'
 
 // Lightweight URL-based routing (no dependency needed)
 function getViewFromPath(): AppView {
@@ -200,7 +201,7 @@ function TimelineView() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-screen bg-white">
+      <div className="flex flex-col h-screen bg-background">
         <Toolbar
           pixelsPerYear={pixelsPerYear}
           onPixelsPerYearChange={setPixelsPerYear}
@@ -306,11 +307,13 @@ function App() {
   }
 
   return (
-    <UiSizeProvider>
-      <TimelineProvider>
-        <TimelineView />
-      </TimelineProvider>
-    </UiSizeProvider>
+    <SkinProvider>
+      <UiSizeProvider>
+        <TimelineProvider>
+          <TimelineView />
+        </TimelineProvider>
+      </UiSizeProvider>
+    </SkinProvider>
   )
 }
 
