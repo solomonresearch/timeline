@@ -21,6 +21,7 @@ interface TimelineHeaderProps {
   scrollLeft: number
   viewportWidth: number
   cursorRef?: RefObject<HTMLDivElement | null>
+  cursorLabelRef?: RefObject<HTMLSpanElement | null>
   timelineMeta?: TimelineMeta
 }
 
@@ -31,7 +32,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef, timelineMeta }: TimelineHeaderProps) {
+export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef, cursorLabelRef, timelineMeta }: TimelineHeaderProps) {
   const { sc } = useSizeConfig()
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 2
@@ -211,6 +212,22 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
           style={{ display: 'none', left: 0 }}
         >
           <div className="absolute top-0 h-full" style={{ left: -0.5, borderLeft: '1px dashed #9ca3af' }} />
+          {cursorLabelRef && (
+            <span
+              ref={cursorLabelRef}
+              className="absolute whitespace-nowrap select-none font-medium"
+              style={{
+                top: Math.round(sc.HEADER_HEIGHT * 0.08),
+                left: 6,
+                fontSize: sc.TICK_FONT,
+                padding: '1px 4px',
+                borderRadius: 3,
+                background: 'rgba(0,0,0,0.65)',
+                color: '#fff',
+                zIndex: 20,
+              }}
+            />
+          )}
         </div>
       )}
     </div>

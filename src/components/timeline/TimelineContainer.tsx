@@ -8,7 +8,7 @@ import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
 import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
-import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR, fracYearToDateLabel } from '@/lib/constants'
 import { useSizeConfig, scaleSizeConfig, SIZE_PRESETS } from '@/contexts/UiSizeContext'
 
 // ── Dynamic canvas windowing ──────────────────────────────────────────────────
@@ -119,6 +119,7 @@ export function TimelineContainer({
   const hasScrolledRef = useRef<string | null>(null)
   const cursorLaneRef = useRef<HTMLDivElement>(null)
   const cursorHeaderRef = useRef<HTMLDivElement>(null)
+  const cursorLabelRef = useRef<HTMLSpanElement>(null)
 
   // Dynamic canvas windowing: when total width exceeds MAX_CANVAS_PX, render only a window
   const [viewCenterYear, setViewCenterYear] = useState(() => getCurrentYearFraction())
@@ -201,6 +202,10 @@ export function TimelineContainer({
       if (cursorHeaderRef.current) {
         cursorHeaderRef.current.style.left = `${viewX}px`
         cursorHeaderRef.current.style.display = 'block'
+      }
+      if (cursorLabelRef.current) {
+        const year = yearStartRef.current + contentX / ppyRef.current
+        cursorLabelRef.current.textContent = fracYearToDateLabel(year)
       }
     }
 
@@ -631,7 +636,7 @@ export function TimelineContainer({
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
-          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} timelineMeta={timelineMeta} />
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} cursorLabelRef={cursorLabelRef} timelineMeta={timelineMeta} />
           <div className="relative">
             <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} timelineMeta={timelineMeta} />
             {/* Cursor line — positioned in content space, updated via ref */}

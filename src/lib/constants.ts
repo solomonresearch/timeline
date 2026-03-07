@@ -198,3 +198,13 @@ export function getCurrentYearFraction(): number {
   const end = new Date(year + 1, 0, 1).getTime()
   return year + (now.getTime() - start) / (end - start)
 }
+
+
+const _MLBL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+/** Format a fractional year as "15 Mar 2025, 14:30" (UTC). */
+export function fracYearToDateLabel(fy: number): string {
+  const d = new Date(fracYearToMs(fy))
+  const h = String(d.getUTCHours()).padStart(2, '0')
+  const m = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${d.getUTCDate()} ${_MLBL[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${h}:${m}`
+}

@@ -14,6 +14,7 @@ import {
   MIN_PIXELS_PER_YEAR,
   MAX_PIXELS_PER_YEAR,
   fracYearToMs,
+  fracYearToDateLabel,
 } from '@/lib/constants'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
 import { TimelineHeader } from './timeline/TimelineHeader'
@@ -79,6 +80,8 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
 
   // ── Scroll state ──────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null)
+  const cursorHeaderRef = useRef<HTMLDivElement>(null)
+  const cursorLabelRef = useRef<HTMLSpanElement>(null)
   const [scrollLeft, setScrollLeft] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(1200)
 
@@ -293,10 +296,19 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
     const el = scrollRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const contentX = el.scrollLeft + (e.clientX - rect.left)
-    const year = effectiveYearStart + contentX / pixelsPerYear
+    const viewX = e.clientX - rect.left
+    const contentX = el.scrollLeft + viewX
+    const year = yearStartRef.current + contentX / ppyRef.current
+    // Update header cursor via DOM (same no-rerender pattern as TimelineContainer)
+    if (cursorHeaderRef.current) {
+      cursorHeaderRef.current.style.left = `${viewX}px`
+      cursorHeaderRef.current.style.display = 'block'
+    }
+    if (cursorLabelRef.current) {
+      cursorLabelRef.current.textContent = fracYearToDateLabel(year)
+    }
     setHover({ timelineId, year, clientX: e.clientX, clientY: e.clientY })
-  }, [effectiveYearStart, pixelsPerYear])
+  }, [])
 
   // ── Derive tooltip data ───────────────────────────────────────────────────
   const hoveredTimeline = hover ? timelines.find(t => t.id === hover.timelineId) : null
@@ -347,7 +359,10 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
       <div
         ref={scrollRef}
         className="flex-1 overflow-auto"
-        onMouseLeave={() => setHover(null)}
+        onMouseLeave={() => {
+          setHover(null)
+          if (cursorHeaderRef.current) cursorHeaderRef.current.style.display = 'none'
+        }}
       >
         <div
           className="relative"
@@ -361,6 +376,8 @@ export function TimelineOverview({ onSelectTimeline, selectedTimelineEvents = []
             currentYear={currentYear}
             scrollLeft={scrollLeft}
             viewportWidth={viewportWidth}
+            cursorRef={cursorHeaderRef}
+            cursorLabelRef={cursorLabelRef}
           />
 
           <div className="relative">
