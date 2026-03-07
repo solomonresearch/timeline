@@ -73,14 +73,14 @@ export function Toolbar({
   }, [pixelsPerYear, onPixelsPerYearChange])
 
   const sliderValue = useMemo(() => {
-    const v = (Math.log(pixelsPerYear) - logMin) / (logMax - logMin) * 1000
+    const v = (Math.log(pixelsPerYear) - logMin) / (logMax - logMin) * 250
     return Math.round(v)
   }, [pixelsPerYear, logMin, logMax])
 
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const v = Number(e.target.value)
-      const ppy = Math.exp(logMin + (v / 1000) * (logMax - logMin))
+      const ppy = Math.exp(logMin + (v / 250) * (logMax - logMin))
       onPixelsPerYearChange(Math.round(ppy * 10) / 10)
     },
     [logMin, logMax, onPixelsPerYearChange],
@@ -105,7 +105,7 @@ export function Toolbar({
       <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2">
         {/* ── Left side ── */}
         <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">Life Timeline</h1>
+          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">Timeline</h1>
           <TimelinePersonaSelector
             personas={personas}
             activePersonaIds={activePersonaIds}
@@ -186,7 +186,7 @@ export function Toolbar({
                 <input
                   type="range"
                   min={0}
-                  max={1000}
+                  max={250}
                   value={sliderValue}
                   onChange={handleSliderChange}
                   className="h-1 w-24 cursor-pointer accent-primary"
