@@ -623,28 +623,43 @@ export function TimelineContainer({
   }, [size, grandTotalHeight, computeFitScreen])
 
   return (
-    <div ref={containerRef} className="flex flex-1 overflow-hidden">
+    <div ref={containerRef} className="relative flex-1 overflow-hidden">
       {/* Floating cursor date popup — fixed so it always appears next to the mouse */}
       <div
         ref={cursorPopupRef}
         className="fixed z-50 pointer-events-none rounded-md border bg-popover text-popover-foreground shadow-sm px-2 py-1 text-xs font-medium whitespace-nowrap"
         style={{ display: 'none', left: 0, top: 0 }}
       />
-      <LaneSidebar
-        lanes={visibleLanes}
-        hiddenLanes={hiddenLanes}
-        laneHeights={laneHeights}
-        lanePersonaLabels={sidebarPersonaLabels}
-        laneHasOverlaps={laneHasOverlaps}
-        expandedLanes={expandedLanes}
-        separatePersonaSections={separatePersonaSections}
-        onToggleExpand={handleToggleExpand}
-        onToggleVisibility={onToggleVisibility}
-        onEditLane={onEditLane}
-        onDeleteLane={onDeleteLane}
-        totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}
-      />
-      <div ref={scrollRef} className="flex-1 overflow-auto">
+
+      {/* Lane sidebar overlay — floats above timeline, fades right to transparent */}
+      <div
+        className="absolute top-0 left-0 z-20 overflow-hidden pointer-events-none"
+        style={{
+          width: sc.SIDEBAR_WIDTH,
+          height: '100%',
+          maskImage: 'linear-gradient(to right, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.82) 45%, rgba(0,0,0,0) 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.82) 45%, rgba(0,0,0,0) 100%)',
+        }}
+      >
+        <div className="pointer-events-auto">
+          <LaneSidebar
+            lanes={visibleLanes}
+            hiddenLanes={hiddenLanes}
+            laneHeights={laneHeights}
+            lanePersonaLabels={sidebarPersonaLabels}
+            laneHasOverlaps={laneHasOverlaps}
+            expandedLanes={expandedLanes}
+            separatePersonaSections={separatePersonaSections}
+            onToggleExpand={handleToggleExpand}
+            onToggleVisibility={onToggleVisibility}
+            onEditLane={onEditLane}
+            onDeleteLane={onDeleteLane}
+            totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}
+          />
+        </div>
+      </div>
+
+      <div ref={scrollRef} className="absolute inset-0 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
           <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} timelineMeta={timelineMeta} />
           <div className="relative">

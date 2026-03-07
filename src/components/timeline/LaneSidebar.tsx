@@ -65,7 +65,7 @@ export function LaneSidebar({
   const iconPad = Math.round(ICON_SIZE / 12)
 
   return (
-    <div className="sticky left-0 z-20 bg-background border-r" style={{ minWidth: W, width: W }}>
+    <div className="bg-background" style={{ minWidth: W, width: W }}>
       {/* header spacer */}
       <div className="border-b bg-background" style={{ height: HEADER_HEIGHT }} />
 
