@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-export type AppView = 'timeline' | 'kanban'
+export type AppView = 'timeline' | 'kanban' | 'overview'
 
 interface ToolbarProps {
   pixelsPerYear: number
@@ -207,6 +207,17 @@ export function Toolbar({
             </div>
           )}
 
+          {/* Desktop overview toggle */}
+          <Button
+            variant={activeView === 'overview' ? 'default' : 'outline'}
+            size="sm"
+            className="hidden md:flex"
+            onClick={() => onSetActiveView(activeView === 'overview' ? 'timeline' : 'overview')}
+          >
+            <LayoutList className="h-4 w-4 mr-1" />
+            Overview
+          </Button>
+
           {/* Desktop kanban toggle */}
           <Button
             variant={activeView === 'kanban' ? 'default' : 'outline'}
@@ -253,6 +264,10 @@ export function Toolbar({
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem onClick={() => onSetActiveView(activeView === 'overview' ? 'timeline' : 'overview')}>
+                <LayoutList className="h-4 w-4 mr-2" />
+                {activeView === 'overview' ? 'View Timeline' : 'Overview'}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}>
                 <Kanban className="h-4 w-4 mr-2" />
                 {activeView === 'kanban' ? 'View Timeline' : 'View Kanban'}

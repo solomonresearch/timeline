@@ -12,6 +12,10 @@ export interface DbTimeline {
   id: string
   user_id: string
   name: string
+  start_year: number | null
+  end_year: number | null
+  color: string | null
+  emoji: string | null
   created_at: string
   updated_at: string
 }

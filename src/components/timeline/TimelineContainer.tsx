@@ -88,6 +88,7 @@ interface TimelineContainerProps {
   dataYearMin: number
   dataYearMax: number
   scrollToTodayRef?: MutableRefObject<(() => void) | null>
+  timelineMeta?: { startYear: number; endYear: number; color: string }
 }
 
 export function TimelineContainer({
@@ -109,6 +110,7 @@ export function TimelineContainer({
   dataYearMin,
   dataYearMax,
   scrollToTodayRef,
+  timelineMeta,
 }: TimelineContainerProps) {
   const { sc, size, updateFitScreenConfig } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT } = sc
@@ -611,9 +613,9 @@ export function TimelineContainer({
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
-          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} />
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} timelineMeta={timelineMeta} />
           <div className="relative">
-            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} timelineMeta={timelineMeta} />
             {/* Cursor line — positioned in content space, updated via ref */}
             <div
               ref={cursorLaneRef}

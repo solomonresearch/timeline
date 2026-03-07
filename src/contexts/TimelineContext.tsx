@@ -10,6 +10,7 @@ interface TimelineContextType {
   selectedTimelineId: string | null
   selectTimeline: (id: string) => void
   createTimeline: (name?: string) => Promise<string | null>
+  updateTimeline: (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null }) => Promise<boolean>
   renameTimeline: (id: string, name: string) => Promise<boolean>
   deleteTimeline: (id: string) => Promise<boolean>
   timelinesLoading: boolean
@@ -41,6 +42,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    updateTimeline,
     renameTimeline,
     deleteTimeline,
     loading: timelinesLoading,
@@ -72,6 +74,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         selectedTimelineId,
         selectTimeline,
         createTimeline,
+        updateTimeline,
         renameTimeline,
         deleteTimeline,
         timelinesLoading,

@@ -3,6 +3,12 @@ import {
   getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
 } from '@/lib/constants'
 
+interface TimelineMeta {
+  startYear: number
+  endYear: number
+  color: string
+}
+
 interface YearGridProps {
   yearStart: number
   yearEnd: number
@@ -11,9 +17,17 @@ interface YearGridProps {
   currentYear: number
   scrollLeft: number
   viewportWidth: number
+  timelineMeta?: TimelineMeta
 }
 
-export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, currentYear, scrollLeft, viewportWidth }: YearGridProps) {
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16) || 0
+  const g = parseInt(hex.slice(3, 5), 16) || 0
+  const b = parseInt(hex.slice(5, 7), 16) || 0
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, currentYear, scrollLeft, viewportWidth, timelineMeta }: YearGridProps) {
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 1.5
   const visStart = yearStart + Math.max(0, scrollLeft - bufferPx) / pixelsPerYear
@@ -69,11 +83,29 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
     }
   }
 
+  const shadeLeft = timelineMeta
+    ? Math.max(0, (timelineMeta.startYear - yearStart) * pixelsPerYear)
+    : 0
+  const shadeRight = timelineMeta
+    ? Math.max(0, (yearEnd - Math.min(timelineMeta.endYear, yearEnd)) * pixelsPerYear)
+    : 0
+
   return (
     <div
       className="pointer-events-none absolute inset-0"
       style={{ width: '100%', height: totalHeight }}
     >
+      {/* Active timeline range shading */}
+      {timelineMeta && (
+        <div
+          className="absolute top-0 bottom-0"
+          style={{
+            left: shadeLeft,
+            right: shadeRight,
+            backgroundColor: hexToRgba(timelineMeta.color, 0.08),
+          }}
+        />
+      )}
       {lines.map(y => (
         <div
           key={y}
