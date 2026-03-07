@@ -84,9 +84,12 @@ const UiSizeContext = createContext<UiSizeContextValue>({
 })
 
 export function UiSizeProvider({ children }: { children: ReactNode }) {
-  const [size, setSize] = useState<UiSize>(() =>
-    (localStorage.getItem('ui-size') as UiSize | null) ?? 'medium'
-  )
+  const [size, setSize] = useState<UiSize>(() => {
+    const saved = localStorage.getItem('ui-size') as UiSize | null
+    if (saved) return saved
+    // Default: fitscreen on mobile/tablet, medium on desktop
+    return window.matchMedia('(max-width: 767px)').matches ? 'fitscreen' : 'medium'
+  })
   const [fitScreenConfig, setFitScreenConfig] = useState<SizeConfig>(SIZE_PRESETS.large)
 
   function handleSetSize(s: UiSize) {

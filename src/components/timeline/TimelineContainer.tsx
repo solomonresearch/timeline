@@ -384,18 +384,18 @@ export function TimelineContainer({
   // Build a unique key for the current data range to detect timeline changes
   const dataKey = `${dataYearMin}-${dataYearMax}`
 
-  // Scroll to center of user's data on load / timeline change
+  // Scroll to today on load / timeline change
   useEffect(() => {
     if (!scrollRef.current) return
     if (hasScrolledRef.current === dataKey) return
-    const dataCenterYear = (dataYearMin + dataYearMax) / 2
-    const { effStart } = computeEffWindow(dataCenterYear, pixelsPerYear, yearStart, yearEnd)
+    const today = getCurrentYearFraction()
+    const { effStart } = computeEffWindow(today, pixelsPerYear, yearStart, yearEnd)
     yearStartRef.current = effStart
-    viewCenterYearRef.current = dataCenterYear
-    const dataCenterPx = (dataCenterYear - effStart) * pixelsPerYear
+    viewCenterYearRef.current = today
+    const todayPx = (today - effStart) * pixelsPerYear
     const viewWidth = scrollRef.current.clientWidth
-    pendingScrollRef.current = Math.max(0, dataCenterPx - viewWidth / 2)
-    setViewCenterYear(dataCenterYear)
+    pendingScrollRef.current = Math.max(0, todayPx - viewWidth / 2)
+    setViewCenterYear(today)
     hasScrolledRef.current = dataKey
   }, [dataKey, dataYearMin, dataYearMax, yearStart, yearEnd, pixelsPerYear])
 
