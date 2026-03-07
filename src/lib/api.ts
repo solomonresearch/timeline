@@ -152,16 +152,24 @@ export async function createTimelineWithDefaults(userId: string, name?: string):
   return timelineId
 }
 
-export async function renameTimeline(timelineId: string, name: string): Promise<boolean> {
+export async function updateTimeline(
+  timelineId: string,
+  updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null },
+): Promise<boolean> {
   const { error } = await supabase
     .from('timelines')
-    .update({ name, updated_at: new Date().toISOString() })
+    .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', timelineId)
   if (error) {
-    console.error('renameTimeline error:', error)
+    console.error('updateTimeline error:', error)
     return false
   }
   return true
+}
+
+/** @deprecated use updateTimeline */
+export async function renameTimeline(timelineId: string, name: string): Promise<boolean> {
+  return updateTimeline(timelineId, { name })
 }
 
 export async function deleteTimeline(timelineId: string): Promise<boolean> {

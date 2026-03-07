@@ -6,6 +6,7 @@ import { usePersonas } from '@/hooks/usePersonas'
 import { useProfile } from '@/hooks/useProfile'
 import { Toolbar, type AppView } from '@/components/Toolbar'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
+import { TimelineOverview } from '@/components/TimelineOverview'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { EventPopover } from '@/components/EventPopover'
 import { EventDialog } from '@/components/dialogs/EventDialog'
@@ -19,7 +20,10 @@ import { SkinProvider } from '@/contexts/SkinContext'
 
 // Lightweight URL-based routing (no dependency needed)
 function getViewFromPath(): AppView {
-  return window.location.pathname === '/kanban' ? 'kanban' : 'timeline'
+  const p = window.location.pathname
+  if (p === '/kanban') return 'kanban'
+  if (p === '/overview') return 'overview'
+  return 'timeline'
 }
 
 function useAppView(): [AppView, (view: AppView) => void] {
@@ -32,7 +36,7 @@ function useAppView(): [AppView, (view: AppView) => void] {
   )
 
   const setView = useCallback((v: AppView) => {
-    const path = v === 'kanban' ? '/kanban' : '/'
+    const path = v === 'kanban' ? '/kanban' : v === 'overview' ? '/overview' : '/'
     if (window.location.pathname !== path) {
       window.history.pushState(null, '', path)
       // Trigger re-render via popstate
@@ -60,7 +64,14 @@ function TimelineView() {
     updateLane,
     deleteLane,
     toggleLaneVisibility,
+    timelines,
+    selectedTimelineId,
   } = useTimelineContext()
+
+  const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
+  const timelineMeta = selectedTimeline?.start_year != null && selectedTimeline?.end_year != null
+    ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
+    : undefined
 
   const { profile } = useProfile()
 
@@ -217,7 +228,9 @@ function TimelineView() {
           onScrollToToday={() => scrollToTodayRef.current?.()}
         />
 
-        {activeView === 'timeline' ? (
+        {activeView === 'overview' ? (
+          <TimelineOverview onSelectTimeline={() => setActiveView('timeline')} selectedTimelineEvents={events} />
+        ) : activeView === 'timeline' ? (
           <>
             <TimelineContainer
               lanes={lanes}
@@ -238,6 +251,7 @@ function TimelineView() {
               personas={personas}
               personaDisplayModes={personaDisplayModes}
               scrollToTodayRef={scrollToTodayRef}
+              timelineMeta={timelineMeta}
             />
 
             {/* Event popover */}

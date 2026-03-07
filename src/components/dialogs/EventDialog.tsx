@@ -87,7 +87,6 @@ export function EventDialog({
   const [laneId, setLaneId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [type, setType] = useState<'range' | 'point'>('range')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [color, setColor] = useState('')
@@ -109,7 +108,6 @@ export function EventDialog({
       setLaneId(editingEvent.laneId)
       setTitle(editingEvent.title)
       setDescription(editingEvent.description)
-      setType(editingEvent.type)
       setStartDate(fracYearToDMY(editingEvent.startYear))
       setEndDate(editingEvent.endYear != null ? fracYearToDMY(editingEvent.endYear) : '')
       setColor(editingEvent.color ?? '')
@@ -160,7 +158,6 @@ export function EventDialog({
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
       setDescription('')
-      setType(defaultEndYear != null ? 'range' : defaultStartYear != null ? 'point' : 'range')
       setStartDate(defaultStartYear != null ? fracYearToDMY(defaultStartYear) : '')
       setEndDate(defaultEndYear != null ? fracYearToDMY(defaultEndYear) : '')
       setColor('')
@@ -180,9 +177,10 @@ export function EventDialog({
     e.preventDefault()
     if (!title.trim() || !laneId || !startDate) return
 
+    const isRange = !!endDate.trim()
     let valueProjectionOut: ValueProjection | undefined
 
-    if (valueEnabled && type === 'range') {
+    if (valueEnabled && isRange) {
       const evStart = dmyTimeToFracYear(startDate, startTime)
       const evEnd = endDate ? dmyTimeToFracYear(endDate, endTime) : evStart + 100
 
@@ -233,16 +231,16 @@ export function EventDialog({
       }
     }
 
-    const pv = type === 'point' && pointValueStr && !isNaN(Number(pointValueStr))
+    const pv = !isRange && pointValueStr && !isNaN(Number(pointValueStr))
       ? Number(pointValueStr) : undefined
 
     const data: Omit<TimelineEvent, 'id'> = {
       laneId,
       title: title.trim(),
       description: description.trim(),
-      type,
+      type: isRange ? 'range' : 'point',
       startYear: dmyTimeToFracYear(startDate, startTime),
-      ...(type === 'range' && endDate ? { endYear: dmyTimeToFracYear(endDate, endTime) } : {}),
+      ...(isRange ? { endYear: dmyTimeToFracYear(endDate, endTime) } : {}),
       ...(color ? { color } : {}),
       ...(emoji ? { emoji } : {}),
       ...(pv != null ? { pointValue: pv } : {}),
@@ -300,17 +298,7 @@ export function EventDialog({
             <Label htmlFor="desc">Description</Label>
             <Input id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={v => setType(v as 'range' | 'point')}>
-                <SelectTrigger id="type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="range">Range</SelectItem>
-                  <SelectItem value="point">Point</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Color</Label>
               <Input type="color" value={color || '#3b82f6'} onChange={e => setColor(e.target.value)} className="h-9 p-1" />
@@ -356,43 +344,34 @@ export function EventDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="start">{type === 'range' ? 'Start Date' : 'Date'}</Label>
+              <Label htmlFor="start">Start Date</Label>
               <Input id="start" type="text" value={startDate} placeholder="DD/MM/YYYY" onChange={e => setStartDate(formatDMYInput(e.target.value))} required />
             </div>
-            {type === 'range' ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="end">End Date</Label>
-                <Input id="end" type="text" value={endDate} placeholder="DD/MM/YYYY" onChange={e => setEndDate(formatDMYInput(e.target.value))} />
-              </div>
-            ) : (
-              <div className="grid gap-1.5">
-                <Label htmlFor="pointval">Value (optional)</Label>
-                <Input
-                  id="pointval"
-                  type="number"
-                  value={pointValueStr}
-                  placeholder="e.g. 50000"
-                  onChange={e => setPointValueStr(e.target.value)}
-                  className="h-9"
-                />
-              </div>
-            )}
+            <div className="grid gap-1.5">
+              <Label htmlFor="end">End Date <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input id="end" type="text" value={endDate} placeholder="DD/MM/YYYY" onChange={e => setEndDate(formatDMYInput(e.target.value))} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="starttime" className="text-xs text-muted-foreground">Start Time (optional)</Label>
               <Input id="starttime" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="h-8 text-xs" />
             </div>
-            {type === 'range' && (
+            {endDate.trim() ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="endtime" className="text-xs text-muted-foreground">End Time (optional)</Label>
                 <Input id="endtime" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="h-8 text-xs" />
               </div>
+            ) : (
+              <div className="grid gap-1.5">
+                <Label htmlFor="pointval" className="text-xs text-muted-foreground">Point Value (optional)</Label>
+                <Input id="pointval" type="number" value={pointValueStr} placeholder="e.g. 50000" onChange={e => setPointValueStr(e.target.value)} className="h-8 text-xs" />
+              </div>
             )}
           </div>
 
-          {/* ── Value tracking (range events only) ── */}
-          {type === 'range' && (
+          {/* ── Value tracking (events with end date) ── */}
+          {endDate.trim() && (
             <div className="rounded-md border p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Value tracking</Label>

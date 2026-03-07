@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchTimelines,
   createTimelineWithDefaults,
-  renameTimeline as renameTimelineApi,
+  updateTimeline as updateTimelineApi,
   deleteTimeline as deleteTimelineApi,
 } from '@/lib/api'
 import type { DbTimeline } from '@/types/database'
@@ -86,17 +86,20 @@ export function useTimelines() {
     [user],
   )
 
-  const renameTimeline = useCallback(
-    async (id: string, name: string) => {
-      const ok = await renameTimelineApi(id, name)
+  const updateTimeline = useCallback(
+    async (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null }) => {
+      const ok = await updateTimelineApi(id, updates)
       if (ok) {
-        setTimelines(prev =>
-          prev.map(t => (t.id === id ? { ...t, name } : t)),
-        )
+        setTimelines(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)))
       }
       return ok
     },
     [],
+  )
+
+  const renameTimeline = useCallback(
+    async (id: string, name: string) => updateTimeline(id, { name }),
+    [updateTimeline],
   )
 
   const deleteTimeline = useCallback(
@@ -121,6 +124,7 @@ export function useTimelines() {
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    updateTimeline,
     renameTimeline,
     deleteTimeline,
     loading,
