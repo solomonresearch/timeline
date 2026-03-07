@@ -1,3 +1,4 @@
+import { type RefObject } from 'react'
 import {
   getYearInterval, getZoomMode, dateToFracYear, makeUTCDate, TIMELINE_YEAR_MIN,
   getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
@@ -13,9 +14,10 @@ interface TimelineHeaderProps {
   currentYear: number
   scrollLeft: number
   viewportWidth: number
+  cursorRef?: RefObject<HTMLDivElement | null>
 }
 
-export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth }: TimelineHeaderProps) {
+export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef }: TimelineHeaderProps) {
   const { sc } = useSizeConfig()
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 2
@@ -169,6 +171,16 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
           }}
         />
       </div>
+      {/* Cursor position marker — positioned in viewport space (left updated via ref) */}
+      {cursorRef && (
+        <div
+          ref={cursorRef}
+          className="absolute top-0 h-full pointer-events-none"
+          style={{ display: 'none', left: 0 }}
+        >
+          <div className="absolute top-0 h-full" style={{ left: -0.5, borderLeft: '1px dashed #9ca3af' }} />
+        </div>
+      )}
     </div>
   )
 }

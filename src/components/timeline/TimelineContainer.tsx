@@ -115,6 +115,8 @@ export function TimelineContainer({
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef<string | null>(null)
+  const cursorLaneRef = useRef<HTMLDivElement>(null)
+  const cursorHeaderRef = useRef<HTMLDivElement>(null)
 
   // Dynamic canvas windowing: when total width exceeds MAX_CANVAS_PX, render only a window
   const [viewCenterYear, setViewCenterYear] = useState(() => getCurrentYearFraction())
@@ -180,6 +182,49 @@ export function TimelineContainer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [yearStart, yearEnd])
+
+  // Cursor position line — updated via direct DOM to avoid re-renders on every mousemove
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const show = (clientX: number) => {
+      const rect = el.getBoundingClientRect()
+      const viewX = clientX - rect.left          // viewport-relative (for header)
+      const contentX = el.scrollLeft + viewX     // content-relative (for lanes)
+      if (cursorLaneRef.current) {
+        cursorLaneRef.current.style.left = `${contentX}px`
+        cursorLaneRef.current.style.display = 'block'
+      }
+      if (cursorHeaderRef.current) {
+        cursorHeaderRef.current.style.left = `${viewX}px`
+        cursorHeaderRef.current.style.display = 'block'
+      }
+    }
+
+    const hide = () => {
+      if (cursorLaneRef.current) cursorLaneRef.current.style.display = 'none'
+      if (cursorHeaderRef.current) cursorHeaderRef.current.style.display = 'none'
+    }
+
+    const onMouseMove = (e: MouseEvent) => show(e.clientX)
+    const onMouseLeave = () => hide()
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) show(e.touches[0].clientX)
+    }
+    const onTouchEnd = () => hide()
+
+    el.addEventListener('mousemove', onMouseMove)
+    el.addEventListener('mouseleave', onMouseLeave)
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('mousemove', onMouseMove)
+      el.removeEventListener('mouseleave', onMouseLeave)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   // Refs for latest ppy/effectiveYearStart — avoid stale closures in wheel handler
   const ppyRef = useRef(pixelsPerYear)
@@ -566,9 +611,15 @@ export function TimelineContainer({
       />
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
-          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} />
           <div className="relative">
             <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} />
+            {/* Cursor line — positioned in content space, updated via ref */}
+            <div
+              ref={cursorLaneRef}
+              className="absolute top-0 pointer-events-none"
+              style={{ display: 'none', left: 0, height: grandTotalHeight, borderLeft: '1px dashed #9ca3af', zIndex: 5 }}
+            />
             {visibleLanes.map((lane, i) => (
               <TimelineLane
                 key={lane.id}
