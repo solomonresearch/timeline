@@ -120,6 +120,7 @@ export function TimelineContainer({
   const cursorLaneRef = useRef<HTMLDivElement>(null)
   const cursorHeaderRef = useRef<HTMLDivElement>(null)
   const cursorPopupRef = useRef<HTMLDivElement>(null)
+  const sidebarInnerRef = useRef<HTMLDivElement>(null)
 
   // Dynamic canvas windowing: when total width exceeds MAX_CANVAS_PX, render only a window
   const [viewCenterYear, setViewCenterYear] = useState(() => getCurrentYearFraction())
@@ -147,6 +148,10 @@ export function TimelineContainer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(() => {
         const sl = el.scrollLeft
+        // Sync sidebar overlay vertical position (always, before any early return)
+        if (sidebarInnerRef.current) {
+          sidebarInnerRef.current.style.transform = `translateY(-${el.scrollTop}px)`
+        }
         const totalW = (yearEnd - yearStart) * ppyRef.current
         // When windowed: shift the effective window if user scrolls near either edge,
         // so they can always reach any event by scrolling (infinite-scroll effect).
@@ -206,7 +211,7 @@ export function TimelineContainer({
       if (cursorPopupRef.current) {
         const year = yearStartRef.current + contentX / ppyRef.current
         cursorPopupRef.current.textContent = fracYearToDateLabel(year)
-        cursorPopupRef.current.style.left = `${clientX + 14}px`
+        cursorPopupRef.current.style.left = `${clientX - 8}px`
         cursorPopupRef.current.style.top = `${clientY - 36}px`
         cursorPopupRef.current.style.display = 'block'
       }
@@ -628,20 +633,15 @@ export function TimelineContainer({
       <div
         ref={cursorPopupRef}
         className="fixed z-50 pointer-events-none rounded-md border bg-popover text-popover-foreground shadow-sm px-2 py-1 text-xs font-medium whitespace-nowrap"
-        style={{ display: 'none', left: 0, top: 0 }}
+        style={{ display: 'none', left: 0, top: 0, transform: 'translateX(-100%)' }}
       />
 
-      {/* Lane sidebar overlay — floats above timeline, fades right to transparent */}
+      {/* Lane sidebar overlay — floats above timeline content, scrolls vertically via sidebarInnerRef */}
       <div
-        className="absolute top-0 left-0 z-20 overflow-hidden pointer-events-none"
-        style={{
-          width: sc.SIDEBAR_WIDTH,
-          height: '100%',
-          maskImage: 'linear-gradient(to right, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.82) 45%, rgba(0,0,0,0) 100%)',
-          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.82) 45%, rgba(0,0,0,0) 100%)',
-        }}
+        className="absolute top-0 left-0 overflow-hidden pointer-events-none"
+        style={{ width: sc.SIDEBAR_WIDTH, height: '100%', zIndex: 5 }}
       >
-        <div className="pointer-events-auto">
+        <div ref={sidebarInnerRef} className="pointer-events-auto">
           <LaneSidebar
             lanes={visibleLanes}
             hiddenLanes={hiddenLanes}
