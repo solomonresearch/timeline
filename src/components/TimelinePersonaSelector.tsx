@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -17,6 +16,24 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { DbPersona } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
+import { fracYearToMs, msToFracYear } from '@/lib/constants'
+
+const DEFAULT_COLOR = '#3b82f6'
+
+function fracYearToDateStr(fy: number): string {
+  const d = new Date(fracYearToMs(fy))
+  return `${d.getUTCFullYear().toString().padStart(4, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+function fracYearToTimeStr(fy: number): string {
+  const d = new Date(fracYearToMs(fy))
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+function dateTimeToFracYear(dateStr: string, timeStr: string): number {
+  if (!dateStr) return 0
+  const [y, mo, da] = dateStr.split('-').map(Number)
+  const [h, m] = (timeStr || '00:00').split(':').map(Number)
+  return msToFracYear(Date.UTC(y, mo - 1, da, h || 0, m || 0))
+}
 
 interface TimelinePersonaSelectorProps {
   personas: DbPersona[]
@@ -38,43 +55,67 @@ export function TimelinePersonaSelector({
     selectedTimelineId,
     selectTimeline,
     createTimeline,
-    renameTimeline,
+    updateTimeline,
     deleteTimeline,
   } = useTimelineContext()
 
-  const [nameDialogOpen, setNameDialogOpen] = useState(false)
-  const [nameDialogMode, setNameDialogMode] = useState<'create' | 'rename'>('create')
-  const [nameValue, setNameValue] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [targetId, setTargetId] = useState<string | null>(null)
+  const [nameValue, setNameValue] = useState('')
+  const [emojiValue, setEmojiValue] = useState('')
+  const [colorValue, setColorValue] = useState(DEFAULT_COLOR)
+  const [startDate, setStartDate] = useState('')
+  const [startTime, setStartTime] = useState('00:00')
+  const [endDate, setEndDate] = useState('')
+  const [endTime, setEndTime] = useState('00:00')
 
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
   const activePersonaCount = activePersonaIds.size
 
   function handleCreate() {
-    setNameDialogMode('create')
+    setDialogMode('create')
     setNameValue('')
+    setEmojiValue('')
+    setColorValue(DEFAULT_COLOR)
+    setStartDate(''); setStartTime('00:00')
+    setEndDate(''); setEndTime('00:00')
     setTargetId(null)
-    setNameDialogOpen(true)
+    setDialogOpen(true)
   }
 
-  function handleRename(id: string, currentName: string, e: React.MouseEvent) {
+  function handleEdit(id: string, e: React.MouseEvent) {
     e.stopPropagation()
-    setNameDialogMode('rename')
-    setNameValue(currentName)
+    const t = timelines.find(tl => tl.id === id)
+    if (!t) return
+    setDialogMode('edit')
+    setNameValue(t.name)
+    setEmojiValue(t.emoji ?? '')
+    setColorValue(t.color ?? DEFAULT_COLOR)
+    if (t.start_year != null) { setStartDate(fracYearToDateStr(t.start_year)); setStartTime(fracYearToTimeStr(t.start_year)) }
+    else { setStartDate(''); setStartTime('00:00') }
+    if (t.end_year != null) { setEndDate(fracYearToDateStr(t.end_year)); setEndTime(fracYearToTimeStr(t.end_year)) }
+    else { setEndDate(''); setEndTime('00:00') }
     setTargetId(id)
-    setNameDialogOpen(true)
+    setDialogOpen(true)
   }
 
-  async function handleNameSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const name = nameValue.trim()
     if (!name) return
-    if (nameDialogMode === 'create') {
+    if (dialogMode === 'create') {
       await createTimeline(name)
     } else if (targetId) {
-      await renameTimeline(targetId, name)
+      await updateTimeline(targetId, {
+        name,
+        emoji: emojiValue.trim() || null,
+        color: colorValue,
+        start_year: startDate ? dateTimeToFracYear(startDate, startTime) : null,
+        end_year: endDate ? dateTimeToFracYear(endDate, endTime) : null,
+      })
     }
-    setNameDialogOpen(false)
+    setDialogOpen(false)
   }
 
   async function handleDelete(id: string, e: React.MouseEvent) {
@@ -119,7 +160,7 @@ export function TimelinePersonaSelector({
                 </span>
                 <button
                   className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
-                  onClick={e => handleRename(t.id, t.name, e)}
+                  onClick={e => handleEdit(t.id, e)}
                 >
                   <Pencil className="h-3 w-3" />
                 </button>
@@ -205,31 +246,71 @@ export function TimelinePersonaSelector({
         </PopoverContent>
       </Popover>
 
-      {/* Rename / Create dialog */}
-      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+      {/* Create / Edit dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{nameDialogMode === 'create' ? 'New Timeline' : 'Rename Timeline'}</DialogTitle>
-            <DialogDescription>
-              {nameDialogMode === 'create'
-                ? 'Enter a name for the new timeline.'
-                : 'Enter a new name for this timeline.'}
-            </DialogDescription>
+            <DialogTitle>{dialogMode === 'create' ? 'New Timeline' : 'Edit Timeline'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleNameSubmit} className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="timelineName">Name</Label>
-              <Input
-                id="timelineName"
-                value={nameValue}
-                onChange={e => setNameValue(e.target.value)}
-                placeholder="Timeline name"
-                autoFocus
-              />
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            {/* Name + Emoji */}
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="tpName">Name</Label>
+                <Input id="tpName" value={nameValue} onChange={e => setNameValue(e.target.value)} placeholder="Timeline name" autoFocus />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="tpEmoji">Emoji</Label>
+                <Input
+                  id="tpEmoji"
+                  value={emojiValue}
+                  onChange={e => {
+                    const segs = [...new Intl.Segmenter().segment(e.target.value)]
+                    setEmojiValue(segs.length > 0 ? segs[0].segment : '')
+                  }}
+                  placeholder="🌍"
+                  className="w-16 text-center text-lg"
+                  maxLength={4}
+                />
+              </div>
             </div>
+
+            {/* Color */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="tpColor">Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="tpColor"
+                  type="color"
+                  value={colorValue}
+                  onChange={e => setColorValue(e.target.value)}
+                  className="h-8 w-12 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                />
+                <span className="text-sm text-muted-foreground font-mono">{colorValue}</span>
+              </div>
+            </div>
+
+            {/* Start date/time */}
+            <div className="grid gap-1.5">
+              <Label>Start <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <div className="flex gap-2">
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="flex-1" />
+                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-28" disabled={!startDate} />
+              </div>
+            </div>
+
+            {/* End date/time */}
+            <div className="grid gap-1.5">
+              <Label>End <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <div className="flex gap-2">
+                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1" />
+                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-28" disabled={!endDate} />
+              </div>
+            </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setNameDialogOpen(false)}>Cancel</Button>
-              <Button type="submit">{nameDialogMode === 'create' ? 'Create' : 'Rename'}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="submit">{dialogMode === 'create' ? 'Create' : 'Save'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
