@@ -1,4 +1,4 @@
-import { Layers, LayoutList, Users } from 'lucide-react'
+import { Layers, LayoutList, Users, Link2, Link2Off } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
@@ -10,6 +10,8 @@ interface PersonaToggleProps {
   personas: DbPersona[]
   activePersonaIds: Set<string>
   onToggle: (personaId: string) => void
+  alignedPersonaIds: Set<string>
+  onToggleAlignment: (personaId: string) => void
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetDisplayMode: (personaId: string, mode: PersonaDisplayMode) => void
 }
@@ -18,6 +20,8 @@ export function PersonaToggle({
   personas,
   activePersonaIds,
   onToggle,
+  alignedPersonaIds,
+  onToggleAlignment,
   personaDisplayModes,
   onSetDisplayMode,
 }: PersonaToggleProps) {
@@ -42,6 +46,7 @@ export function PersonaToggle({
         </p>
         {personas.map(p => {
           const isActive = activePersonaIds.has(p.id)
+          const aligned = alignedPersonaIds.has(p.id)
           const mode = personaDisplayModes.get(p.id) ?? 'integrated'
           return (
             <div
@@ -57,32 +62,46 @@ export function PersonaToggle({
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {isActive && (
-                    <div className="flex items-center rounded border overflow-hidden">
+                    <>
                       <button
-                        onClick={() => onSetDisplayMode(p.id, 'integrated')}
-                        title="Blend into my timeline lanes"
+                        onClick={() => onToggleAlignment(p.id)}
+                        title={aligned ? 'Showing age-aligned — click for real years' : 'Showing real years — click to age-align'}
                         className={cn(
-                          'p-1 transition-colors',
-                          mode === 'integrated'
-                            ? 'bg-primary text-primary-foreground'
+                          'p-1 rounded transition-colors',
+                          aligned
+                            ? 'text-primary bg-primary/10 animate-blink-fast hover:bg-primary/20'
                             : 'text-muted-foreground hover:bg-muted',
                         )}
                       >
-                        <Layers className="h-3 w-3" />
+                        {aligned ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
                       </button>
-                      <button
-                        onClick={() => onSetDisplayMode(p.id, 'separate')}
-                        title="Show as separate timeline below"
-                        className={cn(
-                          'p-1 transition-colors',
-                          mode === 'separate'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:bg-muted',
-                        )}
-                      >
-                        <LayoutList className="h-3 w-3" />
-                      </button>
-                    </div>
+                      <div className="flex items-center rounded border overflow-hidden">
+                        <button
+                          onClick={() => onSetDisplayMode(p.id, 'integrated')}
+                          title="Blend into my timeline lanes"
+                          className={cn(
+                            'p-1 transition-colors',
+                            mode === 'integrated'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-muted',
+                          )}
+                        >
+                          <Layers className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => onSetDisplayMode(p.id, 'separate')}
+                          title="Show as separate timeline below"
+                          className={cn(
+                            'p-1 transition-colors',
+                            mode === 'separate'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-muted',
+                          )}
+                        >
+                          <LayoutList className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
                   )}
                   <Switch
                     checked={isActive}

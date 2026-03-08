@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<events>
+  <event>
+    <title>Lived in London</title>
+    <description>Flat in Shoreditch</description>
+    <start_date>2012-09-01</start_date>
+    <end_date>2016-06-30</end_date>
+    <category>Location</category>
+  </event>
+  <event>
+    <title>Imperial College London</title>
+    <description>MSc in Data Science</description>
+    <start_date>2012-09-01</start_date>
+    <end_date>2013-09-01</end_date>
+    <category>University</category>
+  </event>
+  <event>
+    <title>Data Scientist at Revolut</title>
+    <description>Risk modeling team</description>
+    <start_date>2013-10-01</start_date>
+    <end_date>2016-06-01</end_date>
+    <category>Work</category>
+  </event>
+  <event>
+    <title>Moved to Berlin</title>
+    <description>Kreuzberg neighborhood</description>
+    <start_date>2016-07-01</start_date>
+    <end_date>2020-12-31</end_date>
+    <category>Location</category>
+  </event>
+  <event>
+    <title>Lead ML Engineer at SoundCloud</title>
+    <start_date>2016-08-01</start_date>
+    <end_date>2020-11-30</end_date>
+    <category>Work</category>
+  </event>
+</events>

@@ -80,9 +80,14 @@ function TimelineView() {
     activePersonaEvents,
     activePersonaIds,
     togglePersona,
+    alignedPersonaIds,
+    togglePersonaAlignment,
     personaDisplayModes,
     setPersonaDisplayMode,
-  } = usePersonas(profile?.birth_year ?? null)
+  } = usePersonas(
+    profile?.birth_year
+    ?? (profile?.birth_date ? new Date(profile.birth_date).getUTCFullYear() : null),
+  )
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
@@ -221,11 +226,15 @@ function TimelineView() {
           personas={personas}
           activePersonaIds={activePersonaIds}
           onTogglePersona={togglePersona}
+          alignedPersonaIds={alignedPersonaIds}
+          onTogglePersonaAlignment={togglePersonaAlignment}
           personaDisplayModes={personaDisplayModes}
           onSetPersonaDisplayMode={setPersonaDisplayMode}
           activeView={activeView}
           onSetActiveView={setActiveView}
           onScrollToToday={() => scrollToTodayRef.current?.()}
+          lanes={lanes}
+          addEvent={addEvent}
         />
 
         {activeView === 'overview' ? (

@@ -53,7 +53,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       display_name: displayName.trim(),
       bio: bio.trim(),
       birth_year: parsedBirthYear && !isNaN(parsedBirthYear) ? parsedBirthYear : null,
-      birth_date: birthDate ? dmy2iso(birthDate) : null,
+      birth_date: birthDate ? dmy2iso(birthDate) || null : null,
     })
     setSaving(false)
     onOpenChange(false)

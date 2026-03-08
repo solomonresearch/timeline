@@ -11,6 +11,10 @@ CREATE TABLE public.events (
   start_year real NOT NULL,
   end_year real,
   color text,
+  value_points jsonb DEFAULT '[]'::jsonb,
+  value_projection jsonb,
+  emoji text,
+  point_value real,
   CONSTRAINT events_pkey PRIMARY KEY (id),
   CONSTRAINT events_lane_id_fkey FOREIGN KEY (lane_id) REFERENCES public.lanes(id),
   CONSTRAINT events_timeline_id_fkey FOREIGN KEY (timeline_id) REFERENCES public.timelines(id)
@@ -67,6 +71,7 @@ CREATE TABLE public.profiles (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   birth_date date,
+  birth_year integer,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -76,6 +81,10 @@ CREATE TABLE public.timelines (
   name text NOT NULL DEFAULT 'My Life'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  start_year real,
+  end_year real,
+  color text,
+  emoji text,
   CONSTRAINT timelines_pkey PRIMARY KEY (id),
   CONSTRAINT timelines_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

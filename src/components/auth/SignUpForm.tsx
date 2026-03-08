@@ -63,7 +63,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         'timeline_pending_profile',
         JSON.stringify({
           birth_year: parsedYear,
-          birth_date: birthDate ? dmy2iso(birthDate) : null,
+          birth_date: birthDate ? dmy2iso(birthDate) || null : null,
           bio: bio.trim(),
           email,
           created_at: new Date().toISOString(),

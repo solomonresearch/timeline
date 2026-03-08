@@ -1,14 +1,16 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList, Download, CalendarDays, Globe, FileText, Mic } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
 import type { DbPersona } from '@/types/database'
+import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 import { useSizeConfig, type UiSize } from '@/contexts/UiSizeContext'
 import { useSkin, SKINS, type SkinId } from '@/contexts/SkinContext'
 import { SkinDialog } from '@/components/SkinDialog'
+import { ImportDialog, type ImportTab } from '@/components/ImportDialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,11 +29,15 @@ interface ToolbarProps {
   personas: DbPersona[]
   activePersonaIds: Set<string>
   onTogglePersona: (id: string) => void
+  alignedPersonaIds: Set<string>
+  onTogglePersonaAlignment: (id: string) => void
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
   activeView: AppView
   onSetActiveView: (v: AppView) => void
   onScrollToToday?: () => void
+  lanes: Lane[]
+  addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
 }
 
 const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
@@ -54,15 +60,21 @@ export function Toolbar({
   personas,
   activePersonaIds,
   onTogglePersona,
+  alignedPersonaIds,
+  onTogglePersonaAlignment,
   personaDisplayModes,
   onSetPersonaDisplayMode,
   activeView,
   onSetActiveView,
   onScrollToToday,
+  lanes,
+  addEvent,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
   const [skinDialogOpen, setSkinDialogOpen] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importTab, setImportTab] = useState<ImportTab>('calendar-file')
 
   const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
   const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
@@ -100,6 +112,11 @@ export function Toolbar({
     if (id === 'custom') setSkinDialogOpen(true)
   }
 
+  const openImport = (tab: ImportTab) => {
+    setImportTab(tab)
+    setImportDialogOpen(true)
+  }
+
   return (
     <>
       <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2">
@@ -110,6 +127,8 @@ export function Toolbar({
             personas={personas}
             activePersonaIds={activePersonaIds}
             onTogglePersona={onTogglePersona}
+            alignedPersonaIds={alignedPersonaIds}
+            onTogglePersonaAlignment={onTogglePersonaAlignment}
             personaDisplayModes={personaDisplayModes}
             onSetPersonaDisplayMode={onSetPersonaDisplayMode}
           />
@@ -163,6 +182,35 @@ export function Toolbar({
               >
                 <Palette className="h-3.5 w-3.5 shrink-0" />
                 Custom…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Import dropdown — desktop only */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 hidden md:flex">
+                <Download className="h-3.5 w-3.5" />
+                <span className="text-xs font-medium">Import</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => openImport('calendar-file')}>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Calendar File
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('google-calendar')}>
+                <Globe className="h-4 w-4 mr-2" />
+                Google Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('text')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Text
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('voice')}>
+                <Mic className="h-4 w-4 mr-2" />
+                Voice
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -302,6 +350,24 @@ export function Toolbar({
                 <Palette className="h-4 w-4 mr-1 shrink-0" />
                 Custom Theme…
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Import options */}
+              <DropdownMenuItem onClick={() => openImport('calendar-file')}>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Import Calendar File
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('google-calendar')}>
+                <Globe className="h-4 w-4 mr-2" />
+                Import Google Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('text')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Import from Text
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('voice')}>
+                <Mic className="h-4 w-4 mr-2" />
+                Import from Voice
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -310,6 +376,7 @@ export function Toolbar({
       </div>
 
       <SkinDialog open={skinDialogOpen} onOpenChange={setSkinDialogOpen} />
+      <ImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} defaultTab={importTab} lanes={lanes} addEvent={addEvent} />
     </>
   )
 }

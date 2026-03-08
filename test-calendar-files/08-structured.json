@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "title": "Born in Seattle",
+      "start_date": "1985-03-12",
+      "category": "Location",
+      "description": "Born at Swedish Medical Center"
+    },
+    {
+      "title": "University of Washington",
+      "start_date": "2003-09-01",
+      "end_date": "2007-06-15",
+      "category": "University",
+      "description": "BS in Computer Science"
+    },
+    {
+      "title": "Junior Developer at Amazon",
+      "start_date": "2007-08-01",
+      "end_date": "2011-04-30",
+      "category": "Work",
+      "description": "AWS team"
+    },
+    {
+      "title": "Senior Engineer at Facebook",
+      "start_date": "2011-06-01",
+      "end_date": "2018-12-31",
+      "category": "Work",
+      "description": "News Feed ranking"
+    },
+    {
+      "title": "Married Lisa",
+      "start_date": "2014-09-20",
+      "category": "Relations",
+      "description": "Beach wedding in Maui"
+    },
+    {
+      "title": "Daughter Maya born",
+      "start_date": "2016-11-05",
+      "category": "Kids"
+    },
+    {
+      "title": "Moved to Portland",
+      "start_date": "2019-01-15",
+      "category": "Location"
+    }
+  ]
+}

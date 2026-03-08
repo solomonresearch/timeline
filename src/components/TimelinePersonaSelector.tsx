@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -39,6 +39,8 @@ interface TimelinePersonaSelectorProps {
   personas: DbPersona[]
   activePersonaIds: Set<string>
   onTogglePersona: (id: string) => void
+  alignedPersonaIds: Set<string>
+  onTogglePersonaAlignment: (id: string) => void
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
 }
@@ -47,6 +49,8 @@ export function TimelinePersonaSelector({
   personas,
   activePersonaIds,
   onTogglePersona,
+  alignedPersonaIds,
+  onTogglePersonaAlignment,
   personaDisplayModes,
   onSetPersonaDisplayMode,
 }: TimelinePersonaSelectorProps) {
@@ -196,6 +200,7 @@ export function TimelinePersonaSelector({
             ) : (
               personas.map(p => {
                 const isActive = activePersonaIds.has(p.id)
+                const aligned = alignedPersonaIds.has(p.id)
                 const mode = personaDisplayModes.get(p.id) ?? 'integrated'
                 return (
                   <div key={p.id} className="rounded-md px-2 py-1.5 hover:bg-accent">
@@ -208,32 +213,46 @@ export function TimelinePersonaSelector({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isActive && (
-                          <div className="flex items-center rounded border overflow-hidden">
+                          <>
                             <button
-                              onClick={() => onSetPersonaDisplayMode(p.id, 'integrated')}
-                              title="Blend into my timeline lanes"
+                              onClick={() => onTogglePersonaAlignment(p.id)}
+                              title={aligned ? 'Showing age-aligned — click for real years' : 'Showing real years — click to age-align'}
                               className={cn(
-                                'p-1 transition-colors',
-                                mode === 'integrated'
-                                  ? 'bg-primary text-primary-foreground'
+                                'p-1 rounded transition-colors',
+                                aligned
+                                  ? 'text-primary bg-primary/10 animate-blink-fast hover:bg-primary/20'
                                   : 'text-muted-foreground hover:bg-muted',
                               )}
                             >
-                              <Layers className="h-3 w-3" />
+                              {aligned ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
                             </button>
-                            <button
-                              onClick={() => onSetPersonaDisplayMode(p.id, 'separate')}
-                              title="Show as separate timeline below"
-                              className={cn(
-                                'p-1 transition-colors',
-                                mode === 'separate'
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'text-muted-foreground hover:bg-muted',
-                              )}
-                            >
-                              <LayoutList className="h-3 w-3" />
-                            </button>
-                          </div>
+                            <div className="flex items-center rounded border overflow-hidden">
+                              <button
+                                onClick={() => onSetPersonaDisplayMode(p.id, 'integrated')}
+                                title="Blend into my timeline lanes"
+                                className={cn(
+                                  'p-1 transition-colors',
+                                  mode === 'integrated'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-muted',
+                                )}
+                              >
+                                <Layers className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => onSetPersonaDisplayMode(p.id, 'separate')}
+                                title="Show as separate timeline below"
+                                className={cn(
+                                  'p-1 transition-colors',
+                                  mode === 'separate'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-muted',
+                                )}
+                              >
+                                <LayoutList className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </>
                         )}
                         <Switch checked={isActive} onCheckedChange={() => onTogglePersona(p.id)} />
                       </div>
