@@ -52,14 +52,31 @@ interface CalendarFileTabProps {
 function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
   const [parsedEvents, setParsedEvents] = useState<ParsedCalendarEvent[]>([])
   const [laneAssignments, setLaneAssignments] = useState<Map<number, string>>(new Map())
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [fileName, setFileName] = useState('')
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
   const [importedCount, setImportedCount] = useState(0)
+  const [importProgress, setImportProgress] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const laneNames = lanes.map(l => l.name)
+
+  // Group events by year (descending)
+  const yearGroups = useMemo(() => {
+    const groups = new Map<number, { idx: number; ev: ParsedCalendarEvent }[]>()
+    for (let i = 0; i < parsedEvents.length; i++) {
+      const ev = parsedEvents[i]
+      const year = Math.floor(ev.startYear)
+      const arr = groups.get(year)
+      if (arr) arr.push({ idx: i, ev })
+      else groups.set(year, [{ idx: i, ev }])
+    }
+    return [...groups.entries()].sort((a, b) => b[0] - a[0])
+  }, [parsedEvents])
+
+  const selectedCount = selectedIndices.size
 
   const processFile = useCallback((file: File) => {
     setError('')
@@ -82,6 +99,8 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
           return
         }
         setParsedEvents(events)
+        // Select all by default
+        setSelectedIndices(new Set(events.map((_, i) => i)))
         // Set default lane assignments
         const assignments = new Map<number, string>()
         events.forEach((ev, i) => {
@@ -116,15 +135,29 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) processFile(file)
-    // Reset so the same file can be re-selected
     e.target.value = ''
   }, [processFile])
 
+  const toggleYear = (year: number) => {
+    const yearItems = yearGroups.find(([y]) => y === year)?.[1] || []
+    const allSelected = yearItems.every(item => selectedIndices.has(item.idx))
+    const next = new Set(selectedIndices)
+    for (const item of yearItems) {
+      if (allSelected) next.delete(item.idx)
+      else next.add(item.idx)
+    }
+    setSelectedIndices(next)
+  }
+
   const handleImport = async () => {
     setImporting(true)
+    setImportProgress(0)
     let count = 0
-    for (let i = 0; i < parsedEvents.length; i++) {
-      const ev = parsedEvents[i]
+    const selected = parsedEvents
+      .map((ev, i) => ({ ev, i }))
+      .filter(({ i }) => selectedIndices.has(i))
+    for (let j = 0; j < selected.length; j++) {
+      const { ev, i } = selected[j]
       const laneName = laneAssignments.get(i) || 'Other Activities'
       const lane = lanes.find(l => l.name === laneName)
       if (!lane) continue
@@ -137,6 +170,7 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
         endYear: ev.endYear,
       })
       if (result) count++
+      setImportProgress(j + 1)
     }
     setImportedCount(count)
     setImporting(false)
@@ -147,10 +181,12 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
     setFileName('')
     setError('')
     setImportedCount(0)
+    setImportProgress(0)
     setLaneAssignments(new Map())
+    setSelectedIndices(new Set())
   }
 
-  // After successful import, show success state
+  // Success state
   if (importedCount > 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-6">
@@ -164,7 +200,25 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
     )
   }
 
-  // Preview parsed events
+  // Importing state
+  if (importing) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Importing events... {importProgress}/{selectedCount}
+        </p>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div
+            className="bg-primary h-2 rounded-full transition-all"
+            style={{ width: `${selectedCount > 0 ? (importProgress / selectedCount) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Preview parsed events — grouped by year
   if (parsedEvents.length > 0) {
     return (
       <div className="flex flex-col gap-3 py-2">
@@ -172,50 +226,60 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
           <p className="text-sm font-medium">
             {parsedEvents.length} event{parsedEvents.length !== 1 ? 's' : ''} from {fileName}
           </p>
-          <button onClick={handleReset} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+            <button onClick={handleReset} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="max-h-60 overflow-y-auto rounded-md border">
+        <div className="max-h-72 overflow-y-auto rounded-md border">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-muted">
+            <thead className="sticky top-0 bg-muted z-10">
               <tr>
+                <th className="w-7 px-2 py-1.5" />
                 <th className="text-left px-2 py-1.5 font-medium">Event</th>
-                <th className="text-left px-2 py-1.5 font-medium w-20">Year</th>
+                <th className="text-left px-2 py-1.5 font-medium w-20">Date</th>
                 <th className="text-left px-2 py-1.5 font-medium w-28">Lane</th>
               </tr>
             </thead>
             <tbody>
-              {parsedEvents.map((ev, i) => (
-                <tr key={i} className="border-t border-muted">
-                  <td className="px-2 py-1.5 truncate max-w-[140px]" title={ev.title}>{ev.title}</td>
-                  <td className="px-2 py-1.5 text-muted-foreground">
-                    {Math.floor(ev.startYear)}{ev.endYear ? `–${Math.floor(ev.endYear)}` : ''}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select
-                      value={laneAssignments.get(i) || 'Other Activities'}
-                      onChange={(e) => {
-                        const next = new Map(laneAssignments)
-                        next.set(i, e.target.value)
-                        setLaneAssignments(next)
-                      }}
-                      className="w-full text-xs bg-transparent border rounded px-1 py-0.5"
-                    >
-                      {laneNames.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+              {yearGroups.map(([year, items]) => {
+                const yearSelectedCount = items.filter(item => selectedIndices.has(item.idx)).length
+                const allYearSelected = yearSelectedCount === items.length
+                const someYearSelected = yearSelectedCount > 0 && !allYearSelected
+                return (
+                  <FileYearGroup
+                    key={year}
+                    year={year}
+                    items={items}
+                    allSelected={allYearSelected}
+                    someSelected={someYearSelected}
+                    selectedIndices={selectedIndices}
+                    laneAssignments={laneAssignments}
+                    laneNames={laneNames}
+                    onToggleYear={() => toggleYear(year)}
+                    onToggleEvent={(idx) => {
+                      const next = new Set(selectedIndices)
+                      if (next.has(idx)) next.delete(idx)
+                      else next.add(idx)
+                      setSelectedIndices(next)
+                    }}
+                    onSetLane={(idx, lane) => {
+                      const next = new Map(laneAssignments)
+                      next.set(idx, lane)
+                      setLaneAssignments(next)
+                    }}
+                  />
+                )
+              })}
             </tbody>
           </table>
         </div>
 
-        <Button onClick={handleImport} disabled={importing} className="w-full">
-          {importing ? 'Importing...' : `Import ${parsedEvents.length} Event${parsedEvents.length !== 1 ? 's' : ''}`}
+        <Button onClick={handleImport} disabled={selectedCount === 0} className="w-full">
+          Import {selectedCount} Event{selectedCount !== 1 ? 's' : ''}
         </Button>
       </div>
     )
@@ -256,6 +320,85 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
         </div>
       )}
     </div>
+  )
+}
+
+interface FileYearGroupProps {
+  year: number
+  items: { idx: number; ev: ParsedCalendarEvent }[]
+  allSelected: boolean
+  someSelected: boolean
+  selectedIndices: Set<number>
+  laneAssignments: Map<number, string>
+  laneNames: string[]
+  onToggleYear: () => void
+  onToggleEvent: (idx: number) => void
+  onSetLane: (idx: number, lane: string) => void
+}
+
+function FileYearGroup({
+  year, items, allSelected, someSelected,
+  selectedIndices, laneAssignments, laneNames,
+  onToggleYear, onToggleEvent, onSetLane,
+}: FileYearGroupProps) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <>
+      <tr className="bg-muted/50 border-t border-muted">
+        <td className="px-2 py-1">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => { if (el) el.indeterminate = someSelected }}
+            onChange={onToggleYear}
+            className="accent-primary"
+          />
+        </td>
+        <td
+          colSpan={2}
+          className="px-2 py-1 font-medium cursor-pointer select-none"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="inline-flex items-center gap-1">
+            <ChevronRight className={`h-3 w-3 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+            {year}
+          </span>
+        </td>
+        <td className="px-2 py-1 text-muted-foreground text-right">
+          {items.length} event{items.length !== 1 ? 's' : ''}
+        </td>
+      </tr>
+      {!collapsed && items.map(({ idx, ev }) => (
+        <tr key={idx} className="border-t border-muted/50">
+          <td className="px-2 py-1">
+            <input
+              type="checkbox"
+              checked={selectedIndices.has(idx)}
+              onChange={() => onToggleEvent(idx)}
+              className="accent-primary"
+            />
+          </td>
+          <td className="px-2 py-1 truncate max-w-[160px]" title={ev.title}>
+            {ev.title}
+          </td>
+          <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">
+            {Math.floor(ev.startYear)}{ev.endYear ? `\u2013${Math.floor(ev.endYear)}` : ''}
+          </td>
+          <td className="px-2 py-1">
+            <select
+              value={laneAssignments.get(idx) || 'Other Activities'}
+              onChange={(e) => onSetLane(idx, e.target.value)}
+              className="w-full text-xs bg-transparent border rounded px-1 py-0.5"
+            >
+              {laneNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </td>
+        </tr>
+      ))}
+    </>
   )
 }
 
@@ -812,7 +955,7 @@ export function ImportDialog({ open, onOpenChange, defaultTab = 'calendar-file',
     onOpenChange(v)
   }
 
-  const isWide = activeTab === 'google-calendar'
+  const isWide = activeTab === 'google-calendar' || activeTab === 'calendar-file'
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
