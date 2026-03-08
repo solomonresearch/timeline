@@ -238,7 +238,21 @@ function CalendarFileTab({ lanes, addEvent, onDone }: CalendarFileTabProps) {
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted z-10">
               <tr>
-                <th className="w-7 px-2 py-1.5" />
+                <th className="w-7 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedCount === parsedEvents.length && parsedEvents.length > 0}
+                    ref={(el) => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < parsedEvents.length }}
+                    onChange={() => {
+                      if (selectedCount === parsedEvents.length) {
+                        setSelectedIndices(new Set())
+                      } else {
+                        setSelectedIndices(new Set(parsedEvents.map((_, i) => i)))
+                      }
+                    }}
+                    className="accent-primary"
+                  />
+                </th>
                 <th className="text-left px-2 py-1.5 font-medium">Event</th>
                 <th className="text-left px-2 py-1.5 font-medium w-20">Date</th>
                 <th className="text-left px-2 py-1.5 font-medium w-28">Lane</th>
