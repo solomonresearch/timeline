@@ -17,6 +17,7 @@ export function useTimelines() {
     () => localStorage.getItem(SELECTED_TIMELINE_KEY),
   )
   const [loading, setLoading] = useState(true)
+  const [isFirstLogin, setIsFirstLogin] = useState(false)
 
   // Persist selected timeline to localStorage
   useEffect(() => {
@@ -52,6 +53,7 @@ export function useTimelines() {
           if (cancelled) return
           setTimelines(refreshed)
           setSelectedTimelineId(newId)
+          setIsFirstLogin(true)
         }
       } else {
         setTimelines(list)
@@ -119,6 +121,8 @@ export function useTimelines() {
     [selectedTimelineId],
   )
 
+  const clearFirstLogin = useCallback(() => setIsFirstLogin(false), [])
+
   return {
     timelines,
     selectedTimelineId,
@@ -128,5 +132,7 @@ export function useTimelines() {
     renameTimeline,
     deleteTimeline,
     loading,
+    isFirstLogin,
+    clearFirstLogin,
   }
 }

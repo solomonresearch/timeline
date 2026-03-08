@@ -14,6 +14,8 @@ interface TimelineContextType {
   renameTimeline: (id: string, name: string) => Promise<boolean>
   deleteTimeline: (id: string) => Promise<boolean>
   timelinesLoading: boolean
+  isFirstLogin: boolean
+  clearFirstLogin: () => void
 
   // Active timeline data
   lanes: Lane[]
@@ -46,6 +48,8 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     renameTimeline,
     deleteTimeline,
     loading: timelinesLoading,
+    isFirstLogin,
+    clearFirstLogin,
   } = useTimelines()
 
   const {
@@ -78,6 +82,8 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         renameTimeline,
         deleteTimeline,
         timelinesLoading,
+        isFirstLogin,
+        clearFirstLogin,
         lanes,
         events,
         pixelsPerYear,

@@ -4,6 +4,8 @@ import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
 import { useProfile } from '@/hooks/useProfile'
+import { isOpenAIConfigured } from '@/lib/openai'
+import { OnboardingQuestionnaire } from '@/components/onboarding/OnboardingQuestionnaire'
 import { Toolbar, type AppView } from '@/components/Toolbar'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
 import { TimelineOverview } from '@/components/TimelineOverview'
@@ -66,6 +68,8 @@ function TimelineView() {
     toggleLaneVisibility,
     timelines,
     selectedTimelineId,
+    isFirstLogin,
+    clearFirstLogin,
   } = useTimelineContext()
 
   const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
@@ -73,7 +77,33 @@ function TimelineView() {
     ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
     : undefined
 
+  const { user } = useAuth()
   const { profile } = useProfile()
+
+  const birthYear = profile?.birth_year
+    ?? (profile?.birth_date ? new Date(profile.birth_date).getUTCFullYear() : null)
+
+  const onboardingKey = user ? `timeline_onboarding_complete_${user.id}` : ''
+  const [showQuestionnaire, setShowQuestionnaire] = useState(() => {
+    if (!isFirstLogin) return false
+    if (!isOpenAIConfigured()) return false
+    if (onboardingKey && localStorage.getItem(onboardingKey)) return false
+    return true
+  })
+
+  // Show questionnaire when isFirstLogin becomes true after initial render
+  const prevFirstLoginRef = useRef(isFirstLogin)
+  if (isFirstLogin && !prevFirstLoginRef.current && isOpenAIConfigured() && !localStorage.getItem(onboardingKey)) {
+    prevFirstLoginRef.current = true
+    // Schedule state update
+    setTimeout(() => setShowQuestionnaire(true), 0)
+  }
+
+  const handleQuestionnaireComplete = useCallback(() => {
+    if (onboardingKey) localStorage.setItem(onboardingKey, '1')
+    clearFirstLogin()
+    setShowQuestionnaire(false)
+  }, [onboardingKey, clearFirstLogin])
 
   const {
     personas,
@@ -84,10 +114,7 @@ function TimelineView() {
     togglePersonaAlignment,
     personaDisplayModes,
     setPersonaDisplayMode,
-  } = usePersonas(
-    profile?.birth_year
-    ?? (profile?.birth_date ? new Date(profile.birth_date).getUTCFullYear() : null),
-  )
+  } = usePersonas(birthYear)
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
@@ -217,6 +244,15 @@ function TimelineView() {
 
   return (
     <TooltipProvider>
+      {showQuestionnaire && birthYear && (
+        <OnboardingQuestionnaire
+          lanes={lanes}
+          addEvent={addEvent}
+          birthYear={birthYear}
+          onComplete={handleQuestionnaireComplete}
+          onSkip={handleQuestionnaireComplete}
+        />
+      )}
       <div className="flex flex-col h-screen bg-background">
         <Toolbar
           pixelsPerYear={pixelsPerYear}

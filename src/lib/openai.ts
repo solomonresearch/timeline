@@ -84,6 +84,91 @@ Rules:
   }).filter(e => e.title)
 }
 
+export interface QuestionnaireParsedEvent extends ParsedCalendarEvent {
+  isRecommended: boolean
+}
+
+/**
+ * Generate timeline events from onboarding questionnaire answers using GPT-4o-mini.
+ */
+export async function generateQuestionnaireEvents(
+  answers: { question: string; answer: string }[],
+  birthYear: number,
+  laneNames: string[],
+): Promise<QuestionnaireParsedEvent[]> {
+  const apiKey = getApiKey()
+  if (!apiKey) throw new Error('OpenAI API key not configured')
+
+  const answersText = answers
+    .map(a => `Q: ${a.question}\nA: ${a.answer}`)
+    .join('\n\n')
+
+  const systemPrompt = `You extract life events from questionnaire answers and also recommend additional likely life milestones.
+
+The person was born in ${birthYear}.
+
+Return a JSON object with an "events" array. Each event object has:
+- "title": string — short event title
+- "description": string — brief description (can be empty)
+- "startYear": number — fractional year (e.g. 2020.5 for July 2020). Use January (x.0) if only a year is mentioned.
+- "endYear": number | null — fractional year for end of range events, null for point events
+- "category": string — must be one of: ${JSON.stringify(laneNames)}
+- "isRecommended": boolean — false if extracted from user input, true if AI-suggested
+
+Rules:
+- EXTRACT every distinct event explicitly mentioned in the answers (isRecommended: false)
+- RECOMMEND 5-10 additional life milestones based on birth year and context (isRecommended: true)
+  - Examples: started school, got first job, learned to drive, milestone birthdays, etc.
+  - Use reasonable age-based estimates for the birth year
+- No duplicates between extracted and recommended events
+- For date ranges, set both startYear and endYear
+- For single dates or moments, set endYear to null
+- Convert month names to fractional years (Jan=0.0, Feb≈0.083, Mar≈0.167, Apr≈0.25, May≈0.333, Jun≈0.5, Jul≈0.583, Aug≈0.667, Sep≈0.75, Oct≈0.833, Nov≈0.917, Dec≈0.958)
+- Choose the most appropriate category from the provided lane names
+- Return ONLY the JSON object with "events" array`
+
+  const res = await fetch(`${OPENAI_API_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: answersText },
+      ],
+      temperature: 0.5,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `OpenAI API error: ${res.status}`)
+  }
+
+  const data = await res.json()
+  const content = data.choices?.[0]?.message?.content
+  if (!content) throw new Error('No response from OpenAI')
+
+  const parsed = JSON.parse(content)
+  const events: unknown[] = Array.isArray(parsed) ? parsed : (parsed.events || [])
+
+  return events.map((e: unknown) => {
+    const ev = e as Record<string, unknown>
+    return {
+      title: String(ev.title || ''),
+      description: String(ev.description || ''),
+      startYear: Number(ev.startYear) || 2000,
+      endYear: ev.endYear != null ? Number(ev.endYear) : undefined,
+      category: String(ev.category || 'Other Activities'),
+      isRecommended: Boolean(ev.isRecommended),
+    }
+  }).filter(e => e.title)
+}
+
 /**
  * Transcribe audio using OpenAI Whisper API.
  */
