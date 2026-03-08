@@ -235,6 +235,7 @@ function TimelineView() {
           onScrollToToday={() => scrollToTodayRef.current?.()}
           lanes={lanes}
           addEvent={addEvent}
+          addLane={addLane}
         />
 
         {activeView === 'overview' ? (

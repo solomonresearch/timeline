@@ -38,6 +38,7 @@ interface ToolbarProps {
   onScrollToToday?: () => void
   lanes: Lane[]
   addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
+  addLane: (lane: Omit<Lane, 'id' | 'order' | 'isDefault'>) => Promise<Lane | null>
 }
 
 const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
@@ -69,6 +70,7 @@ export function Toolbar({
   onScrollToToday,
   lanes,
   addEvent,
+  addLane,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
@@ -376,7 +378,7 @@ export function Toolbar({
       </div>
 
       <SkinDialog open={skinDialogOpen} onOpenChange={setSkinDialogOpen} />
-      <ImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} defaultTab={importTab} lanes={lanes} addEvent={addEvent} />
+      <ImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} defaultTab={importTab} lanes={lanes} addEvent={addEvent} addLane={addLane} />
     </>
   )
 }
