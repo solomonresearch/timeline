@@ -24,6 +24,11 @@ import {
   type GoogleCalendar,
   type GoogleCalEvent,
 } from '@/lib/googleCalendar'
+import {
+  isOpenAIConfigured,
+  parseTextToEvents,
+  transcribeAudio,
+} from '@/lib/openai'
 
 export type ImportTab = 'calendar-file' | 'google-calendar' | 'text' | 'voice'
 
@@ -916,46 +921,670 @@ function YearGroup({
   )
 }
 
-function TextTab() {
+interface TextTabProps {
+  lanes: Lane[]
+  addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
+  onDone: () => void
+}
+
+function TextTab({ lanes, addEvent, onDone }: TextTabProps) {
+  const [text, setText] = useState('')
+  const [phase, setPhase] = useState<'input' | 'parsing' | 'preview' | 'importing' | 'success'>('input')
+  const [error, setError] = useState('')
+  const [parsedEvents, setParsedEvents] = useState<ParsedCalendarEvent[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [laneAssignments, setLaneAssignments] = useState<Map<number, string>>(new Map())
+  const [importedCount, setImportedCount] = useState(0)
+  const [importProgress, setImportProgress] = useState(0)
+
+  const laneNames = lanes.map(l => l.name)
+
+  const yearGroups = useMemo(() => {
+    const groups = new Map<number, { idx: number; ev: ParsedCalendarEvent }[]>()
+    for (let i = 0; i < parsedEvents.length; i++) {
+      const ev = parsedEvents[i]
+      const year = Math.floor(ev.startYear)
+      const arr = groups.get(year)
+      if (arr) arr.push({ idx: i, ev })
+      else groups.set(year, [{ idx: i, ev }])
+    }
+    return [...groups.entries()].sort((a, b) => b[0] - a[0])
+  }, [parsedEvents])
+
+  const selectedCount = selectedIndices.size
+
+  const handleParse = async () => {
+    if (!text.trim()) return
+    setError('')
+    setPhase('parsing')
+    try {
+      const events = await parseTextToEvents(text.trim(), laneNames)
+      if (events.length === 0) {
+        setError('No events could be extracted from the text')
+        setPhase('input')
+        return
+      }
+      setParsedEvents(events)
+      setSelectedIndices(new Set(events.map((_, i) => i)))
+      const assignments = new Map<number, string>()
+      events.forEach((ev, i) => {
+        assignments.set(i, mapCategoryToLane(ev.category, laneNames))
+      })
+      setLaneAssignments(assignments)
+      setPhase('preview')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse text')
+      setPhase('input')
+    }
+  }
+
+  const toggleYear = (year: number) => {
+    const yearItems = yearGroups.find(([y]) => y === year)?.[1] || []
+    const allSelected = yearItems.every(item => selectedIndices.has(item.idx))
+    const next = new Set(selectedIndices)
+    for (const item of yearItems) {
+      if (allSelected) next.delete(item.idx)
+      else next.add(item.idx)
+    }
+    setSelectedIndices(next)
+  }
+
+  const handleImport = async () => {
+    setPhase('importing')
+    setImportProgress(0)
+    let count = 0
+    const selected = parsedEvents
+      .map((ev, i) => ({ ev, i }))
+      .filter(({ i }) => selectedIndices.has(i))
+    for (let j = 0; j < selected.length; j++) {
+      const { ev, i } = selected[j]
+      const laneName = laneAssignments.get(i) || 'Other Activities'
+      const lane = lanes.find(l => l.name === laneName)
+      if (!lane) continue
+      const result = await addEvent({
+        laneId: lane.id,
+        title: ev.title,
+        description: ev.description,
+        type: ev.endYear ? 'range' : 'point',
+        startYear: ev.startYear,
+        endYear: ev.endYear,
+      })
+      if (result) count++
+      setImportProgress(j + 1)
+    }
+    setImportedCount(count)
+    setPhase('success')
+  }
+
+  const handleReset = () => {
+    setText('')
+    setParsedEvents([])
+    setSelectedIndices(new Set())
+    setLaneAssignments(new Map())
+    setError('')
+    setImportedCount(0)
+    setImportProgress(0)
+    setPhase('input')
+  }
+
+  if (!isOpenAIConfigured()) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6">
+        <FileText className="h-10 w-10 text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground text-center">
+          Text import requires an OpenAI API key.<br />
+          Set <code className="text-xs bg-muted px-1 py-0.5 rounded">VITE_OPENAI_API_KEY</code> in your .env file.
+        </p>
+      </div>
+    )
+  }
+
+  if (phase === 'success') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-6">
+        <CheckCircle2 className="h-12 w-12 text-green-500" />
+        <p className="text-sm font-medium">Imported {importedCount} event{importedCount !== 1 ? 's' : ''}</p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset}>Import More</Button>
+          <Button size="sm" onClick={onDone}>Done</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'importing') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Importing events... {importProgress}/{selectedCount}
+        </p>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div
+            className="bg-primary h-2 rounded-full transition-all"
+            style={{ width: `${selectedCount > 0 ? (importProgress / selectedCount) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'parsing') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Parsing events with AI...</p>
+      </div>
+    )
+  }
+
+  if (phase === 'preview') {
+    return (
+      <div className="flex flex-col gap-3 py-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">
+            {parsedEvents.length} event{parsedEvents.length !== 1 ? 's' : ''} found
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+            <button onClick={handleReset} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-72 overflow-y-auto rounded-md border">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-muted z-10">
+              <tr>
+                <th className="w-7 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedCount === parsedEvents.length && parsedEvents.length > 0}
+                    ref={(el) => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < parsedEvents.length }}
+                    onChange={() => {
+                      if (selectedCount === parsedEvents.length) {
+                        setSelectedIndices(new Set())
+                      } else {
+                        setSelectedIndices(new Set(parsedEvents.map((_, i) => i)))
+                      }
+                    }}
+                    className="accent-primary"
+                  />
+                </th>
+                <th className="text-left px-2 py-1.5 font-medium">Event</th>
+                <th className="text-left px-2 py-1.5 font-medium w-20">Date</th>
+                <th className="text-left px-2 py-1.5 font-medium w-28">Lane</th>
+              </tr>
+            </thead>
+            <tbody>
+              {yearGroups.map(([year, items]) => {
+                const yearSelectedCount = items.filter(item => selectedIndices.has(item.idx)).length
+                const allYearSelected = yearSelectedCount === items.length
+                const someYearSelected = yearSelectedCount > 0 && !allYearSelected
+                return (
+                  <FileYearGroup
+                    key={year}
+                    year={year}
+                    items={items}
+                    allSelected={allYearSelected}
+                    someSelected={someYearSelected}
+                    selectedIndices={selectedIndices}
+                    laneAssignments={laneAssignments}
+                    laneNames={laneNames}
+                    onToggleYear={() => toggleYear(year)}
+                    onToggleEvent={(idx) => {
+                      const next = new Set(selectedIndices)
+                      if (next.has(idx)) next.delete(idx)
+                      else next.add(idx)
+                      setSelectedIndices(next)
+                    }}
+                    onSetLane={(idx, lane) => {
+                      const next = new Map(laneAssignments)
+                      next.set(idx, lane)
+                      setLaneAssignments(next)
+                    }}
+                  />
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <Button onClick={handleImport} disabled={selectedCount === 0} className="w-full">
+          Import {selectedCount} Event{selectedCount !== 1 ? 's' : ''}
+        </Button>
+      </div>
+    )
+  }
+
+  // Input phase
   return (
     <div className="flex flex-col gap-4 py-4">
       <Textarea
-        placeholder="Describe your events...&#10;&#10;e.g. &quot;I lived in NYC from 2015 to 2019, worked at Google from 2016 to 2020, graduated MIT in 2015&quot;"
+        placeholder={"Describe your events...\n\ne.g. \"I lived in NYC from 2015 to 2019, worked at Google from 2016 to 2020, graduated MIT in 2015\""}
         className="min-h-[140px] resize-none"
-        disabled
+        value={text}
+        onChange={(e) => setText(e.target.value)}
       />
       <p className="text-xs text-muted-foreground">
         Describe events in natural language. Dates, date ranges, and descriptions will be parsed automatically.
       </p>
-      <Button disabled className="w-full">Parse &amp; Import</Button>
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+      <Button onClick={handleParse} disabled={!text.trim()} className="w-full">Parse &amp; Import</Button>
     </div>
   )
 }
 
-function VoiceTab() {
+interface VoiceTabProps {
+  lanes: Lane[]
+  addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
+  onDone: () => void
+}
+
+type VoicePhase = 'idle' | 'recording' | 'transcribing' | 'review' | 'parsing' | 'preview' | 'importing' | 'success'
+
+function VoiceTab({ lanes, addEvent, onDone }: VoiceTabProps) {
+  const [phase, setPhase] = useState<VoicePhase>('idle')
+  const [error, setError] = useState('')
+  const [transcript, setTranscript] = useState('')
+  const [elapsed, setElapsed] = useState(0)
+
+  // Recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Preview state (same pattern as TextTab)
+  const [parsedEvents, setParsedEvents] = useState<ParsedCalendarEvent[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [laneAssignments, setLaneAssignments] = useState<Map<number, string>>(new Map())
+  const [importedCount, setImportedCount] = useState(0)
+  const [importProgress, setImportProgress] = useState(0)
+
+  const laneNames = lanes.map(l => l.name)
+
+  const yearGroups = useMemo(() => {
+    const groups = new Map<number, { idx: number; ev: ParsedCalendarEvent }[]>()
+    for (let i = 0; i < parsedEvents.length; i++) {
+      const ev = parsedEvents[i]
+      const year = Math.floor(ev.startYear)
+      const arr = groups.get(year)
+      if (arr) arr.push({ idx: i, ev })
+      else groups.set(year, [{ idx: i, ev }])
+    }
+    return [...groups.entries()].sort((a, b) => b[0] - a[0])
+  }, [parsedEvents])
+
+  const selectedCount = selectedIndices.size
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop())
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [])
+
+  const startRecording = async () => {
+    setError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+
+      // Auto-detect supported MIME type
+      const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4']
+        .find(t => MediaRecorder.isTypeSupported(t)) || ''
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      mediaRecorderRef.current = recorder
+      chunksRef.current = []
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(t => t.stop())
+        streamRef.current = null
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        if (blob.size === 0) {
+          setError('No audio recorded')
+          setPhase('idle')
+          return
+        }
+
+        setPhase('transcribing')
+        try {
+          const text = await transcribeAudio(blob)
+          if (!text.trim()) {
+            setError('No speech detected in recording')
+            setPhase('idle')
+            return
+          }
+          setTranscript(text)
+          setPhase('review')
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Transcription failed')
+          setPhase('idle')
+        }
+      }
+
+      recorder.start()
+      setElapsed(0)
+      setPhase('recording')
+      timerRef.current = setInterval(() => {
+        setElapsed(prev => prev + 1)
+      }, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not access microphone')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
+  }
+
+  const handleParse = async () => {
+    if (!transcript.trim()) return
+    setError('')
+    setPhase('parsing')
+    try {
+      const events = await parseTextToEvents(transcript.trim(), laneNames)
+      if (events.length === 0) {
+        setError('No events could be extracted from the transcript')
+        setPhase('review')
+        return
+      }
+      setParsedEvents(events)
+      setSelectedIndices(new Set(events.map((_, i) => i)))
+      const assignments = new Map<number, string>()
+      events.forEach((ev, i) => {
+        assignments.set(i, mapCategoryToLane(ev.category, laneNames))
+      })
+      setLaneAssignments(assignments)
+      setPhase('preview')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse transcript')
+      setPhase('review')
+    }
+  }
+
+  const toggleYear = (year: number) => {
+    const yearItems = yearGroups.find(([y]) => y === year)?.[1] || []
+    const allSelected = yearItems.every(item => selectedIndices.has(item.idx))
+    const next = new Set(selectedIndices)
+    for (const item of yearItems) {
+      if (allSelected) next.delete(item.idx)
+      else next.add(item.idx)
+    }
+    setSelectedIndices(next)
+  }
+
+  const handleImport = async () => {
+    setPhase('importing')
+    setImportProgress(0)
+    let count = 0
+    const selected = parsedEvents
+      .map((ev, i) => ({ ev, i }))
+      .filter(({ i }) => selectedIndices.has(i))
+    for (let j = 0; j < selected.length; j++) {
+      const { ev, i } = selected[j]
+      const laneName = laneAssignments.get(i) || 'Other Activities'
+      const lane = lanes.find(l => l.name === laneName)
+      if (!lane) continue
+      const result = await addEvent({
+        laneId: lane.id,
+        title: ev.title,
+        description: ev.description,
+        type: ev.endYear ? 'range' : 'point',
+        startYear: ev.startYear,
+        endYear: ev.endYear,
+      })
+      if (result) count++
+      setImportProgress(j + 1)
+    }
+    setImportedCount(count)
+    setPhase('success')
+  }
+
+  const handleReset = () => {
+    setTranscript('')
+    setParsedEvents([])
+    setSelectedIndices(new Set())
+    setLaneAssignments(new Map())
+    setError('')
+    setImportedCount(0)
+    setImportProgress(0)
+    setElapsed(0)
+    setPhase('idle')
+  }
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  if (!isOpenAIConfigured()) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6">
+        <Mic className="h-10 w-10 text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground text-center">
+          Voice import requires an OpenAI API key.<br />
+          Set <code className="text-xs bg-muted px-1 py-0.5 rounded">VITE_OPENAI_API_KEY</code> in your .env file.
+        </p>
+      </div>
+    )
+  }
+
+  if (phase === 'success') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-6">
+        <CheckCircle2 className="h-12 w-12 text-green-500" />
+        <p className="text-sm font-medium">Imported {importedCount} event{importedCount !== 1 ? 's' : ''}</p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset}>Record Another</Button>
+          <Button size="sm" onClick={onDone}>Done</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'importing') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Importing events... {importProgress}/{selectedCount}
+        </p>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div
+            className="bg-primary h-2 rounded-full transition-all"
+            style={{ width: `${selectedCount > 0 ? (importProgress / selectedCount) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'transcribing') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Transcribing audio...</p>
+      </div>
+    )
+  }
+
+  if (phase === 'parsing') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Parsing events with AI...</p>
+      </div>
+    )
+  }
+
+  if (phase === 'preview') {
+    return (
+      <div className="flex flex-col gap-3 py-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">
+            {parsedEvents.length} event{parsedEvents.length !== 1 ? 's' : ''} found
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+            <button onClick={handleReset} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-72 overflow-y-auto rounded-md border">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-muted z-10">
+              <tr>
+                <th className="w-7 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedCount === parsedEvents.length && parsedEvents.length > 0}
+                    ref={(el) => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < parsedEvents.length }}
+                    onChange={() => {
+                      if (selectedCount === parsedEvents.length) {
+                        setSelectedIndices(new Set())
+                      } else {
+                        setSelectedIndices(new Set(parsedEvents.map((_, i) => i)))
+                      }
+                    }}
+                    className="accent-primary"
+                  />
+                </th>
+                <th className="text-left px-2 py-1.5 font-medium">Event</th>
+                <th className="text-left px-2 py-1.5 font-medium w-20">Date</th>
+                <th className="text-left px-2 py-1.5 font-medium w-28">Lane</th>
+              </tr>
+            </thead>
+            <tbody>
+              {yearGroups.map(([year, items]) => {
+                const yearSelectedCount = items.filter(item => selectedIndices.has(item.idx)).length
+                const allYearSelected = yearSelectedCount === items.length
+                const someYearSelected = yearSelectedCount > 0 && !allYearSelected
+                return (
+                  <FileYearGroup
+                    key={year}
+                    year={year}
+                    items={items}
+                    allSelected={allYearSelected}
+                    someSelected={someYearSelected}
+                    selectedIndices={selectedIndices}
+                    laneAssignments={laneAssignments}
+                    laneNames={laneNames}
+                    onToggleYear={() => toggleYear(year)}
+                    onToggleEvent={(idx) => {
+                      const next = new Set(selectedIndices)
+                      if (next.has(idx)) next.delete(idx)
+                      else next.add(idx)
+                      setSelectedIndices(next)
+                    }}
+                    onSetLane={(idx, lane) => {
+                      const next = new Map(laneAssignments)
+                      next.set(idx, lane)
+                      setLaneAssignments(next)
+                    }}
+                  />
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <Button onClick={handleImport} disabled={selectedCount === 0} className="w-full">
+          Import {selectedCount} Event{selectedCount !== 1 ? 's' : ''}
+        </Button>
+      </div>
+    )
+  }
+
+  if (phase === 'review') {
+    return (
+      <div className="flex flex-col gap-4 py-4">
+        <Textarea
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+          className="min-h-[120px] resize-none"
+          placeholder="Transcript will appear here..."
+        />
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleReset} className="flex-1">Re-record</Button>
+          <Button onClick={handleParse} disabled={!transcript.trim()} className="flex-1">Parse Events</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'recording') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-4">
+        <div className="relative">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center animate-pulse">
+            <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center">
+              <div className="h-5 w-5 rounded-full bg-red-500" />
+            </div>
+          </div>
+        </div>
+        <p className="text-sm font-medium tabular-nums">{formatTime(elapsed)}</p>
+        <p className="text-xs text-muted-foreground">Recording...</p>
+        <Button variant="destructive" size="sm" className="gap-2" onClick={stopRecording}>
+          Stop Recording
+        </Button>
+      </div>
+    )
+  }
+
+  // Idle phase
   return (
     <div className="flex flex-col items-center gap-4 py-4">
       <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
         <Mic className="h-8 w-8 text-muted-foreground" />
       </div>
-      <Button variant="outline" className="gap-2" onClick={() => {}}>
+      <Button variant="outline" className="gap-2" onClick={startRecording}>
         <Mic className="h-4 w-4" />
         Start Recording
       </Button>
-      <div className="w-full h-16 rounded-lg bg-muted/30 border border-dashed border-muted-foreground/20 flex items-center justify-center">
-        <div className="flex items-end gap-0.5 h-8">
-          {Array.from({ length: 24 }).map((_, i) => (
-            <div
-              key={i}
-              className="w-1 rounded-full bg-muted-foreground/20"
-              style={{ height: `${4 + Math.random() * 20}px` }}
-            />
-          ))}
-        </div>
-      </div>
       <p className="text-xs text-muted-foreground text-center">
         Dictate your life events and they&apos;ll be transcribed and added to your timeline
       </p>
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
     </div>
   )
 }
@@ -969,7 +1598,7 @@ export function ImportDialog({ open, onOpenChange, defaultTab = 'calendar-file',
     onOpenChange(v)
   }
 
-  const isWide = activeTab === 'google-calendar' || activeTab === 'calendar-file'
+  const isWide = true
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -1002,8 +1631,8 @@ export function ImportDialog({ open, onOpenChange, defaultTab = 'calendar-file',
         {activeTab === 'google-calendar' && (
           <GoogleCalendarTab lanes={lanes} addEvent={addEvent} addLane={addLane} onDone={() => onOpenChange(false)} />
         )}
-        {activeTab === 'text' && <TextTab />}
-        {activeTab === 'voice' && <VoiceTab />}
+        {activeTab === 'text' && <TextTab lanes={lanes} addEvent={addEvent} onDone={() => onOpenChange(false)} />}
+        {activeTab === 'voice' && <VoiceTab lanes={lanes} addEvent={addEvent} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   )
