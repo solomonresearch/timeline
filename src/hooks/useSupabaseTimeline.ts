@@ -11,6 +11,7 @@ import {
   deleteEventDb,
   mapDbLane,
   mapDbEvent,
+  fracYearToDbTime,
 } from '@/lib/api'
 import {
   DEFAULT_PIXELS_PER_YEAR,
@@ -75,9 +76,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
         lane_id: event.laneId,
         title: event.title,
         description: event.description,
-        type: event.type,
-        start_year: event.startYear,
-        end_year: event.endYear,
+        start_time: fracYearToDbTime(event.startYear),
+        end_time: event.endYear != null ? fracYearToDbTime(event.endYear) : null,
         color: event.color,
         emoji: event.emoji,
         point_value: event.pointValue,
@@ -106,9 +106,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if (updates.laneId !== undefined) dbUpdates.lane_id = updates.laneId
       if (updates.title !== undefined) dbUpdates.title = updates.title
       if (updates.description !== undefined) dbUpdates.description = updates.description
-      if (updates.type !== undefined) dbUpdates.type = updates.type
-      if (updates.startYear !== undefined) dbUpdates.start_year = updates.startYear
-      if ('endYear' in updates) dbUpdates.end_year = updates.endYear ?? null
+      if (updates.startYear !== undefined) dbUpdates.start_time = fracYearToDbTime(updates.startYear)
+      if ('endYear' in updates) dbUpdates.end_time = updates.endYear != null ? fracYearToDbTime(updates.endYear) : null
       if ('color' in updates) dbUpdates.color = updates.color ?? null
       if ('emoji' in updates) dbUpdates.emoji = updates.emoji ?? null
       if ('pointValue' in updates) dbUpdates.point_value = updates.pointValue ?? null
