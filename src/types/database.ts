@@ -36,14 +36,14 @@ export interface DbEvent {
   timeline_id: string
   title: string
   description: string
-  start_time: string        // timestamptz ISO string
-  end_time: string | null   // null = point event
+  type: 'range' | 'point'
+  start_year: number
+  end_year: number | null
   color: string | null
   emoji: string | null
   point_value: number | null
   value_points: unknown[] | null
   value_projection: unknown | null
-  source: string | null
 }
 
 export interface DbPersona {

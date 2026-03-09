@@ -8,17 +8,6 @@ import type {
   DbPersona,
   DbPersonaEvent,
 } from '@/types/database'
-import { dateToFracYear, fracYearToMs } from './constants'
-
-// ── Timestamp ↔ fractional-year conversion ─────────────────────────────────
-
-function dbTimeToFracYear(iso: string): number {
-  return dateToFracYear(new Date(iso))
-}
-
-export function fracYearToDbTime(fy: number): string {
-  return new Date(fracYearToMs(fy)).toISOString()
-}
 
 // ============================================================
 // Mapping helpers
@@ -39,16 +28,14 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
   // Only use value_projection if it has the new format (startValue field present)
   const proj = row.value_projection as Record<string, unknown> | null
   const validProj = proj != null && 'startValue' in proj ? proj as unknown as ValueProjection : null
-  const startYear = dbTimeToFracYear(row.start_time)
-  const endYear = row.end_time != null ? dbTimeToFracYear(row.end_time) : undefined
   return {
     id: row.id,
     laneId: row.lane_id,
     title: row.title,
     description: row.description,
-    type: endYear !== undefined ? 'range' : 'point',
-    startYear,
-    ...(endYear !== undefined ? { endYear } : {}),
+    type: row.type,
+    startYear: row.start_year,
+    ...(row.end_year != null ? { endYear: row.end_year } : {}),
     ...(row.color != null ? { color: row.color } : {}),
     ...(row.emoji != null ? { emoji: row.emoji } : {}),
     ...(row.point_value != null ? { pointValue: row.point_value } : {}),
@@ -292,8 +279,9 @@ export async function insertEvent(
     lane_id: string
     title: string
     description: string
-    start_time: string
-    end_time?: string | null
+    type: 'range' | 'point'
+    start_year: number
+    end_year?: number
     color?: string
     emoji?: string
     point_value?: number
@@ -307,8 +295,9 @@ export async function insertEvent(
       lane_id: event.lane_id,
       title: event.title,
       description: event.description,
-      start_time: event.start_time,
-      end_time: event.end_time ?? null,
+      type: event.type,
+      start_year: event.start_year,
+      end_year: event.end_year ?? null,
       color: event.color ?? null,
       emoji: event.emoji ?? null,
       point_value: event.point_value ?? null,
@@ -329,8 +318,9 @@ export async function updateEventDb(
     lane_id: string
     title: string
     description: string
-    start_time: string
-    end_time: string | null
+    type: 'range' | 'point'
+    start_year: number
+    end_year: number | null
     color: string | null
     emoji: string | null
     point_value: number | null
