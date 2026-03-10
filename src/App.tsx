@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore, useRef } from 'react'
+import { useState, useCallback, useSyncExternalStore, useRef, useMemo } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -120,6 +120,30 @@ function TimelineView() {
   const [activeView, setActiveView] = useAppView()
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
+  const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
+
+  // Max-events filter: show the N longest-duration events (point events have duration 0)
+  const [maxEvents, setMaxEvents] = useState(100)
+  const [navigatedEventId, setNavigatedEventId] = useState<string | null>(null)
+  const displayedEvents = useMemo(() => {
+    const sorted = [...events].sort((a, b) => {
+      const durA = a.type === 'range' && a.endYear != null ? a.endYear - a.startYear : 0
+      const durB = b.type === 'range' && b.endYear != null ? b.endYear - b.startYear : 0
+      return durB - durA
+    })
+    const top = sorted.slice(0, Math.max(1, maxEvents))
+    // Always include an event the user navigated to, even if outside the limit
+    if (navigatedEventId && !top.find(e => e.id === navigatedEventId)) {
+      const target = events.find(e => e.id === navigatedEventId)
+      if (target) top.push(target)
+    }
+    return top
+  }, [events, maxEvents, navigatedEventId])
+
+  const handleSearchNavigate = useCallback((event: TimelineEvent) => {
+    setNavigatedEventId(event.id)
+    scrollToEventRef.current?.(event)
+  }, [])
 
   // Popover state
   const [popover, setPopover] = useState<{ event: TimelineEvent; anchor: HTMLElement; x: number; y: number } | null>(null)
@@ -275,8 +299,12 @@ function TimelineView() {
           onSetActiveView={setActiveView}
           onScrollToToday={() => scrollToTodayRef.current?.()}
           lanes={lanes}
+          events={events}
           addEvent={addEvent}
           addLane={addLane}
+          maxEvents={maxEvents}
+          onMaxEventsChange={setMaxEvents}
+          onSearchNavigate={handleSearchNavigate}
         />
 
         {activeView === 'overview' ? (
@@ -285,7 +313,7 @@ function TimelineView() {
           <>
             <TimelineContainer
               lanes={lanes}
-              events={events}
+              events={displayedEvents}
               yearStart={yearStart}
               yearEnd={yearEnd}
               pixelsPerYear={pixelsPerYear}
@@ -303,6 +331,7 @@ function TimelineView() {
               personas={personas}
               personaDisplayModes={personaDisplayModes}
               scrollToTodayRef={scrollToTodayRef}
+              scrollToEventRef={scrollToEventRef}
               timelineMeta={timelineMeta}
             />
 

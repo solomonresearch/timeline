@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList, Download, CalendarDays, Globe, FileText, Mic } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList, Download, CalendarDays, Globe, FileText, Mic, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
@@ -11,6 +11,7 @@ import { useSizeConfig, type UiSize } from '@/contexts/UiSizeContext'
 import { useSkin, SKINS, type SkinId } from '@/contexts/SkinContext'
 import { SkinDialog } from '@/components/SkinDialog'
 import { ImportDialog, type ImportTab } from '@/components/ImportDialog'
+import { SearchDialog } from '@/components/SearchDialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,8 +38,12 @@ interface ToolbarProps {
   onSetActiveView: (v: AppView) => void
   onScrollToToday?: () => void
   lanes: Lane[]
+  events: TimelineEvent[]
   addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
   addLane: (lane: Omit<Lane, 'id' | 'order' | 'isDefault'>) => Promise<Lane | null>
+  maxEvents: number
+  onMaxEventsChange: (v: number) => void
+  onSearchNavigate: (event: TimelineEvent) => void
 }
 
 const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
@@ -69,14 +74,19 @@ export function Toolbar({
   onSetActiveView,
   onScrollToToday,
   lanes,
+  events,
   addEvent,
   addLane,
+  maxEvents,
+  onMaxEventsChange,
+  onSearchNavigate,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
   const [skinDialogOpen, setSkinDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [importTab, setImportTab] = useState<ImportTab>('calendar-file')
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
   const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
@@ -216,6 +226,26 @@ export function Toolbar({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Max events input — desktop only */}
+          <div className="hidden md:flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Max:</span>
+            <input
+              type="number"
+              min={1}
+              max={99999}
+              value={maxEvents}
+              onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) onMaxEventsChange(v) }}
+              className="w-16 h-8 rounded-md border border-input bg-background px-2 text-xs text-center"
+              title="Maximum number of events to display (longest first)"
+            />
+          </div>
+
+          {/* Search button — desktop only */}
+          <Button variant="outline" size="sm" className="gap-1.5 hidden md:flex" onClick={() => setSearchOpen(true)}>
+            <Search className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Search</span>
+          </Button>
         </div>
 
         {/* ── Right side ── */}
@@ -370,6 +400,11 @@ export function Toolbar({
                 <Mic className="h-4 w-4 mr-2" />
                 Import from Voice
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSearchOpen(true)}>
+                <Search className="h-4 w-4 mr-2" />
+                Search Events
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -379,6 +414,7 @@ export function Toolbar({
 
       <SkinDialog open={skinDialogOpen} onOpenChange={setSkinDialogOpen} />
       <ImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} defaultTab={importTab} lanes={lanes} addEvent={addEvent} addLane={addLane} />
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} events={events} lanes={lanes} onNavigate={onSearchNavigate} />
     </>
   )
 }

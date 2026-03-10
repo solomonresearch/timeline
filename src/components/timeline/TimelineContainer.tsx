@@ -90,6 +90,7 @@ interface TimelineContainerProps {
   dataYearMin: number
   dataYearMax: number
   scrollToTodayRef?: MutableRefObject<(() => void) | null>
+  scrollToEventRef?: MutableRefObject<((event: TimelineEvent) => void) | null>
   timelineMeta?: { startYear: number; endYear: number; color: string }
 }
 
@@ -113,6 +114,7 @@ export function TimelineContainer({
   dataYearMin,
   dataYearMax,
   scrollToTodayRef,
+  scrollToEventRef,
   timelineMeta,
 }: TimelineContainerProps) {
   const { sc, size, updateFitScreenConfig } = useSizeConfig()
@@ -296,6 +298,35 @@ export function TimelineContainer({
       setViewCenterYear(today)
     }
   }, [scrollToTodayRef, yearStart, yearEnd, pixelsPerYear])
+
+  // Register scroll-to-event (search navigation): zoom to fit the event + center it
+  useEffect(() => {
+    if (!scrollToEventRef) return
+    scrollToEventRef.current = (event: TimelineEvent) => {
+      const el = scrollRef.current
+      if (!el) return
+      const duration = event.type === 'range' && event.endYear != null
+        ? event.endYear - event.startYear : 0
+      const usableWidth = Math.max(200, el.clientWidth - sc.SIDEBAR_WIDTH)
+      let newPpy: number
+      if (duration > 0.1) {
+        // Fit event width + 40% padding so it's clearly visible
+        newPpy = usableWidth / (duration * 1.4)
+        newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, newPpy))
+      } else {
+        // Point / instant event — show ~3 years of context around it
+        newPpy = Math.min(MAX_PIXELS_PER_YEAR, Math.max(20, usableWidth / 3))
+      }
+      const centerYear = event.startYear + duration / 2
+      const { effStart } = computeEffWindow(centerYear, newPpy, yearStart, yearEnd)
+      yearStartRef.current = effStart
+      viewCenterYearRef.current = centerYear
+      ppyRef.current = newPpy
+      pendingScrollRef.current = Math.max(0, (centerYear - effStart) * newPpy - usableWidth / 2)
+      setViewCenterYear(centerYear)
+      onZoom(newPpy)
+    }
+  }, [scrollToEventRef, yearStart, yearEnd, sc.SIDEBAR_WIDTH, onZoom])
 
   // Wheel zoom toward cursor
   useEffect(() => {
