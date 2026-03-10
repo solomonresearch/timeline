@@ -308,14 +308,15 @@ export function TimelineContainer({
       const duration = event.type === 'range' && event.endYear != null
         ? event.endYear - event.startYear : 0
       const usableWidth = Math.max(200, el.clientWidth - sc.SIDEBAR_WIDTH)
+      const ONE_WEEK = 1 / 52  // fractional year
       let newPpy: number
-      if (duration > 0.1) {
-        // Fit event width + 40% padding so it's clearly visible
+      if (duration > 2 * ONE_WEEK) {
+        // Range event longer than 2 weeks: fit with 40% padding
         newPpy = usableWidth / (duration * 1.4)
         newPpy = Math.max(MIN_PIXELS_PER_YEAR, Math.min(MAX_PIXELS_PER_YEAR, newPpy))
       } else {
-        // Point / instant event — show ~3 years of context around it
-        newPpy = Math.min(MAX_PIXELS_PER_YEAR, Math.max(20, usableWidth / 3))
+        // Point event or short range: show 1 week on each side (2 weeks total)
+        newPpy = Math.min(MAX_PIXELS_PER_YEAR, usableWidth / (2 * ONE_WEEK))
       }
       const centerYear = event.startYear + duration / 2
       const { effStart } = computeEffWindow(centerYear, newPpy, yearStart, yearEnd)
