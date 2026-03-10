@@ -30,11 +30,15 @@ export function EventContextMenu({ x, y, onMove, onExtendForward, onExtendBackwa
     </button>
   )
 
+  // Render above click point if too close to bottom of viewport
+  const menuHeight = 116 // 3 items × ~32px + 8px padding × 2
+  const top = y + menuHeight > window.innerHeight - 8 ? y - menuHeight : y
+
   return (
     <div
       ref={ref}
       className="fixed z-[200] min-w-[180px] rounded-md border border-border bg-popover text-popover-foreground shadow-md py-1"
-      style={{ left: x, top: y }}
+      style={{ left: x, top }}
     >
       {item('Move', <Move size={14} />, 'cursor-move', onMove)}
       {item('Extend forward →', <ArrowRight size={14} />, 'cursor-e-resize', onExtendForward)}

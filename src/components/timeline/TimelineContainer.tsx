@@ -444,26 +444,45 @@ export function TimelineContainer({
   const onEventDropRef = useRef(onEventDrop)
   useEffect(() => { onEventDropRef.current = onEventDrop }, [onEventDrop])
 
+  // Suppresses the next onLaneClick (add-event dialog) — set when committing a drag so the
+  // mouseup that commits doesn't also open the "add event" dialog.
+  const suppressNextLaneClickRef = useRef(false)
+  const handleLaneClickInternal = useCallback((laneId: string, year: number) => {
+    if (suppressNextLaneClickRef.current) { suppressNextLaneClickRef.current = false; return }
+    onLaneClick(laneId, year)
+  }, [onLaneClick])
+
   const handleDragMove = useCallback((e: MouseEvent) => {
     const drag = dragStateRef.current
     if (!drag) return
     const ppy = ppyRef.current
-    const deltaYear = (e.clientX - drag.startClientX) / ppy
 
-    const els = document.elementsFromPoint(e.clientX, e.clientY)
-    const laneEl = els.find(el => (el as HTMLElement).getAttribute?.('data-lane-id'))
-    const targetLaneId = (laneEl as HTMLElement | undefined)?.getAttribute('data-lane-id') ?? drag.currentLaneId
-    drag.currentLaneId = targetLaneId
+    // Absolute mouse year for extend modes; delta-based for move
+    const scrollEl = scrollRef.current
+    const rect = scrollEl?.getBoundingClientRect()
+    const mouseYear = rect
+      ? yearStartRef.current + (scrollEl!.scrollLeft + e.clientX - rect.left) / ppy
+      : drag.event.startYear
+
+    // Only allow lane switching in move mode
+    let targetLaneId = drag.currentLaneId
+    if (drag.mode === 'move') {
+      const els = document.elementsFromPoint(e.clientX, e.clientY)
+      const laneEl = els.find(el => (el as HTMLElement).getAttribute?.('data-lane-id'))
+      targetLaneId = (laneEl as HTMLElement | undefined)?.getAttribute('data-lane-id') ?? drag.currentLaneId
+      drag.currentLaneId = targetLaneId
+    }
 
     let newStart: number, newEnd: number | undefined
     if (drag.mode === 'move') {
+      const deltaYear = (e.clientX - drag.startClientX) / ppy
       newStart = drag.event.startYear + deltaYear
       newEnd = drag.event.endYear !== undefined ? drag.event.endYear + deltaYear : undefined
     } else if (drag.mode === 'extend-forward') {
       newStart = drag.event.startYear
-      newEnd = Math.max(drag.event.startYear + 0.1, (drag.event.endYear ?? drag.event.startYear) + deltaYear)
+      newEnd = Math.max(drag.event.startYear + 0.1, mouseYear)
     } else {
-      newStart = Math.min((drag.event.endYear ?? drag.event.startYear) - 0.1, drag.event.startYear + deltaYear)
+      newStart = Math.min((drag.event.endYear ?? drag.event.startYear) - 0.1, mouseYear)
       newEnd = drag.event.endYear
     }
 
@@ -477,7 +496,9 @@ export function TimelineContainer({
     window.removeEventListener('mousemove', handleDragMove)
     window.removeEventListener('mouseup', handleDragCommit)
     window.removeEventListener('click', handleDragCommit)
-    document.body.style.cursor = ''
+    document.getElementById('drag-cursor-style')?.remove()
+    // Suppress the lane's add-event dialog that fires on the same mouseup/click
+    if (drag) suppressNextLaneClickRef.current = true
     const preview = dragPreviewRef.current
     if (drag && preview) {
       onEventDropRef.current(drag.event.id, preview.laneId, preview.startYear, preview.endYear)
@@ -491,7 +512,7 @@ export function TimelineContainer({
     window.removeEventListener('mousemove', handleDragMove)
     window.removeEventListener('mouseup', handleDragCommit)
     window.removeEventListener('click', handleDragCommit)
-    document.body.style.cursor = ''
+    document.getElementById('drag-cursor-style')?.remove()
     dragStateRef.current = null
     dragPreviewRef.current = null
     setDragPreview(null)
@@ -509,7 +530,11 @@ export function TimelineContainer({
     const preview: DragPreview = { event, laneId: event.laneId, startYear: event.startYear, endYear: event.endYear }
     dragPreviewRef.current = preview
     setDragPreview(preview)
-    document.body.style.cursor = 'move'
+    document.getElementById('drag-cursor-style')?.remove()
+    const cursorStyle = document.createElement('style')
+    cursorStyle.id = 'drag-cursor-style'
+    cursorStyle.textContent = '* { cursor: move !important; }'
+    document.head.appendChild(cursorStyle)
     window.addEventListener('mousemove', handleDragMove)
     if (endOn === 'mouseup') {
       window.addEventListener('mouseup', handleDragCommit)
@@ -550,9 +575,16 @@ export function TimelineContainer({
     const preview: DragPreview = { event, laneId: event.laneId, startYear: event.startYear, endYear: event.endYear }
     dragPreviewRef.current = preview
     setDragPreview(preview)
-    document.body.style.cursor = direction === 'forward' ? 'e-resize' : 'w-resize'
+    // Hide cursor entirely during extend mode — ghost shows the preview position
+    document.getElementById('drag-cursor-style')?.remove()
+    const cursorStyle = document.createElement('style')
+    cursorStyle.id = 'drag-cursor-style'
+    cursorStyle.textContent = '* { cursor: none !important; }'
+    document.head.appendChild(cursorStyle)
     window.addEventListener('mousemove', handleDragMove)
-    setTimeout(() => window.addEventListener('click', handleDragCommit, { once: true }), 0)
+    // Commit on mouseup — works for both quick click and click-hold-drag.
+    // setTimeout skips the mouseup from the context menu item click itself.
+    setTimeout(() => window.addEventListener('mouseup', handleDragCommit, { once: true }), 0)
   }, [handleDragMove, handleDragCommit, sc.SIDEBAR_WIDTH])
 
   const visibleLanes = lanes.filter(l => l.visible)
@@ -813,7 +845,7 @@ export function TimelineContainer({
                 yearEnd={effectiveYearEnd}
                 pixelsPerYear={pixelsPerYear}
                 onEventClick={onEventClick}
-                onLaneClick={onLaneClick}
+                onLaneClick={handleLaneClickInternal}
                 onLaneDragRange={onLaneDragRange}
                 onPan={handlePan}
                 eventRowMap={laneData[i].eventRowMap}
@@ -860,12 +892,15 @@ export function TimelineContainer({
         if (!scrollEl) return null
         const rect = scrollEl.getBoundingClientRect()
         const ghostLeft = rect.left + (dragPreview.startYear - effectiveYearStart) * pixelsPerYear - scrollEl.scrollLeft
+        const targetLaneIdx = visibleLanes.findIndex(l => l.id === dragPreview.laneId)
         let yOffset = sc.HEADER_HEIGHT
         for (let i = 0; i < visibleLanes.length; i++) {
           if (visibleLanes[i].id === dragPreview.laneId) break
           yOffset += laneData[i].laneHeight
         }
-        const ghostTop = rect.top + yOffset - scrollEl.scrollTop
+        // Account for event row offset within the lane (multi-row expanded lanes)
+        const eventRowOffset = (laneData[targetLaneIdx]?.eventRowMap?.get(dragPreview.event.id) ?? 0) * sc.BASE_LANE_HEIGHT
+        const ghostTop = rect.top + yOffset + eventRowOffset - scrollEl.scrollTop
         const ghostLane = visibleLanes.find(l => l.id === dragPreview.laneId)
         const ghostEvent = { ...dragPreview.event, startYear: dragPreview.startYear, endYear: dragPreview.endYear, laneId: dragPreview.laneId }
         return (
