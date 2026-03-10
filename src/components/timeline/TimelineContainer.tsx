@@ -518,16 +518,42 @@ export function TimelineContainer({
     }
   }, [handleDragMove, handleDragCommit])
 
-  const handleEventExtendStart = useCallback((event: TimelineEvent, direction: 'forward' | 'backward', clientX: number) => {
+  const handleEventExtendStart = useCallback((event: TimelineEvent, direction: 'forward' | 'backward', _clientX: number) => {
     const mode = direction === 'forward' ? 'extend-forward' : 'extend-backward'
-    dragStateRef.current = { event, mode, startClientX: clientX, currentLaneId: event.laneId, endOn: 'click' }
+
+    // Anchor year: right edge for forward extend, left edge for backward extend
+    const anchorYear = direction === 'forward'
+      ? (event.endYear ?? event.startYear)
+      : event.startYear
+
+    // Compute anchor's content-space X
+    const ppy = ppyRef.current
+    const anchorContentX = (anchorYear - yearStartRef.current) * ppy
+
+    // Scroll to bring anchor into view if needed, then derive startClientX from it
+    const scrollEl = scrollRef.current
+    let startClientX = _clientX
+    if (scrollEl) {
+      const margin = 60
+      const visibleLeft = scrollEl.scrollLeft + sc.SIDEBAR_WIDTH + margin
+      const visibleRight = scrollEl.scrollLeft + scrollEl.clientWidth - margin
+      if (anchorContentX < visibleLeft || anchorContentX > visibleRight) {
+        // Center the anchor in the usable area (right of sidebar)
+        const usableCenter = sc.SIDEBAR_WIDTH + (scrollEl.clientWidth - sc.SIDEBAR_WIDTH) / 2
+        scrollEl.scrollLeft = Math.max(0, anchorContentX - usableCenter)
+      }
+      const rect = scrollEl.getBoundingClientRect()
+      startClientX = rect.left + anchorContentX - scrollEl.scrollLeft
+    }
+
+    dragStateRef.current = { event, mode, startClientX, currentLaneId: event.laneId, endOn: 'click' }
     const preview: DragPreview = { event, laneId: event.laneId, startYear: event.startYear, endYear: event.endYear }
     dragPreviewRef.current = preview
     setDragPreview(preview)
     document.body.style.cursor = direction === 'forward' ? 'e-resize' : 'w-resize'
     window.addEventListener('mousemove', handleDragMove)
     setTimeout(() => window.addEventListener('click', handleDragCommit, { once: true }), 0)
-  }, [handleDragMove, handleDragCommit])
+  }, [handleDragMove, handleDragCommit, sc.SIDEBAR_WIDTH])
 
   const visibleLanes = lanes.filter(l => l.visible)
   const hiddenLanes = lanes.filter(l => !l.visible)
