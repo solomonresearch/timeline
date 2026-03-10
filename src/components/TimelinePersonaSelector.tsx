@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { DbPersona } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
+import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
 
 const DEFAULT_COLOR = '#3b82f6'
@@ -43,6 +44,12 @@ interface TimelinePersonaSelectorProps {
   onTogglePersonaAlignment: (id: string) => void
   personaDisplayModes: Map<string, PersonaDisplayMode>
   onSetPersonaDisplayMode: (id: string, mode: PersonaDisplayMode) => void
+  activeOverlayIds: Set<string>
+  onToggleOverlay: (id: string) => void
+  overlayAlignedIds: Set<string>
+  onToggleOverlayAlignment: (id: string) => void
+  overlayDisplayModes: Map<string, OverlayDisplayMode>
+  onSetOverlayDisplayMode: (id: string, mode: OverlayDisplayMode) => void
 }
 
 export function TimelinePersonaSelector({
@@ -53,6 +60,12 @@ export function TimelinePersonaSelector({
   onTogglePersonaAlignment,
   personaDisplayModes,
   onSetPersonaDisplayMode,
+  activeOverlayIds,
+  onToggleOverlay,
+  overlayAlignedIds,
+  onToggleOverlayAlignment,
+  overlayDisplayModes,
+  onSetOverlayDisplayMode,
 }: TimelinePersonaSelectorProps) {
   const {
     timelines,
@@ -75,7 +88,9 @@ export function TimelinePersonaSelector({
   const [endTime, setEndTime] = useState('00:00')
 
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
+  const otherTimelines = timelines.filter(t => t.id !== selectedTimelineId)
   const activePersonaCount = activePersonaIds.size
+  const activeOverlayCount = activeOverlayIds.size
 
   function handleCreate() {
     setDialogMode('create')
@@ -136,9 +151,9 @@ export function TimelinePersonaSelector({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="max-w-52 gap-1">
             <span className="truncate">{buttonLabel}</span>
-            {activePersonaCount > 0 && (
+            {(activePersonaCount + activeOverlayCount) > 0 && (
               <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
-                +{activePersonaCount}
+                +{activePersonaCount + activeOverlayCount}
               </span>
             )}
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
@@ -150,34 +165,110 @@ export function TimelinePersonaSelector({
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Timelines</p>
           </div>
           <div className="px-1 pb-1">
-            {timelines.map(t => (
+            {/* Main (selected) timeline */}
+            {currentTimeline && (
               <div
-                key={t.id}
-                className={cn(
-                  'flex items-center rounded-md px-2 py-1 cursor-pointer hover:bg-accent group',
-                  t.id === selectedTimelineId && 'bg-accent',
-                )}
-                onClick={() => selectTimeline(t.id)}
+                className="flex items-center rounded-md px-2 py-1 cursor-pointer hover:bg-accent group bg-accent"
+                onClick={() => selectTimeline(currentTimeline.id)}
               >
-                <span className={cn('flex-1 text-sm truncate', t.id === selectedTimelineId && 'font-semibold')}>
-                  {t.name}
-                </span>
+                <Star className="h-3 w-3 shrink-0 text-primary mr-1.5" />
+                <span className="flex-1 text-sm font-semibold truncate">{currentTimeline.name}</span>
                 <button
                   className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
-                  onClick={e => handleEdit(t.id, e)}
+                  onClick={e => handleEdit(currentTimeline.id, e)}
                 >
                   <Pencil className="h-3 w-3" />
                 </button>
                 {timelines.length > 1 && (
                   <button
                     className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-                    onClick={e => handleDelete(t.id, e)}
+                    onClick={e => handleDelete(currentTimeline.id, e)}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
                 )}
               </div>
-            ))}
+            )}
+
+            {/* Other timelines — switchable as overlays */}
+            {otherTimelines.map(t => {
+              const isActive = activeOverlayIds.has(t.id)
+              const aligned = overlayAlignedIds.has(t.id)
+              const mode = overlayDisplayModes.get(t.id) ?? 'integrated'
+              return (
+                <div key={t.id} className="rounded-md px-2 py-1.5 hover:bg-accent group">
+                  <div className="flex items-center justify-between gap-2">
+                    <div
+                      className="min-w-0 flex-1 cursor-pointer"
+                      onClick={() => selectTimeline(t.id)}
+                    >
+                      <p className="text-sm truncate">{t.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isActive && (
+                        <>
+                          <button
+                            onClick={() => onToggleOverlayAlignment(t.id)}
+                            title={aligned ? 'Start-year aligned — click for real years' : 'Real years — click to align start years'}
+                            className={cn(
+                              'p-1 rounded transition-colors',
+                              aligned
+                                ? 'text-primary bg-primary/10 animate-blink-fast hover:bg-primary/20'
+                                : 'text-muted-foreground hover:bg-muted',
+                            )}
+                          >
+                            {aligned ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
+                          </button>
+                          <div className="flex items-center rounded border overflow-hidden">
+                            <button
+                              onClick={() => onSetOverlayDisplayMode(t.id, 'integrated')}
+                              title="Blend into timeline lanes"
+                              className={cn(
+                                'p-1 transition-colors',
+                                mode === 'integrated'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'text-muted-foreground hover:bg-muted',
+                              )}
+                            >
+                              <Layers className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => onSetOverlayDisplayMode(t.id, 'separate')}
+                              title="Show as separate section below"
+                              className={cn(
+                                'p-1 transition-colors',
+                                mode === 'separate'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'text-muted-foreground hover:bg-muted',
+                              )}
+                            >
+                              <LayoutList className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+                          onClick={e => handleEdit(t.id, e)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        {timelines.length > 1 && (
+                          <button
+                            className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+                            onClick={e => handleDelete(t.id, e)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                        <Switch checked={isActive} onCheckedChange={() => onToggleOverlay(t.id)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
             <button
               className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent"
               onClick={handleCreate}

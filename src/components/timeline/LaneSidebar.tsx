@@ -19,14 +19,24 @@ export interface PersonaSidebarSection {
   laneNames: string[]
 }
 
+export interface OverlaySidebarSection {
+  timelineId: string
+  name: string
+  label: string   // emoji or 2-char abbreviation
+  color: string
+  laneNames: string[]
+}
+
 interface LaneSidebarProps {
   lanes: Lane[]
   hiddenLanes: Lane[]
   laneHeights: number[]
   lanePersonaLabels: Map<string, { initials: string; name: string }[]>
+  laneOverlayLabels?: Map<string, { label: string; name: string }[]>
   laneHasOverlaps: Map<string, boolean>
   expandedLanes: Set<string>
   separatePersonaSections?: PersonaSidebarSection[]
+  separateOverlaySections?: OverlaySidebarSection[]
   onToggleExpand: (id: string) => void
   onToggleVisibility: (id: string) => void
   onEditLane: (lane: Lane) => void
@@ -39,9 +49,11 @@ export function LaneSidebar({
   hiddenLanes,
   laneHeights,
   lanePersonaLabels,
+  laneOverlayLabels,
   laneHasOverlaps,
   expandedLanes,
   separatePersonaSections = [],
+  separateOverlaySections = [],
   onToggleExpand,
   onToggleVisibility,
   onEditLane,
@@ -158,6 +170,29 @@ export function LaneSidebar({
                 </span>
               </div>
             ))}
+
+            {/* Overlay sub-row labels */}
+            {(laneOverlayLabels?.get(lane.name) ?? []).map((ol, j) => (
+              <div
+                key={`ov-${j}`}
+                className="flex items-center text-muted-foreground"
+                style={{
+                  height: PERSONA_SUB_ROW_HEIGHT,
+                  paddingLeft: Math.round(W * 0.08),
+                  gap: Math.round(ICON_SIZE / 6),
+                }}
+              >
+                <span
+                  className="font-semibold bg-primary/15 text-primary rounded shrink-0"
+                  style={{ fontSize: Math.round(SIDEBAR_FONT * 0.85), padding: '0 4px' }}
+                >
+                  {ol.label}
+                </span>
+                <span className="truncate" style={{ fontSize: SIDEBAR_FONT }}>
+                  {ol.name}
+                </span>
+              </div>
+            ))}
           </div>
         )
       })}
@@ -210,6 +245,45 @@ export function LaneSidebar({
             </span>
           </div>
           {/* One label row per lane */}
+          {section.laneNames.map(laneName => (
+            <div
+              key={laneName}
+              className="border-b border-border/30 flex items-center text-muted-foreground"
+              style={{
+                height: BASE_LANE_HEIGHT,
+                paddingLeft: Math.round(W * 0.08),
+                paddingRight: Math.round(W * 0.04),
+                gap: Math.round(ICON_SIZE / 4),
+              }}
+            >
+              <span className="truncate" style={{ fontSize: SIDEBAR_FONT }}>{laneName}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Separate overlay timeline sections */}
+      {separateOverlaySections.map(section => (
+        <div key={section.timelineId}>
+          <div
+            className="border-t-2 border-border/60 flex items-center bg-muted/40"
+            style={{
+              height: PERSONA_SUB_ROW_HEIGHT,
+              paddingLeft: Math.round(W * 0.04),
+              paddingRight: Math.round(W * 0.04),
+              gap: Math.round(ICON_SIZE / 6),
+            }}
+          >
+            <span
+              className="font-bold bg-primary/15 text-primary rounded shrink-0"
+              style={{ fontSize: Math.round(SIDEBAR_FONT * 0.85), padding: '1px 4px' }}
+            >
+              {section.label}
+            </span>
+            <span className="font-semibold text-muted-foreground truncate" style={{ fontSize: SIDEBAR_FONT }}>
+              {section.name}
+            </span>
+          </div>
           {section.laneNames.map(laneName => (
             <div
               key={laneName}

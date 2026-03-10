@@ -70,3 +70,17 @@ export interface AlignedPersonaEvent extends DbPersonaEvent {
   display_start_year: number
   display_end_year: number | null
 }
+
+export interface OverlayTimelineEvent {
+  id: string
+  timeline_id: string
+  lane_name: string
+  title: string
+  description: string
+  type: 'range' | 'point'
+  start_year: number
+  end_year: number | null
+  color: string | null
+  display_start_year: number
+  display_end_year: number | null
+}

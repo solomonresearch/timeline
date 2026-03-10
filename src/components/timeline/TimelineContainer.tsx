@@ -1,14 +1,16 @@
 import { useRef, useEffect, useLayoutEffect, useMemo, useCallback, useState, type MutableRefObject } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
-import type { DbPersona, AlignedPersonaEvent } from '@/types/database'
+import type { DbPersona, DbTimeline, AlignedPersonaEvent, OverlayTimelineEvent } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
-import { LaneSidebar, type PersonaSidebarSection } from './LaneSidebar'
+import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
+import { LaneSidebar, type PersonaSidebarSection, type OverlaySidebarSection } from './LaneSidebar'
 import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
 import { TimelineEventBar } from './TimelineEvent'
 import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
+import { OverlaySeparateTimeline } from './OverlaySeparateTimeline'
 import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR, fracYearToDateLabel } from '@/lib/constants'
 import { useSizeConfig, scaleSizeConfig, SIZE_PRESETS } from '@/contexts/UiSizeContext'
 
@@ -92,6 +94,9 @@ interface TimelineContainerProps {
   scrollToTodayRef?: MutableRefObject<(() => void) | null>
   scrollToEventRef?: MutableRefObject<((event: TimelineEvent) => void) | null>
   timelineMeta?: { startYear: number; endYear: number; color: string }
+  overlayEvents?: OverlayTimelineEvent[]
+  overlayDisplayModes?: Map<string, OverlayDisplayMode>
+  activeOverlayTimelines?: DbTimeline[]
 }
 
 export function TimelineContainer({
@@ -116,6 +121,9 @@ export function TimelineContainer({
   scrollToTodayRef,
   scrollToEventRef,
   timelineMeta,
+  overlayEvents = [],
+  overlayDisplayModes = new Map(),
+  activeOverlayTimelines = [],
 }: TimelineContainerProps) {
   const { sc, size, updateFitScreenConfig } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT } = sc
@@ -651,7 +659,50 @@ export function TimelineContainer({
     return m
   }, [personaEvents, personaDisplayModes])
 
-  // Lane name -> color map (for separate persona timelines)
+  // Split overlay events into integrated vs separate
+  const integratedOverlayEvents = useMemo(
+    () => overlayEvents.filter(e => (overlayDisplayModes.get(e.timeline_id) ?? 'integrated') === 'integrated'),
+    [overlayEvents, overlayDisplayModes],
+  )
+
+  const separateOverlayTimelines = useMemo(() => {
+    const ids = new Set(
+      overlayEvents
+        .filter(e => overlayDisplayModes.get(e.timeline_id) === 'separate')
+        .map(e => e.timeline_id),
+    )
+    return activeOverlayTimelines.filter(t => ids.has(t.id))
+  }, [overlayEvents, overlayDisplayModes, activeOverlayTimelines])
+
+  const separateOverlayEventsMap = useMemo(() => {
+    const m = new Map<string, OverlayTimelineEvent[]>()
+    for (const e of overlayEvents) {
+      if (overlayDisplayModes.get(e.timeline_id) === 'separate') {
+        const list = m.get(e.timeline_id) ?? []
+        list.push(e)
+        m.set(e.timeline_id, list)
+      }
+    }
+    return m
+  }, [overlayEvents, overlayDisplayModes])
+
+  // Timeline label helper: emoji or first 2 chars of name
+  function getOverlayLabel(t: DbTimeline): string {
+    if (t.emoji) return t.emoji
+    return t.name.slice(0, 2).toUpperCase()
+  }
+
+  // Map of timeline_id -> label info for rendering in lanes
+  const overlayTimelineInfoMap = useMemo(() => {
+    const m = new Map<string, { label: string; name: string }>()
+    for (const t of activeOverlayTimelines) {
+      m.set(t.id, { label: getOverlayLabel(t), name: t.name })
+    }
+    return m
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeOverlayTimelines])
+
+  // Lane name -> color map (for separate persona/overlay timelines)
   const laneColorMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const lane of lanes) m.set(lane.name, lane.color)
@@ -695,7 +746,7 @@ export function TimelineContainer({
     return m
   }, [personas])
 
-  // Compute per-lane persona events, sub-row assignments, dynamic heights, and overlap rows
+  // Compute per-lane persona/overlay events, sub-row assignments, dynamic heights, and overlap rows
   const laneData = useMemo(() => {
     const result: {
       laneHeight: number
@@ -704,6 +755,10 @@ export function TimelineContainer({
       filteredPersonaEvents: AlignedPersonaEvent[]
       hasOverlaps: boolean
       eventRowMap: Map<string, number>
+      filteredOverlayEvents: OverlayTimelineEvent[]
+      overlaySubRowMap: Map<string, number>
+      overlayBaseOffset: number
+      laneOverlayLabels: { label: string; name: string }[]
     }[] = []
 
     for (const lane of visibleLanes) {
@@ -732,19 +787,34 @@ export function TimelineContainer({
       const eventRowMap = isExpanded ? assignEventRows(laneEvents) : new Map<string, number>()
       const numEventRows = isExpanded ? (eventRowMap.size > 0 ? Math.max(...eventRowMap.values()) + 1 : 1) : 1
 
+      // Overlay sub-rows
+      const laneOverlayEvents = integratedOverlayEvents.filter(e => e.lane_name === lane.name)
+      const overlayTimelineIdsInLane = [...new Set(laneOverlayEvents.map(e => e.timeline_id))].sort()
+      const overlaySubRowMap = new Map(overlayTimelineIdsInLane.map((id, i) => [id, i]))
+      const overlayCount = overlayTimelineIdsInLane.length
+      const overlayBaseOffset = numEventRows * BASE_LANE_HEIGHT + personaCount * PERSONA_SUB_ROW_HEIGHT
+      const laneOverlayLabels = overlayTimelineIdsInLane.map(id => ({
+        label: overlayTimelineInfoMap.get(id)?.label ?? '?',
+        name: overlayTimelineInfoMap.get(id)?.name ?? 'Unknown',
+      }))
+
       result.push({
-        laneHeight: numEventRows * BASE_LANE_HEIGHT + personaCount * PERSONA_SUB_ROW_HEIGHT,
+        laneHeight: numEventRows * BASE_LANE_HEIGHT + personaCount * PERSONA_SUB_ROW_HEIGHT + overlayCount * PERSONA_SUB_ROW_HEIGHT,
         personaSubRowMap,
         lanePersonaLabels,
         filteredPersonaEvents: lanePersonaEvents,
         hasOverlaps,
         eventRowMap,
+        filteredOverlayEvents: laneOverlayEvents,
+        overlaySubRowMap,
+        overlayBaseOffset,
+        laneOverlayLabels,
       })
     }
 
     return result
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap, events, expandedLanes, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT])
+  }, [visibleLanes, integratedPersonaEvents, personaInitialsMap, personaNameMap, events, expandedLanes, BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, integratedOverlayEvents, overlayTimelineInfoMap])
 
   const laneHeights = laneData.map(d => d.laneHeight)
   const totalHeight = laneHeights.reduce((sum, h) => sum + h, 0) + (hasValueEvents ? TOTAL_ASSETS_HEIGHT : 0)
@@ -758,13 +828,21 @@ export function TimelineContainer({
     return m
   }, [visibleLanes, laneData])
 
+  const sidebarOverlayLabels = useMemo(() => {
+    const m = new Map<string, { label: string; name: string }[]>()
+    visibleLanes.forEach((lane, i) => {
+      m.set(lane.name, laneData[i].laneOverlayLabels)
+    })
+    return m
+  }, [visibleLanes, laneData])
+
   const laneHasOverlaps = useMemo(() => {
     const m = new Map<string, boolean>()
     visibleLanes.forEach((lane, i) => m.set(lane.id, laneData[i].hasOverlaps))
     return m
   }, [visibleLanes, laneData])
 
-  // Lane names in visible order — used for separate persona sections
+  // Lane names in visible order — used for separate sections
   const visibleLaneNames = useMemo(() => visibleLanes.map(l => l.name), [visibleLanes])
 
   // Build sidebar sections for separate personas
@@ -783,9 +861,22 @@ export function TimelineContainer({
     })
   }, [separatePersonas, visibleLaneNames])
 
-  // Grand total height includes persona section rows for YearGrid coverage
+  // Build sidebar sections for separate overlay timelines
+  const separateOverlaySidebarSections = useMemo<OverlaySidebarSection[]>(() => {
+    return separateOverlayTimelines.map(t => ({
+      timelineId: t.id,
+      name: t.name,
+      label: getOverlayLabel(t),
+      color: t.color ?? '#6b7280',
+      laneNames: visibleLaneNames,
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [separateOverlayTimelines, visibleLaneNames])
+
+  // Grand total height includes all section rows for YearGrid coverage
   const personaSectionsTotalHeight = separatePersonas.length * (PERSONA_SUB_ROW_HEIGHT + visibleLaneNames.length * BASE_LANE_HEIGHT)
-  const grandTotalHeight = totalHeight + personaSectionsTotalHeight
+  const overlaySectionsTotalHeight = separateOverlayTimelines.length * (PERSONA_SUB_ROW_HEIGHT + visibleLaneNames.length * BASE_LANE_HEIGHT)
+  const grandTotalHeight = totalHeight + personaSectionsTotalHeight + overlaySectionsTotalHeight
 
   // Fit-screen: recompute sizes whenever grandTotalHeight or container height changes.
   // All heights are linear in BASE_LANE_HEIGHT, so K = grandTotalHeight / BASE_LANE_HEIGHT
@@ -845,9 +936,11 @@ export function TimelineContainer({
             hiddenLanes={hiddenLanes}
             laneHeights={laneHeights}
             lanePersonaLabels={sidebarPersonaLabels}
+            laneOverlayLabels={sidebarOverlayLabels}
             laneHasOverlaps={laneHasOverlaps}
             expandedLanes={expandedLanes}
             separatePersonaSections={separatePersonaSections}
+            separateOverlaySections={separateOverlaySidebarSections}
             onToggleExpand={handleToggleExpand}
             onToggleVisibility={onToggleVisibility}
             onEditLane={onEditLane}
@@ -890,6 +983,10 @@ export function TimelineContainer({
                 draggingEventId={dragPreview?.event.id}
                 onEventMoveStart={handleEventMoveStart}
                 onEventExtendStart={handleEventExtendStart}
+                overlayEvents={laneData[i].filteredOverlayEvents}
+                overlaySubRowMap={laneData[i].overlaySubRowMap}
+                overlayBaseOffset={laneData[i].overlayBaseOffset}
+                overlayTimelineInfoMap={overlayTimelineInfoMap}
               />
             ))}
             {hasValueEvents && (
@@ -913,6 +1010,21 @@ export function TimelineContainer({
               pixelsPerYear={pixelsPerYear}
               laneColorMap={laneColorMap}
               currentYear={currentYear}
+            />
+          ))}
+          {/* Separate overlay timeline sections */}
+          {separateOverlayTimelines.map(t => (
+            <OverlaySeparateTimeline
+              key={t.id}
+              timeline={t}
+              events={separateOverlayEventsMap.get(t.id) ?? []}
+              laneNames={visibleLaneNames}
+              yearStart={effectiveYearStart}
+              yearEnd={effectiveYearEnd}
+              pixelsPerYear={pixelsPerYear}
+              laneColorMap={laneColorMap}
+              currentYear={currentYear}
+              timelineLabel={getOverlayLabel(t)}
             />
           ))}
         </div>

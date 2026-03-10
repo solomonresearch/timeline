@@ -6,6 +6,7 @@ import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
 import type { DbPersona } from '@/types/database'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
+import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 import { useSizeConfig, type UiSize } from '@/contexts/UiSizeContext'
 import { useSkin, SKINS, type SkinId } from '@/contexts/SkinContext'
@@ -44,6 +45,12 @@ interface ToolbarProps {
   maxEvents: number
   onMaxEventsChange: (v: number) => void
   onSearchNavigate: (event: TimelineEvent) => void
+  activeOverlayIds: Set<string>
+  onToggleOverlay: (id: string) => void
+  overlayAlignedIds: Set<string>
+  onToggleOverlayAlignment: (id: string) => void
+  overlayDisplayModes: Map<string, OverlayDisplayMode>
+  onSetOverlayDisplayMode: (id: string, mode: OverlayDisplayMode) => void
 }
 
 const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
@@ -80,6 +87,12 @@ export function Toolbar({
   maxEvents,
   onMaxEventsChange,
   onSearchNavigate,
+  activeOverlayIds,
+  onToggleOverlay,
+  overlayAlignedIds,
+  onToggleOverlayAlignment,
+  overlayDisplayModes,
+  onSetOverlayDisplayMode,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
@@ -143,6 +156,12 @@ export function Toolbar({
             onTogglePersonaAlignment={onTogglePersonaAlignment}
             personaDisplayModes={personaDisplayModes}
             onSetPersonaDisplayMode={onSetPersonaDisplayMode}
+            activeOverlayIds={activeOverlayIds}
+            onToggleOverlay={onToggleOverlay}
+            overlayAlignedIds={overlayAlignedIds}
+            onToggleOverlayAlignment={onToggleOverlayAlignment}
+            overlayDisplayModes={overlayDisplayModes}
+            onSetOverlayDisplayMode={onSetOverlayDisplayMode}
           />
 
           {/* Size selector — desktop only */}

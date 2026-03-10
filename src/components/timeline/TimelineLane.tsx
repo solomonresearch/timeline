@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
-import type { AlignedPersonaEvent } from '@/types/database'
+import type { AlignedPersonaEvent, OverlayTimelineEvent } from '@/types/database'
 import { TimelineEventBar } from './TimelineEvent'
 import { PersonaEventBar } from './PersonaEventBar'
+import { OverlayEventBar } from './OverlayEventBar'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 const RANGE_HOLD_MS = 1000  // hold this long without moving to enter range-draw mode
@@ -30,6 +31,10 @@ interface TimelineLaneProps {
   draggingEventId?: string | null
   onEventMoveStart?: (event: TimelineEvent, clientX: number, clientY: number, origin: 'longpress' | 'contextmenu') => void
   onEventExtendStart?: (event: TimelineEvent, direction: 'forward' | 'backward', clientX: number) => void
+  overlayEvents?: OverlayTimelineEvent[]
+  overlaySubRowMap?: Map<string, number>       // timeline_id -> sub-row index
+  overlayBaseOffset?: number                   // y-offset where overlay rows start
+  overlayTimelineInfoMap?: Map<string, { label: string; name: string }>
 }
 
 export function TimelineLane({
@@ -52,9 +57,13 @@ export function TimelineLane({
   draggingEventId,
   onEventMoveStart,
   onEventExtendStart,
+  overlayEvents = [],
+  overlaySubRowMap,
+  overlayBaseOffset = 0,
+  overlayTimelineInfoMap,
 }: TimelineLaneProps) {
   const { sc } = useSizeConfig()
-  const { BASE_LANE_HEIGHT } = sc
+  const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } = sc
   const width = (yearEnd - yearStart) * pixelsPerYear
   const laneRef = useRef<HTMLDivElement>(null)
   const modeRef = useRef<Mode>('idle')
@@ -161,6 +170,7 @@ export function TimelineLane({
     ? Math.max(...eventRowMap.values()) + 1
     : 1
   const hasPersonaRows = personaEvents.length > 0
+  const hasOverlayRows = overlayEvents.length > 0
 
   return (
     <div
@@ -170,8 +180,8 @@ export function TimelineLane({
       style={{ height: laneHeight, width }}
       onMouseDown={handleMouseDown}
     >
-      {/* Separator only at event-rows / persona-sub-rows boundary */}
-      {hasPersonaRows && (
+      {/* Separator at event-rows / sub-rows boundary */}
+      {(hasPersonaRows || hasOverlayRows) && (
         <div
           className="absolute left-0 right-0 border-t border-border/20"
           style={{ top: numEventRows * BASE_LANE_HEIGHT }}
@@ -221,6 +231,24 @@ export function TimelineLane({
           currentYear={currentYear}
         />
       ))}
+      {overlayEvents.map(oe => {
+        const subRowIndex = overlaySubRowMap?.get(oe.timeline_id) ?? 0
+        const info = overlayTimelineInfoMap?.get(oe.timeline_id)
+        return (
+          <OverlayEventBar
+            key={oe.id}
+            event={oe}
+            timelineLabel={info?.label ?? '?'}
+            timelineName={info?.name ?? 'Unknown'}
+            yearStart={yearStart}
+            pixelsPerYear={pixelsPerYear}
+            laneColor={lane.color}
+            rowTop={overlayBaseOffset + subRowIndex * PERSONA_SUB_ROW_HEIGHT}
+            rowHeight={PERSONA_SUB_ROW_HEIGHT}
+            currentYear={currentYear}
+          />
+        )
+      })}
     </div>
   )
 }

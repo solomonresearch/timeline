@@ -3,6 +3,7 @@ import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
+import { useTimelineOverlays } from '@/hooks/useTimelineOverlays'
 import { useProfile } from '@/hooks/useProfile'
 import { isOpenAIConfigured } from '@/lib/openai'
 import { OnboardingQuestionnaire } from '@/components/onboarding/OnboardingQuestionnaire'
@@ -115,6 +116,17 @@ function TimelineView() {
     personaDisplayModes,
     setPersonaDisplayMode,
   } = usePersonas(birthYear)
+
+  const {
+    activeOverlayIds,
+    toggleOverlay,
+    overlayAlignedIds,
+    toggleOverlayAlignment,
+    overlayDisplayModes,
+    setOverlayDisplayMode,
+    activeOverlayEvents,
+    activeOverlayTimelines,
+  } = useTimelineOverlays()
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
@@ -305,6 +317,12 @@ function TimelineView() {
           maxEvents={maxEvents}
           onMaxEventsChange={setMaxEvents}
           onSearchNavigate={handleSearchNavigate}
+          activeOverlayIds={activeOverlayIds}
+          onToggleOverlay={toggleOverlay}
+          overlayAlignedIds={overlayAlignedIds}
+          onToggleOverlayAlignment={toggleOverlayAlignment}
+          overlayDisplayModes={overlayDisplayModes}
+          onSetOverlayDisplayMode={setOverlayDisplayMode}
         />
 
         {activeView === 'overview' ? (
@@ -333,6 +351,9 @@ function TimelineView() {
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
               timelineMeta={timelineMeta}
+              overlayEvents={activeOverlayEvents}
+              overlayDisplayModes={overlayDisplayModes}
+              activeOverlayTimelines={activeOverlayTimelines}
             />
 
             {/* Event popover */}
