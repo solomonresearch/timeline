@@ -233,6 +233,11 @@ function TimelineView() {
     }
   }, [editingEvent, updateEvent, addEvent])
 
+  // Drag-drop: move or extend event
+  const handleEventDrop = useCallback((eventId: string, newLaneId: string, newStartYear: number, newEndYear: number | undefined) => {
+    updateEvent(eventId, { laneId: newLaneId, startYear: newStartYear, ...(newEndYear !== undefined ? { endYear: newEndYear } : { endYear: undefined }) })
+  }, [updateEvent])
+
   // Save lane (add or update)
   const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean }) => {
     if (editingLane) {
@@ -293,6 +298,7 @@ function TimelineView() {
               onEventClick={handleEventClick}
               onLaneClick={handleLaneClick}
               onLaneDragRange={handleLaneDragRange}
+              onEventDrop={handleEventDrop}
               personaEvents={activePersonaEvents}
               personas={personas}
               personaDisplayModes={personaDisplayModes}

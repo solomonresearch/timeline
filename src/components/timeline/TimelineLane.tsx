@@ -27,6 +27,9 @@ interface TimelineLaneProps {
   personaSubRowMap: Map<string, number>
   currentYear: number
   scrollLeft: number
+  draggingEventId?: string | null
+  onEventMoveStart?: (event: TimelineEvent, clientX: number, clientY: number, origin: 'longpress' | 'contextmenu') => void
+  onEventExtendStart?: (event: TimelineEvent, direction: 'forward' | 'backward', clientX: number) => void
 }
 
 export function TimelineLane({
@@ -46,6 +49,9 @@ export function TimelineLane({
   personaSubRowMap,
   currentYear,
   scrollLeft,
+  draggingEventId,
+  onEventMoveStart,
+  onEventExtendStart,
 }: TimelineLaneProps) {
   const { sc } = useSizeConfig()
   const { BASE_LANE_HEIGHT } = sc
@@ -159,6 +165,7 @@ export function TimelineLane({
   return (
     <div
       ref={laneRef}
+      data-lane-id={lane.id}
       className={`relative border-b border-border/30 select-none ${isPanning ? 'cursor-grabbing' : 'cursor-crosshair'}`}
       style={{ height: laneHeight, width }}
       onMouseDown={handleMouseDown}
@@ -197,6 +204,9 @@ export function TimelineLane({
           currentYear={currentYear}
           topOffset={(eventRowMap?.get(event.id) ?? 0) * BASE_LANE_HEIGHT}
           scrollLeft={scrollLeft}
+          isDragging={draggingEventId === event.id}
+          onMoveStart={onEventMoveStart}
+          onExtendStart={onEventExtendStart}
         />
       ))}
       {personaEvents.map(pe => (

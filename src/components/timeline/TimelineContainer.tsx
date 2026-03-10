@@ -6,6 +6,7 @@ import { LaneSidebar, type PersonaSidebarSection } from './LaneSidebar'
 import { TimelineHeader } from './TimelineHeader'
 import { YearGrid } from './YearGrid'
 import { TimelineLane } from './TimelineLane'
+import { TimelineEventBar } from './TimelineEvent'
 import { TotalAssetsLane } from './TotalAssetsLane'
 import { PersonaSeparateTimeline } from './PersonaSeparateTimeline'
 import { getCurrentYearFraction, MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR, fracYearToDateLabel } from '@/lib/constants'
@@ -82,6 +83,7 @@ interface TimelineContainerProps {
   onEventClick: (event: TimelineEvent, element: HTMLElement, clientX: number, clientY: number) => void
   onLaneClick: (laneId: string, year: number) => void
   onLaneDragRange: (laneId: string, startYear: number, endYear: number) => void
+  onEventDrop: (eventId: string, newLaneId: string, newStartYear: number, newEndYear: number | undefined) => void
   personaEvents: AlignedPersonaEvent[]
   personas: DbPersona[]
   personaDisplayModes: Map<string, PersonaDisplayMode>
@@ -104,6 +106,7 @@ export function TimelineContainer({
   onEventClick,
   onLaneClick,
   onLaneDragRange,
+  onEventDrop,
   personaEvents,
   personas,
   personaDisplayModes,
@@ -420,6 +423,111 @@ export function TimelineContainer({
     })
   }, [])
 
+  // ── Drag-drop ─────────────────────────────────────────────────────────────
+  interface DragState {
+    event: TimelineEvent
+    mode: 'move' | 'extend-forward' | 'extend-backward'
+    startClientX: number
+    currentLaneId: string
+    endOn: 'mouseup' | 'click'
+  }
+  interface DragPreview {
+    event: TimelineEvent
+    laneId: string
+    startYear: number
+    endYear: number | undefined
+  }
+
+  const dragStateRef = useRef<DragState | null>(null)
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const dragPreviewRef = useRef<DragPreview | null>(null)
+  const onEventDropRef = useRef(onEventDrop)
+  useEffect(() => { onEventDropRef.current = onEventDrop }, [onEventDrop])
+
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    const drag = dragStateRef.current
+    if (!drag) return
+    const ppy = ppyRef.current
+    const deltaYear = (e.clientX - drag.startClientX) / ppy
+
+    const els = document.elementsFromPoint(e.clientX, e.clientY)
+    const laneEl = els.find(el => (el as HTMLElement).getAttribute?.('data-lane-id'))
+    const targetLaneId = (laneEl as HTMLElement | undefined)?.getAttribute('data-lane-id') ?? drag.currentLaneId
+    drag.currentLaneId = targetLaneId
+
+    let newStart: number, newEnd: number | undefined
+    if (drag.mode === 'move') {
+      newStart = drag.event.startYear + deltaYear
+      newEnd = drag.event.endYear !== undefined ? drag.event.endYear + deltaYear : undefined
+    } else if (drag.mode === 'extend-forward') {
+      newStart = drag.event.startYear
+      newEnd = Math.max(drag.event.startYear + 0.1, (drag.event.endYear ?? drag.event.startYear) + deltaYear)
+    } else {
+      newStart = Math.min((drag.event.endYear ?? drag.event.startYear) - 0.1, drag.event.startYear + deltaYear)
+      newEnd = drag.event.endYear
+    }
+
+    const preview: DragPreview = { event: drag.event, laneId: targetLaneId, startYear: newStart, endYear: newEnd }
+    dragPreviewRef.current = preview
+    setDragPreview(preview)
+  }, [])
+
+  const handleDragCommit = useCallback(() => {
+    const drag = dragStateRef.current
+    window.removeEventListener('mousemove', handleDragMove)
+    window.removeEventListener('mouseup', handleDragCommit)
+    window.removeEventListener('click', handleDragCommit)
+    document.body.style.cursor = ''
+    const preview = dragPreviewRef.current
+    if (drag && preview) {
+      onEventDropRef.current(drag.event.id, preview.laneId, preview.startYear, preview.endYear)
+    }
+    dragStateRef.current = null
+    dragPreviewRef.current = null
+    setDragPreview(null)
+  }, [handleDragMove])
+
+  const handleDragCancel = useCallback(() => {
+    window.removeEventListener('mousemove', handleDragMove)
+    window.removeEventListener('mouseup', handleDragCommit)
+    window.removeEventListener('click', handleDragCommit)
+    document.body.style.cursor = ''
+    dragStateRef.current = null
+    dragPreviewRef.current = null
+    setDragPreview(null)
+  }, [handleDragMove, handleDragCommit])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && dragStateRef.current) handleDragCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleDragCancel])
+
+  const handleEventMoveStart = useCallback((event: TimelineEvent, clientX: number, _clientY: number, origin: 'longpress' | 'contextmenu') => {
+    const endOn = origin === 'longpress' ? 'mouseup' : 'click'
+    dragStateRef.current = { event, mode: 'move', startClientX: clientX, currentLaneId: event.laneId, endOn }
+    const preview: DragPreview = { event, laneId: event.laneId, startYear: event.startYear, endYear: event.endYear }
+    dragPreviewRef.current = preview
+    setDragPreview(preview)
+    document.body.style.cursor = 'move'
+    window.addEventListener('mousemove', handleDragMove)
+    if (endOn === 'mouseup') {
+      window.addEventListener('mouseup', handleDragCommit)
+    } else {
+      setTimeout(() => window.addEventListener('click', handleDragCommit, { once: true }), 0)
+    }
+  }, [handleDragMove, handleDragCommit])
+
+  const handleEventExtendStart = useCallback((event: TimelineEvent, direction: 'forward' | 'backward', clientX: number) => {
+    const mode = direction === 'forward' ? 'extend-forward' : 'extend-backward'
+    dragStateRef.current = { event, mode, startClientX: clientX, currentLaneId: event.laneId, endOn: 'click' }
+    const preview: DragPreview = { event, laneId: event.laneId, startYear: event.startYear, endYear: event.endYear }
+    dragPreviewRef.current = preview
+    setDragPreview(preview)
+    document.body.style.cursor = direction === 'forward' ? 'e-resize' : 'w-resize'
+    window.addEventListener('mousemove', handleDragMove)
+    setTimeout(() => window.addEventListener('click', handleDragCommit, { once: true }), 0)
+  }, [handleDragMove, handleDragCommit])
 
   const visibleLanes = lanes.filter(l => l.visible)
   const hiddenLanes = lanes.filter(l => !l.visible)
@@ -689,6 +797,9 @@ export function TimelineContainer({
                 personaSubRowMap={laneData[i].personaSubRowMap}
                 currentYear={currentYear}
                 scrollLeft={scrollLeft}
+                draggingEventId={dragPreview?.event.id}
+                onEventMoveStart={handleEventMoveStart}
+                onEventExtendStart={handleEventExtendStart}
               />
             ))}
             {hasValueEvents && (
@@ -716,6 +827,34 @@ export function TimelineContainer({
           ))}
         </div>
       </div>
+
+      {/* Drag ghost */}
+      {dragPreview && (() => {
+        const scrollEl = scrollRef.current
+        if (!scrollEl) return null
+        const rect = scrollEl.getBoundingClientRect()
+        const ghostLeft = rect.left + sc.SIDEBAR_WIDTH + (dragPreview.startYear - effectiveYearStart) * pixelsPerYear - scrollEl.scrollLeft
+        let yOffset = sc.HEADER_HEIGHT
+        for (let i = 0; i < visibleLanes.length; i++) {
+          if (visibleLanes[i].id === dragPreview.laneId) break
+          yOffset += laneData[i].laneHeight
+        }
+        const ghostTop = rect.top + yOffset - scrollEl.scrollTop
+        const ghostLane = visibleLanes.find(l => l.id === dragPreview.laneId)
+        const ghostEvent = { ...dragPreview.event, startYear: dragPreview.startYear, endYear: dragPreview.endYear, laneId: dragPreview.laneId }
+        return (
+          <div style={{ position: 'fixed', left: ghostLeft, top: ghostTop, pointerEvents: 'none', zIndex: 60, opacity: 0.85 }}>
+            <TimelineEventBar
+              event={ghostEvent}
+              yearStart={dragPreview.startYear}
+              pixelsPerYear={pixelsPerYear}
+              laneColor={ghostLane?.color ?? '#3b82f6'}
+              onClick={() => {}}
+              currentYear={currentYear}
+            />
+          </div>
+        )
+      })()}
     </div>
   )
 }
