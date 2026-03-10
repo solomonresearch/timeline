@@ -833,7 +833,7 @@ export function TimelineContainer({
         const scrollEl = scrollRef.current
         if (!scrollEl) return null
         const rect = scrollEl.getBoundingClientRect()
-        const ghostLeft = rect.left + sc.SIDEBAR_WIDTH + (dragPreview.startYear - effectiveYearStart) * pixelsPerYear - scrollEl.scrollLeft
+        const ghostLeft = rect.left + (dragPreview.startYear - effectiveYearStart) * pixelsPerYear - scrollEl.scrollLeft
         let yOffset = sc.HEADER_HEIGHT
         for (let i = 0; i < visibleLanes.length; i++) {
           if (visibleLanes[i].id === dragPreview.laneId) break
