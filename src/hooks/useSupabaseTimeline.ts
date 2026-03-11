@@ -214,7 +214,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
         if (l.id === laneA.id) return { ...l, order: orderA }
         if (l.id === laneB.id) return { ...l, order: orderB }
         return l
-      }))
+      }).sort((a, b) => a.order - b.order))
       await Promise.all([
         updateLaneDb(laneA.id, { order: orderA }),
         updateLaneDb(laneB.id, { order: orderB }),
