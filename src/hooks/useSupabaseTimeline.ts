@@ -150,6 +150,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
         color: lane.color,
         visible: lane.visible,
         order,
+        emoji: lane.emoji,
       })
 
       if (dbRow) {
@@ -173,6 +174,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if (updates.color !== undefined) dbUpdates.color = updates.color
       if (updates.visible !== undefined) dbUpdates.visible = updates.visible
       if (updates.order !== undefined) dbUpdates.order = updates.order
+      if ('emoji' in updates) dbUpdates.emoji = updates.emoji ?? null
 
       const ok = await updateLaneDb(id, dbUpdates as Parameters<typeof updateLaneDb>[1])
       if (!ok && timelineId) {

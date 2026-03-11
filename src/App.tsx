@@ -276,7 +276,7 @@ function TimelineView() {
   }, [updateEvent])
 
   // Save lane (add or update)
-  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean }) => {
+  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string }) => {
     if (editingLane) {
       updateLane(editingLane.id, data)
     } else {
@@ -365,6 +365,7 @@ function TimelineView() {
                 anchorEl={popover.anchor}
                 anchorX={popover.x}
                 anchorY={popover.y}
+                laneEmoji={lanes.find(l => l.id === popover.event.laneId)?.emoji}
                 laneName={lanes.find(l => l.id === popover.event.laneId)?.name ?? ''}
                 onEdit={handleEditEvent}
                 onDelete={handleDeleteEvent}

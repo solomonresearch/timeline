@@ -91,7 +91,7 @@ export function SearchDialog({ open, onOpenChange, events, lanes, onNavigate }: 
                           <span className="text-xs text-muted-foreground shrink-0">{formatYears(event)}</span>
                         </div>
                         {lane && (
-                          <div className="text-xs text-muted-foreground mt-0.5 truncate">{lane.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 truncate">{lane.emoji && <span className="mr-1">{lane.emoji}</span>}{lane.name}</div>
                         )}
                       </div>
                     </button>

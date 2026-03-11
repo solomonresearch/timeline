@@ -121,7 +121,7 @@ export function LaneSidebar({
                 className="font-medium truncate flex-1"
                 style={{ fontSize: SIDEBAR_FONT, opacity: lane.visible ? 1 : 0.4 }}
               >
-                {lane.name}
+                {lane.emoji && <span className="mr-1">{lane.emoji}</span>}{lane.name}
               </span>
               <button
                 onClick={() => onToggleVisibility(lane.id)}
@@ -363,7 +363,7 @@ export function LaneSidebar({
                     className="text-muted-foreground truncate flex-1"
                     style={{ fontSize: SIDEBAR_FONT }}
                   >
-                    {lane.name}
+                    {lane.emoji && <span className="mr-1">{lane.emoji}</span>}{lane.name}
                   </span>
                   <button
                     onClick={() => onToggleVisibility(lane.id)}

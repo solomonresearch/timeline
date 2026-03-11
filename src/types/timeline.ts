@@ -5,6 +5,7 @@ export interface Lane {
   visible: boolean
   isDefault: boolean
   order: number
+  emoji?: string
 }
 
 export interface ValueSpotChange {

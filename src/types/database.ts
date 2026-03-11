@@ -28,6 +28,7 @@ export interface DbLane {
   visible: boolean
   is_default: boolean
   order: number
+  emoji: string | null
 }
 
 export interface DbEvent {

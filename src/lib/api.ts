@@ -32,6 +32,7 @@ export function mapDbLane(row: DbLane): Lane {
     visible: row.visible,
     isDefault: row.is_default,
     order: row.order,
+    ...(row.emoji != null ? { emoji: row.emoji } : {}),
   }
 }
 
@@ -216,7 +217,7 @@ export async function fetchLanes(timelineId: string): Promise<DbLane[]> {
 
 export async function insertLane(
   timelineId: string,
-  lane: { name: string; color: string; visible: boolean; order: number },
+  lane: { name: string; color: string; visible: boolean; order: number; emoji?: string },
 ): Promise<DbLane | null> {
   const { data, error } = await supabase
     .from('lanes')
@@ -227,6 +228,7 @@ export async function insertLane(
       visible: lane.visible,
       is_default: false,
       order: lane.order,
+      emoji: lane.emoji ?? null,
     })
     .select()
     .single()
@@ -239,13 +241,14 @@ export async function insertLane(
 
 export async function updateLaneDb(
   laneId: string,
-  updates: Partial<{ name: string; color: string; visible: boolean; order: number }>,
+  updates: Partial<{ name: string; color: string; visible: boolean; order: number; emoji: string | null }>,
 ): Promise<boolean> {
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
   if (updates.color !== undefined) dbUpdates.color = updates.color
   if (updates.visible !== undefined) dbUpdates.visible = updates.visible
   if (updates.order !== undefined) dbUpdates.order = updates.order
+  if ('emoji' in updates) dbUpdates.emoji = updates.emoji ?? null
 
   const { error } = await supabase
     .from('lanes')

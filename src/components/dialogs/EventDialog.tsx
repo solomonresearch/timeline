@@ -286,7 +286,7 @@ export function EventDialog({
             <Select value={laneId} onValueChange={setLaneId}>
               <SelectTrigger id="lane"><SelectValue placeholder="Select lane" /></SelectTrigger>
               <SelectContent>
-                {lanes.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                {lanes.map(l => <SelectItem key={l.id} value={l.id}>{l.emoji ? `${l.emoji} ${l.name}` : l.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

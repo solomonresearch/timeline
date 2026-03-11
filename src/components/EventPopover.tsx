@@ -11,12 +11,13 @@ interface EventPopoverProps {
   anchorX: number
   anchorY: number
   laneName: string
+  laneEmoji?: string
   onEdit: (event: TimelineEvent) => void
   onDelete: (event: TimelineEvent) => void
   onClose: () => void
 }
 
-export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEdit, onDelete, onClose }: EventPopoverProps) {
+export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, laneEmoji, onEdit, onDelete, onClose }: EventPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, onEd
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
-      <p className="text-xs text-muted-foreground mb-1">{laneName}</p>
+      <p className="text-xs text-muted-foreground mb-1">{laneEmoji && <span className="mr-1">{laneEmoji}</span>}{laneName}</p>
       {event.description && <p className="text-xs mb-1">{event.description}</p>}
       <p className={`text-xs text-muted-foreground ${event.pointValue == null ? 'mb-3' : 'mb-1'}`}>
         {event.type === 'point'
