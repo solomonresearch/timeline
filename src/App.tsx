@@ -26,15 +26,18 @@ import { PublicProfilePage } from '@/components/PublicProfilePage'
 
 const RESERVED_PATHS = new Set(['/', '/kanban', '/overview'])
 const USERNAME_PATH_RE = /^\/([a-z0-9_]{3,32})$/
+const USERNAME_TIMELINE_PATH_RE = /^\/([a-z0-9_]{3,32})\/(\d+)$/
 
 type TopLevelRoute =
   | { type: 'app' }
-  | { type: 'public'; username: string }
+  | { type: 'public'; username: string; timelineIndex?: number }
 
 // Returns a string (primitive) so useSyncExternalStore can compare with Object.is
 function getTopLevelRouteKey(): string {
   const p = window.location.pathname
   if (RESERVED_PATHS.has(p)) return 'app'
+  const matchWithIndex = p.match(USERNAME_TIMELINE_PATH_RE)
+  if (matchWithIndex) return `public:${matchWithIndex[1]}:${matchWithIndex[2]}`
   const match = p.match(USERNAME_PATH_RE)
   if (match) return `public:${match[1]}`
   return 'app'
@@ -48,7 +51,12 @@ function useTopLevelRoute(): TopLevelRoute {
     },
     getTopLevelRouteKey,
   )
-  if (key.startsWith('public:')) return { type: 'public', username: key.slice(7) }
+  if (key.startsWith('public:')) {
+    const parts = key.slice(7).split(':')
+    const username = parts[0]
+    const timelineIndex = parts[1] ? parseInt(parts[1], 10) : undefined
+    return { type: 'public', username, timelineIndex }
+  }
   return { type: 'app' }
 }
 
@@ -443,7 +451,7 @@ function App() {
 
   // Public profile pages render without auth
   if (route.type === 'public') {
-    return <PublicProfilePage username={route.username} />
+    return <PublicProfilePage username={route.username} timelineIndex={route.timelineIndex} />
   }
 
   if (loading) {

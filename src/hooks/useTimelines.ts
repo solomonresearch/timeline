@@ -89,7 +89,7 @@ export function useTimelines() {
   )
 
   const updateTimeline = useCallback(
-    async (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null }) => {
+    async (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null; visibility?: string }) => {
       const ok = await updateTimelineApi(id, updates)
       if (ok) {
         setTimelines(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)))

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, X } from 'lucide-react'
 import { useTimelineContext } from '@/contexts/TimelineContext'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -20,8 +20,18 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 
 const DEFAULT_COLOR = '#3b82f6'
+
+const EMOJI_OPTIONS = [
+  '🌍','🌎','🌏','🗺️','📍','📌','🏠','🏡','🏢','🏗️',
+  '🎓','📚','✏️','🔬','🧪','💼','💡','🚀','⭐','🏆',
+  '❤️','💛','💚','💙','💜','🖤','🤍','🎯','🎨','🎵',
+  '🚗','✈️','🚂','⛵','🏔️','🌊','🌲','🌸','🍀','☀️',
+  '👶','👦','👧','🧑','👨','👩','🧓','👴','👵','👪',
+  '💰','📈','🏅','🎉','🎂','🕯️','📅','⏳','🔑','💎',
+]
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -84,6 +94,7 @@ export function TimelineSelector() {
   const [startTime, setStartTime] = useState('00:00')
   const [endDate, setEndDate] = useState('')
   const [endTime, setEndTime] = useState('00:00')
+  const [isPublic, setIsPublic] = useState(false)
 
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
 
@@ -121,6 +132,7 @@ export function TimelineSelector() {
       setEndDate('')
       setEndTime('00:00')
     }
+    setIsPublic(t.visibility === 'public')
     setTargetId(id)
     setDialogOpen(true)
   }
@@ -131,7 +143,10 @@ export function TimelineSelector() {
     if (!name) return
 
     if (dialogMode === 'create') {
-      await createTimeline(name)
+      const newId = await createTimeline(name)
+      if (newId && emojiValue.trim()) {
+        await updateTimeline(newId, { emoji: emojiValue.trim() })
+      }
     } else if (targetId) {
       const start_year = startDate ? dateTimeToFracYear(startDate, startTime) : null
       const end_year = endDate ? dateTimeToFracYear(endDate, endTime) : null
@@ -141,6 +156,7 @@ export function TimelineSelector() {
         color: colorValue,
         start_year,
         end_year,
+        visibility: isPublic ? 'public' : 'private',
       })
     }
     setDialogOpen(false)
@@ -221,7 +237,7 @@ export function TimelineSelector() {
       </DropdownMenu>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {dialogMode === 'create' ? 'New Timeline' : 'Edit Timeline'}
@@ -234,33 +250,46 @@ export function TimelineSelector() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="grid gap-4">
-            {/* Name + Emoji row */}
-            <div className="grid grid-cols-[1fr_auto] gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="tlName">Name</Label>
-                <Input
-                  id="tlName"
-                  value={nameValue}
-                  onChange={e => setNameValue(e.target.value)}
-                  placeholder="Timeline name"
-                  autoFocus
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="tlEmoji">Emoji</Label>
-                <Input
-                  id="tlEmoji"
-                  value={emojiValue}
-                  onChange={e => {
-                    // Keep only the first grapheme cluster (emoji)
-                    const v = e.target.value
-                    const segs = [...new Intl.Segmenter().segment(v)]
-                    setEmojiValue(segs.length > 0 ? segs[0].segment : '')
-                  }}
-                  placeholder="🌍"
-                  className="w-16 text-center text-lg"
-                  maxLength={4}
-                />
+            {/* Name row */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="tlName">Name</Label>
+              <Input
+                id="tlName"
+                value={nameValue}
+                onChange={e => setNameValue(e.target.value)}
+                placeholder="Timeline name"
+                autoFocus
+              />
+            </div>
+
+            {/* Emoji picker */}
+            <div className="grid gap-1.5">
+              <Label>Emoji <span className="text-muted-foreground">(optional)</span></Label>
+              <div className="rounded-md border border-input p-2">
+                <div className="flex flex-wrap gap-1">
+                  {EMOJI_OPTIONS.map(em => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setEmojiValue(emojiValue === em ? '' : em)}
+                      className={`rounded px-1 py-0.5 text-lg leading-none transition-colors hover:bg-accent ${emojiValue === em ? 'bg-accent ring-2 ring-ring' : ''}`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+                {emojiValue && (
+                  <div className="mt-2 flex items-center gap-2 border-t pt-2">
+                    <span className="text-sm text-muted-foreground">Selected: <span className="text-lg">{emojiValue}</span></span>
+                    <button
+                      type="button"
+                      onClick={() => setEmojiValue('')}
+                      className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" /> Clear
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -319,6 +348,19 @@ export function TimelineSelector() {
                       disabled={!endDate}
                     />
                   </div>
+                </div>
+
+                {/* Visibility */}
+                <div className="flex items-center justify-between">
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="tlVisibility">Public</Label>
+                    <p className="text-xs text-muted-foreground">Visible on your public profile</p>
+                  </div>
+                  <Switch
+                    id="tlVisibility"
+                    checked={isPublic}
+                    onCheckedChange={setIsPublic}
+                  />
                 </div>
               </>
             )}

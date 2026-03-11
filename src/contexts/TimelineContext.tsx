@@ -10,7 +10,7 @@ interface TimelineContextType {
   selectedTimelineId: string | null
   selectTimeline: (id: string) => void
   createTimeline: (name?: string) => Promise<string | null>
-  updateTimeline: (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null }) => Promise<boolean>
+  updateTimeline: (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null; visibility?: string }) => Promise<boolean>
   renameTimeline: (id: string, name: string) => Promise<boolean>
   deleteTimeline: (id: string) => Promise<boolean>
   timelinesLoading: boolean

@@ -12,28 +12,53 @@ import { TIMELINE_YEAR_MIN, TIMELINE_YEAR_MAX, DEFAULT_PIXELS_PER_YEAR } from '@
 
 interface PublicProfilePageProps {
   username: string
+  timelineIndex?: number
 }
 
 type LoadState = 'loading' | 'not_found' | 'loaded'
 
-export function PublicProfilePage({ username }: PublicProfilePageProps) {
+function navigate(path: string) {
+  window.history.pushState(null, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
+export function PublicProfilePage({ username, timelineIndex }: PublicProfilePageProps) {
   const [state, setState] = useState<LoadState>('loading')
   const [data, setData] = useState<PublicProfileData | null>(null)
   const [selectedTimelineId, setSelectedTimelineId] = useState<string | null>(null)
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR)
 
+  // Fetch profile only when username changes
   useEffect(() => {
     setState('loading')
+    setData(null)
     fetchPublicProfile(username).then(result => {
       if (!result) {
         setState('not_found')
       } else {
         setData(result)
-        setSelectedTimelineId(result.timelines[0]?.id ?? null)
         setState('loaded')
       }
     })
   }, [username])
+
+  // Select the right timeline whenever data loads or the URL index changes
+  useEffect(() => {
+    if (!data) return
+    // If no index in URL, canonicalize to /username/1 so direct links always work
+    if (timelineIndex == null && data.timelines.length > 0) {
+      navigate(`/${username}/1`)
+      return
+    }
+    const idx = timelineIndex != null ? timelineIndex - 1 : 0
+    const clamped = Math.max(0, Math.min(idx, data.timelines.length - 1))
+    setSelectedTimelineId(data.timelines[clamped]?.id ?? null)
+  }, [data, timelineIndex, username])
+
+  function handleSelectTimeline(_timelineId: string, index: number) {
+    // Only update the URL — the effect above will handle selectedTimelineId
+    navigate(`/${username}/${index + 1}`)
+  }
 
   if (state === 'loading') {
     return (
@@ -92,10 +117,10 @@ export function PublicProfilePage({ username }: PublicProfilePageProps) {
             {/* Timeline selector */}
             {timelines.length > 1 && (
               <div className="border-b bg-muted/30 px-6 py-2 flex gap-2 overflow-x-auto">
-                {timelines.map(tl => (
+                {timelines.map((tl, idx) => (
                   <button
                     key={tl.id}
-                    onClick={() => setSelectedTimelineId(tl.id)}
+                    onClick={() => handleSelectTimeline(tl.id, idx)}
                     className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                       tl.id === selectedTimelineId
                         ? 'bg-primary text-primary-foreground'
