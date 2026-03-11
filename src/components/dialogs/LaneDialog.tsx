@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Smile, X } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ interface LaneDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   editingLane?: Lane | null
-  onSave: (data: { name: string; color: string; visible: boolean; emoji?: string }) => void
+  onSave: (data: { name: string; color: string; visible: boolean; emoji?: string; visibility: string }) => void
 }
 
 export function LaneDialog({ open, onOpenChange, editingLane, onSave }: LaneDialogProps) {
@@ -32,23 +33,26 @@ export function LaneDialog({ open, onOpenChange, editingLane, onSave }: LaneDial
   const [color, setColor] = useState('#3b82f6')
   const [emoji, setEmoji] = useState('')
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const [visibility, setVisibility] = useState('public')
 
   useEffect(() => {
     if (editingLane) {
       setName(editingLane.name)
       setColor(editingLane.color)
       setEmoji(editingLane.emoji ?? '')
+      setVisibility(editingLane.visibility ?? 'public')
     } else {
       setName('')
       setColor('#3b82f6')
       setEmoji('')
+      setVisibility('public')
     }
   }, [editingLane, open])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    onSave({ name: name.trim(), color, visible: true, emoji: emoji || undefined })
+    onSave({ name: name.trim(), color, visible: true, emoji: emoji || undefined, visibility })
     onOpenChange(false)
   }
 
@@ -108,6 +112,13 @@ export function LaneDialog({ open, onOpenChange, editingLane, onSave }: LaneDial
           <div className="grid gap-1.5">
             <Label htmlFor="lane-color">Color</Label>
             <Input id="lane-color" type="color" value={color} onChange={e => setColor(e.target.value)} className="h-9 w-16 p-1" />
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Public lane</p>
+              <p className="text-xs text-muted-foreground">Visible on your public profile</p>
+            </div>
+            <Switch checked={visibility === 'public'} onCheckedChange={v => setVisibility(v ? 'public' : 'secret')} />
           </div>
           <DialogFooter className="mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

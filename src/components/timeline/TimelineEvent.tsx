@@ -175,7 +175,7 @@ export function TimelineEventBar({
 
   const width = ((event.endYear ?? event.startYear + 1) - event.startYear) * pixelsPerYear
   const top = (BASE_LANE_HEIGHT - BAR_HEIGHT) / 2 + topOffset
-  const textLeft = Math.max(4, scrollLeft - left + 4)
+  const textLeft = Math.max(4, scrollLeft - left + sc.SIDEBAR_WIDTH + 4)
 
   // Sparkline geometry
   let sparklinePath: string | null = null

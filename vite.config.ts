@@ -5,6 +5,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  appType: 'spa',
   server: {
     port: 4000,
     headers: {

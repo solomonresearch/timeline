@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { isUsernameAvailable } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { dmy2iso, formatDMYInput } from '@/lib/constants'
+
+const USERNAME_RE = /^[a-z0-9_]{3,32}$/
 
 interface SignUpFormProps {
   onSwitchToSignIn: () => void
@@ -16,6 +19,9 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [usernameOk, setUsernameOk] = useState(false)
   const [birthYear, setBirthYear] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [bio, setBio] = useState('')
@@ -23,6 +29,23 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   const [submitting, setSubmitting] = useState(false)
 
   const currentYear = new Date().getFullYear()
+
+  async function handleUsernameBlur() {
+    const val = username.trim().toLowerCase()
+    setUsernameOk(false)
+    if (!val) return
+    if (!USERNAME_RE.test(val)) {
+      setUsernameError('3–32 chars, lowercase letters, numbers, underscores only')
+      return
+    }
+    const available = await isUsernameAvailable(val)
+    if (available) {
+      setUsernameError(null)
+      setUsernameOk(true)
+    } else {
+      setUsernameError('Username is already taken')
+    }
+  }
 
   function handleBirthDateChange(value: string) {
     const formatted = formatDMYInput(value)
@@ -39,6 +62,21 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
+      return
+    }
+
+    const trimmedUsername = username.trim().toLowerCase()
+    if (!trimmedUsername) {
+      setError('Please choose a username')
+      return
+    }
+    if (!USERNAME_RE.test(trimmedUsername)) {
+      setError('Username: 3–32 chars, lowercase letters, numbers, underscores only')
+      return
+    }
+    const available = await isUsernameAvailable(trimmedUsername)
+    if (!available) {
+      setError('Username is already taken')
       return
     }
 
@@ -65,6 +103,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
           birth_year: parsedYear,
           birth_date: birthDate ? dmy2iso(birthDate) || null : null,
           bio: bio.trim(),
+          username: trimmedUsername,
           email,
           created_at: new Date().toISOString(),
         }),
@@ -100,6 +139,24 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         </div>
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="signupUsername">Username <span className="text-red-500">*</span></Label>
+        <Input
+          id="signupUsername"
+          type="text"
+          placeholder="e.g. johndoe"
+          value={username}
+          onChange={e => { setUsername(e.target.value.toLowerCase()); setUsernameError(null); setUsernameOk(false) }}
+          onBlur={handleUsernameBlur}
+          required
+        />
+        {usernameError
+          ? <p className="text-xs text-red-600">{usernameError}</p>
+          : usernameOk
+            ? <p className="text-xs text-green-600">Available — your page will be at /{username}</p>
+            : <p className="text-xs text-muted-foreground">Your public page will be at /{username || 'username'}</p>
+        }
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

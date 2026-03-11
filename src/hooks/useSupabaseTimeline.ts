@@ -82,6 +82,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
         emoji: event.emoji,
         point_value: event.pointValue,
         value_projection: event.valueProjection,
+        visibility: event.visibility ?? 'public',
       })
 
       if (dbRow) {
@@ -112,6 +113,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if ('emoji' in updates) dbUpdates.emoji = updates.emoji ?? null
       if ('pointValue' in updates) dbUpdates.point_value = updates.pointValue ?? null
       if ('valueProjection' in updates) dbUpdates.value_projection = updates.valueProjection ?? null
+      if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility
 
       const ok = await updateEventDb(id, dbUpdates as Parameters<typeof updateEventDb>[1])
       if (!ok) {
@@ -151,6 +153,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
         visible: lane.visible,
         order,
         emoji: lane.emoji,
+        visibility: lane.visibility ?? 'public',
       })
 
       if (dbRow) {
@@ -175,6 +178,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if (updates.visible !== undefined) dbUpdates.visible = updates.visible
       if (updates.order !== undefined) dbUpdates.order = updates.order
       if ('emoji' in updates) dbUpdates.emoji = updates.emoji ?? null
+      if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility
 
       const ok = await updateLaneDb(id, dbUpdates as Parameters<typeof updateLaneDb>[1])
       if (!ok && timelineId) {

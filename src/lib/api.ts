@@ -7,6 +7,7 @@ import type {
   DbEvent,
   DbPersona,
   DbPersonaEvent,
+  PublicProfileData,
 } from '@/types/database'
 import { dateToFracYear, fracYearToMs } from './constants'
 
@@ -33,6 +34,7 @@ export function mapDbLane(row: DbLane): Lane {
     isDefault: row.is_default,
     order: row.order,
     ...(row.emoji != null ? { emoji: row.emoji } : {}),
+    visibility: row.visibility ?? 'public',
   }
 }
 
@@ -54,6 +56,7 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
     ...(row.emoji != null ? { emoji: row.emoji } : {}),
     ...(row.point_value != null ? { pointValue: row.point_value } : {}),
     ...(validProj != null ? { valueProjection: validProj } : {}),
+    visibility: row.visibility ?? 'public',
   }
 }
 
@@ -76,7 +79,7 @@ export async function fetchProfile(userId: string): Promise<DbProfile | null> {
 
 export async function updateProfile(
   userId: string,
-  updates: { display_name?: string; bio?: string; birth_year?: number | null; birth_date?: string | null },
+  updates: { display_name?: string; bio?: string; birth_year?: number | null; birth_date?: string | null; username?: string | null; is_public?: boolean },
 ): Promise<DbProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -89,6 +92,17 @@ export async function updateProfile(
     return null
   }
   return data
+}
+
+export async function fetchPublicProfile(username: string): Promise<PublicProfileData | null> {
+  const { data, error } = await supabase.rpc('get_public_profile', { p_username: username })
+  if (error || !data) return null
+  return data as PublicProfileData
+}
+
+export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const { data } = await supabase.rpc('is_username_available', { p_username: username })
+  return data === true
 }
 
 export async function upsertProfile(userId: string): Promise<void> {
@@ -115,10 +129,11 @@ export async function applyPendingProfileData(userId: string): Promise<void> {
       }
     }
 
-    const updates: { bio?: string; birth_year?: number; birth_date?: string } = {}
+    const updates: { bio?: string; birth_year?: number; birth_date?: string; username?: string } = {}
     if (pending.bio) updates.bio = pending.bio
     if (pending.birth_year) updates.birth_year = pending.birth_year
     if (pending.birth_date) updates.birth_date = pending.birth_date
+    if (pending.username) updates.username = pending.username
 
     if (Object.keys(updates).length > 0) {
       await updateProfile(userId, updates)
@@ -168,7 +183,7 @@ export async function createTimelineWithDefaults(userId: string, name?: string):
 
 export async function updateTimeline(
   timelineId: string,
-  updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null },
+  updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null; visibility?: string },
 ): Promise<boolean> {
   const { error } = await supabase
     .from('timelines')
@@ -217,7 +232,7 @@ export async function fetchLanes(timelineId: string): Promise<DbLane[]> {
 
 export async function insertLane(
   timelineId: string,
-  lane: { name: string; color: string; visible: boolean; order: number; emoji?: string },
+  lane: { name: string; color: string; visible: boolean; order: number; emoji?: string; visibility?: string },
 ): Promise<DbLane | null> {
   const { data, error } = await supabase
     .from('lanes')
@@ -229,6 +244,7 @@ export async function insertLane(
       is_default: false,
       order: lane.order,
       emoji: lane.emoji ?? null,
+      visibility: lane.visibility ?? 'public',
     })
     .select()
     .single()
@@ -241,7 +257,7 @@ export async function insertLane(
 
 export async function updateLaneDb(
   laneId: string,
-  updates: Partial<{ name: string; color: string; visible: boolean; order: number; emoji: string | null }>,
+  updates: Partial<{ name: string; color: string; visible: boolean; order: number; emoji: string | null; visibility: string }>,
 ): Promise<boolean> {
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
@@ -301,6 +317,7 @@ export async function insertEvent(
     emoji?: string
     point_value?: number
     value_projection?: ValueProjection
+    visibility?: string
   },
 ): Promise<DbEvent | null> {
   const { data, error } = await supabase
@@ -315,6 +332,7 @@ export async function insertEvent(
       color: event.color ?? null,
       emoji: event.emoji ?? null,
       point_value: event.point_value ?? null,
+      visibility: event.visibility ?? 'public',
       ...(event.value_projection != null ? { value_projection: event.value_projection } : {}),
     })
     .select()
@@ -338,6 +356,7 @@ export async function updateEventDb(
     emoji: string | null
     point_value: number | null
     value_projection: ValueProjection | null
+    visibility: string
   }>,
 ): Promise<boolean> {
   const { error } = await supabase

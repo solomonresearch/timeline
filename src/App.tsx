@@ -20,6 +20,37 @@ import { AuthPage } from '@/components/auth/AuthPage'
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm'
 import { UiSizeProvider } from '@/contexts/UiSizeContext'
 import { SkinProvider } from '@/contexts/SkinContext'
+import { PublicProfilePage } from '@/components/PublicProfilePage'
+
+// ── Top-level route detection ─────────────────────────────────────────────────
+
+const RESERVED_PATHS = new Set(['/', '/kanban', '/overview'])
+const USERNAME_PATH_RE = /^\/([a-z0-9_]{3,32})$/
+
+type TopLevelRoute =
+  | { type: 'app' }
+  | { type: 'public'; username: string }
+
+// Returns a string (primitive) so useSyncExternalStore can compare with Object.is
+function getTopLevelRouteKey(): string {
+  const p = window.location.pathname
+  if (RESERVED_PATHS.has(p)) return 'app'
+  const match = p.match(USERNAME_PATH_RE)
+  if (match) return `public:${match[1]}`
+  return 'app'
+}
+
+function useTopLevelRoute(): TopLevelRoute {
+  const key = useSyncExternalStore(
+    cb => {
+      window.addEventListener('popstate', cb)
+      return () => window.removeEventListener('popstate', cb)
+    },
+    getTopLevelRouteKey,
+  )
+  if (key.startsWith('public:')) return { type: 'public', username: key.slice(7) }
+  return { type: 'app' }
+}
 
 // Lightweight URL-based routing (no dependency needed)
 function getViewFromPath(): AppView {
@@ -276,7 +307,7 @@ function TimelineView() {
   }, [updateEvent])
 
   // Save lane (add or update)
-  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string }) => {
+  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string; visibility: string }) => {
     if (editingLane) {
       updateLane(editingLane.id, data)
     } else {
@@ -407,7 +438,13 @@ function TimelineView() {
 }
 
 function App() {
+  const route = useTopLevelRoute()
   const { user, loading, isRecovery } = useAuth()
+
+  // Public profile pages render without auth
+  if (route.type === 'public') {
+    return <PublicProfilePage username={route.username} />
+  }
 
   if (loading) {
     return (

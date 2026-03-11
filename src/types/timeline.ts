@@ -6,6 +6,7 @@ export interface Lane {
   isDefault: boolean
   order: number
   emoji?: string
+  visibility?: string
 }
 
 export interface ValueSpotChange {
@@ -54,4 +55,5 @@ export interface TimelineEvent {
   emoji?: string
   pointValue?: number
   valueProjection?: ValueProjection
+  visibility?: string
 }

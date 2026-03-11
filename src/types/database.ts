@@ -4,6 +4,8 @@ export interface DbProfile {
   bio: string
   birth_year: number | null
   birth_date: string | null
+  username: string | null
+  is_public: boolean
   created_at: string
   updated_at: string
 }
@@ -16,6 +18,7 @@ export interface DbTimeline {
   end_year: number | null
   color: string | null
   emoji: string | null
+  visibility: string
   created_at: string
   updated_at: string
 }
@@ -29,6 +32,7 @@ export interface DbLane {
   is_default: boolean
   order: number
   emoji: string | null
+  visibility: string
 }
 
 export interface DbEvent {
@@ -45,6 +49,43 @@ export interface DbEvent {
   value_points: unknown[] | null
   value_projection: unknown | null
   source: string | null
+  visibility: string
+}
+
+export interface PublicProfileData {
+  profile: {
+    username: string
+    display_name: string
+    bio: string
+  }
+  timelines: Array<{
+    id: string
+    name: string
+    color: string | null
+    emoji: string | null
+    start_year: number | null
+    end_year: number | null
+    created_at: string
+  }>
+  lanes: Array<{
+    id: string
+    timeline_id: string
+    name: string
+    color: string
+    emoji: string | null
+    order: number
+  }>
+  events: Array<{
+    id: string
+    lane_id: string
+    timeline_id: string
+    title: string
+    description: string
+    start_time: string
+    end_time: string | null
+    color: string | null
+    emoji: string | null
+  }>
 }
 
 export interface DbPersona {
