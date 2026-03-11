@@ -51,6 +51,8 @@ interface ToolbarProps {
   onToggleOverlayAlignment: (id: string) => void
   overlayDisplayModes: Map<string, OverlayDisplayMode>
   onSetOverlayDisplayMode: (id: string, mode: OverlayDisplayMode) => void
+  showUserMenu?: boolean
+  extraActions?: React.ReactNode
 }
 
 const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
@@ -93,6 +95,8 @@ export function Toolbar({
   onToggleOverlayAlignment,
   overlayDisplayModes,
   onSetOverlayDisplayMode,
+  showUserMenu = true,
+  extraActions,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
@@ -147,7 +151,7 @@ export function Toolbar({
       <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2">
         {/* ── Left side ── */}
         <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">Timeline</h1>
+          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">LifeSaga</h1>
           <TimelinePersonaSelector
             personas={personas}
             activePersonaIds={activePersonaIds}
@@ -427,7 +431,8 @@ export function Toolbar({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <UserMenu />
+          {extraActions}
+          {showUserMenu && <UserMenu />}
         </div>
       </div>
 

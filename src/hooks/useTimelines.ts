@@ -49,6 +49,23 @@ export function useTimelines() {
         const newId = await createTimelineWithDefaults(user!.id)
         if (cancelled) return
         if (newId) {
+          // Check if user wants to import their demo timeline
+          if (localStorage.getItem('timeline_import_demo') === '1') {
+            try {
+              const { DEMO_LANES, DEMO_EVENTS } = await import('@/data/demoData')
+              const { applyDemoTimeline } = await import('@/lib/api')
+              // Load user-modified demo from localStorage
+              const raw = localStorage.getItem('timeline_demo_v1')
+              const demoState = raw
+                ? (JSON.parse(raw) as { lanes: typeof DEMO_LANES; events: typeof DEMO_EVENTS })
+                : { lanes: DEMO_LANES, events: DEMO_EVENTS }
+              await applyDemoTimeline(newId, demoState.lanes, demoState.events)
+            } catch (e) {
+              console.error('Failed to apply demo timeline:', e)
+            } finally {
+              localStorage.removeItem('timeline_import_demo')
+            }
+          }
           const refreshed = await fetchTimelines(user!.id)
           if (cancelled) return
           setTimelines(refreshed)

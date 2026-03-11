@@ -502,3 +502,61 @@ export async function deleteKanbanCard(cardId: string): Promise<boolean> {
   }
   return true
 }
+
+// ============================================================
+// Demo timeline import
+// ============================================================
+
+export async function applyDemoTimeline(
+  timelineId: string,
+  lanes: import('@/types/timeline').Lane[],
+  events: import('@/types/timeline').TimelineEvent[],
+): Promise<void> {
+  // Delete existing lanes for this timeline (cascade events via explicit delete)
+  const { data: existingLanes } = await supabase
+    .from('lanes')
+    .select('id')
+    .eq('timeline_id', timelineId)
+  if (existingLanes && existingLanes.length > 0) {
+    const ids = existingLanes.map((l: { id: string }) => l.id)
+    await supabase.from('events').delete().in('lane_id', ids)
+    await supabase.from('lanes').delete().eq('timeline_id', timelineId)
+  }
+
+  // Insert demo lanes, build ID mapping
+  const idMap = new Map<string, string>()
+  for (const lane of lanes) {
+    const { data } = await supabase
+      .from('lanes')
+      .insert({
+        timeline_id: timelineId,
+        name: lane.name,
+        color: lane.color,
+        visible: lane.visible,
+        is_default: false,
+        order: lane.order,
+        emoji: lane.emoji ?? null,
+        visibility: 'public',
+      })
+      .select('id')
+      .single()
+    if (data) idMap.set(lane.id, (data as { id: string }).id)
+  }
+
+  // Insert demo events
+  for (const event of events) {
+    const realLaneId = idMap.get(event.laneId)
+    if (!realLaneId) continue
+    await supabase.from('events').insert({
+      timeline_id: timelineId,
+      lane_id: realLaneId,
+      title: event.title,
+      description: event.description,
+      start_time: fracYearToDbTime(event.startYear),
+      end_time: event.endYear != null ? fracYearToDbTime(event.endYear) : null,
+      color: event.color ?? null,
+      emoji: event.emoji ?? null,
+      visibility: 'public',
+    })
+  }
+}

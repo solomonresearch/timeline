@@ -83,10 +83,11 @@ const UiSizeContext = createContext<UiSizeContextValue>({
   updateFitScreenConfig: () => {},
 })
 
-export function UiSizeProvider({ children }: { children: ReactNode }) {
+export function UiSizeProvider({ children, storageKey = 'ui-size', initialSize }: { children: ReactNode; storageKey?: string; initialSize?: UiSize }) {
   const [size, setSize] = useState<UiSize>(() => {
-    const saved = localStorage.getItem('ui-size') as UiSize | null
+    const saved = localStorage.getItem(storageKey) as UiSize | null
     if (saved) return saved
+    if (initialSize) return initialSize
     // Default: fitscreen on mobile/tablet, medium on desktop
     return window.matchMedia('(max-width: 767px)').matches ? 'fitscreen' : 'medium'
   })
@@ -94,7 +95,7 @@ export function UiSizeProvider({ children }: { children: ReactNode }) {
 
   function handleSetSize(s: UiSize) {
     setSize(s)
-    localStorage.setItem('ui-size', s)
+    localStorage.setItem(storageKey, s)
   }
 
   // Only update when BASE_LANE_HEIGHT actually changes to avoid render loops

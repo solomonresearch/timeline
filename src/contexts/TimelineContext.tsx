@@ -37,7 +37,7 @@ interface TimelineContextType {
   dataLoading: boolean
 }
 
-const TimelineContext = createContext<TimelineContextType | null>(null)
+export const TimelineContext = createContext<TimelineContextType | null>(null)
 
 export function TimelineProvider({ children }: { children: React.ReactNode }) {
   const {

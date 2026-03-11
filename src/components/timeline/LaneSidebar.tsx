@@ -75,7 +75,6 @@ export function LaneSidebar({
   }, [])
   const W = Math.min(SIDEBAR_WIDTH, Math.max(72, Math.round(viewportWidth * 0.28)))
 
-  const dotSize = Math.round(ICON_SIZE / 3)
   const iconPad = Math.round(ICON_SIZE / 12)
 
   // Full sorted lane order (visible + hidden) for move-up/down boundary checks
@@ -111,12 +110,7 @@ export function LaneSidebar({
                     ? <ChevronDown size={ICON_SIZE} />
                     : <ChevronRight size={ICON_SIZE} />}
                 </button>
-              ) : (
-                <div
-                  className="rounded-full shrink-0"
-                  style={{ width: dotSize * 2, height: dotSize * 2, backgroundColor: lane.color }}
-                />
-              )}
+              ) : null}
               <span
                 className="font-medium truncate flex-1"
                 style={{ fontSize: SIDEBAR_FONT, opacity: lane.visible ? 1 : 0.4 }}
@@ -355,10 +349,6 @@ export function LaneSidebar({
                     padding: `${Math.round(SIDEBAR_FONT * 0.25)}px ${Math.round(W * 0.04)}px`,
                   }}
                 >
-                  <div
-                    className="rounded-full shrink-0 opacity-40"
-                    style={{ width: dotSize * 2, height: dotSize * 2, backgroundColor: lane.color }}
-                  />
                   <span
                     className="text-muted-foreground truncate flex-1"
                     style={{ fontSize: SIDEBAR_FONT }}
