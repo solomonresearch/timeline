@@ -199,6 +199,30 @@ export function useSupabaseTimeline(timelineId: string | null) {
     [lanes, events],
   )
 
+  const moveLane = useCallback(
+    async (id: string, direction: 'up' | 'down') => {
+      const sorted = [...lanes].sort((a, b) => a.order - b.order)
+      const idx = sorted.findIndex(l => l.id === id)
+      if (idx < 0) return
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (swapIdx < 0 || swapIdx >= sorted.length) return
+      const laneA = sorted[idx]
+      const laneB = sorted[swapIdx]
+      const orderA = laneB.order
+      const orderB = laneA.order
+      setLanes(prev => prev.map(l => {
+        if (l.id === laneA.id) return { ...l, order: orderA }
+        if (l.id === laneB.id) return { ...l, order: orderB }
+        return l
+      }))
+      await Promise.all([
+        updateLaneDb(laneA.id, { order: orderA }),
+        updateLaneDb(laneB.id, { order: orderB }),
+      ])
+    },
+    [lanes],
+  )
+
   const toggleLaneVisibility = useCallback(
     async (id: string) => {
       const lane = lanes.find(l => l.id === id)
@@ -227,6 +251,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
     addLane,
     updateLane,
     deleteLane,
+    moveLane,
     toggleLaneVisibility,
     loading,
   }

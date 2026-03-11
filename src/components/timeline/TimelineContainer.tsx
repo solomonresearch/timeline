@@ -79,6 +79,7 @@ interface TimelineContainerProps {
   yearEnd: number
   pixelsPerYear: number
   onToggleVisibility: (id: string) => void
+  onMoveLane: (id: string, direction: 'up' | 'down') => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
   onZoom: (ppy: number) => void
@@ -107,6 +108,7 @@ export function TimelineContainer({
   pixelsPerYear,
   onZoom,
   onToggleVisibility,
+  onMoveLane,
   onEditLane,
   onDeleteLane,
   onEventClick,
@@ -943,6 +945,7 @@ export function TimelineContainer({
             separateOverlaySections={separateOverlaySidebarSections}
             onToggleExpand={handleToggleExpand}
             onToggleVisibility={onToggleVisibility}
+            onMoveLane={onMoveLane}
             onEditLane={onEditLane}
             onDeleteLane={onDeleteLane}
             totalAssetsHeight={hasValueEvents ? TOTAL_ASSETS_HEIGHT : undefined}

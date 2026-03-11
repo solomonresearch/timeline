@@ -32,6 +32,7 @@ interface TimelineContextType {
   addLane: (lane: Omit<Lane, 'id' | 'order' | 'isDefault'>) => Promise<Lane | null>
   updateLane: (id: string, updates: Partial<Omit<Lane, 'id' | 'isDefault'>>) => Promise<void>
   deleteLane: (id: string) => Promise<void>
+  moveLane: (id: string, direction: 'up' | 'down') => Promise<void>
   toggleLaneVisibility: (id: string) => Promise<void>
   dataLoading: boolean
 }
@@ -67,6 +68,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     addLane,
     updateLane,
     deleteLane,
+    moveLane,
     toggleLaneVisibility,
     loading: dataLoading,
   } = useSupabaseTimeline(selectedTimelineId)
@@ -98,6 +100,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         addLane,
         updateLane,
         deleteLane,
+        moveLane,
         toggleLaneVisibility,
         dataLoading,
       }}

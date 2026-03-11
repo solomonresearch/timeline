@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, TrendingUp } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react'
 import type { Lane } from '@/types/timeline'
 import {
   DropdownMenu,
@@ -39,6 +39,7 @@ interface LaneSidebarProps {
   separateOverlaySections?: OverlaySidebarSection[]
   onToggleExpand: (id: string) => void
   onToggleVisibility: (id: string) => void
+  onMoveLane: (id: string, direction: 'up' | 'down') => void
   onEditLane: (lane: Lane) => void
   onDeleteLane: (lane: Lane) => void
   totalAssetsHeight?: number
@@ -56,6 +57,7 @@ export function LaneSidebar({
   separateOverlaySections = [],
   onToggleExpand,
   onToggleVisibility,
+  onMoveLane,
   onEditLane,
   onDeleteLane,
   totalAssetsHeight,
@@ -75,6 +77,12 @@ export function LaneSidebar({
 
   const dotSize = Math.round(ICON_SIZE / 3)
   const iconPad = Math.round(ICON_SIZE / 12)
+
+  // Full sorted lane order (visible + hidden) for move-up/down boundary checks
+  const sortedAllLanes = useMemo(
+    () => [...lanes, ...hiddenLanes].sort((a, b) => a.order - b.order),
+    [lanes, hiddenLanes],
+  )
 
   return (
     <div className="bg-background" style={{ minWidth: W, width: W }}>
@@ -135,6 +143,21 @@ export function LaneSidebar({
                   <DropdownMenuItem onClick={() => onEditLane(lane)}>
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit Lane
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onMoveLane(lane.id, 'up')}
+                    disabled={sortedAllLanes[0]?.id === lane.id}
+                  >
+                    <ArrowUp className="h-4 w-4 mr-2" />
+                    Move Up
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onMoveLane(lane.id, 'down')}
+                    disabled={sortedAllLanes[sortedAllLanes.length - 1]?.id === lane.id}
+                  >
+                    <ArrowDown className="h-4 w-4 mr-2" />
+                    Move Down
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

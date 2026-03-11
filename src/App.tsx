@@ -66,6 +66,7 @@ function TimelineView() {
     addLane,
     updateLane,
     deleteLane,
+    moveLane,
     toggleLaneVisibility,
     timelines,
     selectedTimelineId,
@@ -339,6 +340,7 @@ function TimelineView() {
               dataYearMin={dataYearMin}
               dataYearMax={dataYearMax}
               onToggleVisibility={toggleLaneVisibility}
+              onMoveLane={moveLane}
               onEditLane={handleEditLane}
               onDeleteLane={handleDeleteLane}
               onEventClick={handleEventClick}
