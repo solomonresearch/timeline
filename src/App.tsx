@@ -1,9 +1,11 @@
-import { useState, useCallback, useSyncExternalStore, useRef, useMemo } from 'react'
+import { useState, useCallback, useSyncExternalStore, useRef, useMemo, useEffect } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
 import { useTimelineOverlays } from '@/hooks/useTimelineOverlays'
+import { getSharedWithMe } from '@/lib/api'
+import type { SharedWithMeItem } from '@/types/database'
 import { useProfile } from '@/hooks/useProfile'
 import { isOpenAIConfigured } from '@/lib/openai'
 import { birthDateToFloatYear } from '@/lib/utils'
@@ -22,6 +24,7 @@ import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm'
 import { UiSizeProvider } from '@/contexts/UiSizeContext'
 import { SkinProvider } from '@/contexts/SkinContext'
 import { PublicProfilePage } from '@/components/PublicProfilePage'
+import { ExternalOverlayToggle } from '@/components/ExternalOverlayToggle'
 import { AboutPage } from '@/components/AboutPage'
 import { Footer } from '@/components/Footer'
 
@@ -173,6 +176,11 @@ function TimelineView() {
     activeOverlayTimelines,
   } = useTimelineOverlays()
 
+  const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeItem[]>([])
+  useEffect(() => {
+    if (user) getSharedWithMe().then(setSharedWithMe)
+  }, [user])
+
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
 
@@ -320,7 +328,7 @@ function TimelineView() {
   }, [updateEvent])
 
   // Save lane (add or update)
-  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string; visibility: string }) => {
+  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string }) => {
     if (editingLane) {
       updateLane(editingLane.id, data)
     } else {
@@ -368,6 +376,12 @@ function TimelineView() {
           onToggleOverlayAlignment={toggleOverlayAlignment}
           overlayDisplayModes={overlayDisplayModes}
           onSetOverlayDisplayMode={setOverlayDisplayMode}
+          extraActions={
+            <ExternalOverlayToggle
+              sharedWithMe={sharedWithMe}
+              userId={user?.id}
+            />
+          }
         />
 
         {activeView === 'overview' ? (

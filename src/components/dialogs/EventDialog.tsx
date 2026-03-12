@@ -104,7 +104,6 @@ export function EventDialog({
   const [endTime, setEndTime] = useState('')
 
   // Value tracking (range events)
-  const [visibility, setVisibility] = useState('public')
 
   const [valueEnabled, setValueEnabled] = useState(false)
   const [startValue, setStartValue] = useState('')
@@ -156,7 +155,6 @@ export function EventDialog({
       setColor(editingEvent.color ?? '')
       setEmoji(editingEvent.emoji ?? '')
       setPointValueStr(editingEvent.pointValue != null ? String(editingEvent.pointValue) : '')
-      setVisibility(editingEvent.visibility ?? 'public')
       const st = fracYearToTimeStr(editingEvent.startYear)
       setStartTime(st === '00:00' ? '' : st)
       const et = editingEvent.endYear != null ? fracYearToTimeStr(editingEvent.endYear) : ''
@@ -229,7 +227,6 @@ export function EventDialog({
       setPointValueStr('')
       setStartTime('')
       setEndTime('')
-      setVisibility('public')
       setValueEnabled(false)
       setStartValue('')
       setSpotChanges([])
@@ -376,7 +373,6 @@ export function EventDialog({
       ...(emoji ? { emoji } : {}),
       ...(pv != null ? { pointValue: pv } : {}),
       ...(valueProjectionOut ? { valueProjection: valueProjectionOut } : {}),
-      visibility,
       ...(linkOut ? { link: linkOut } : {}),
       ...(url.trim() ? { url: url.trim() } : {}),
       ...(location.trim() ? { location: location.trim() } : {}),
@@ -983,14 +979,6 @@ export function EventDialog({
                 )}
               </div>
             )}
-          </div>
-
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <div>
-              <p className="text-sm font-medium">Public event</p>
-              <p className="text-xs text-muted-foreground">Visible on your public profile</p>
-            </div>
-            <Switch checked={visibility === 'public'} onCheckedChange={v => setVisibility(v ? 'public' : 'secret')} />
           </div>
 
           <DialogFooter className="mt-2">

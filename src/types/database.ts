@@ -101,6 +101,30 @@ export interface DbPersona {
   death_year: number | null
 }
 
+export interface DbTimelineShare {
+  share_id: string
+  user_id: string
+  username: string | null
+  display_name: string
+}
+
+export interface SharedWithMeItem {
+  share_id: string
+  timeline: {
+    id: string
+    name: string
+    color: string | null
+    emoji: string | null
+    start_year: number | null
+    end_year: number | null
+    created_at: string
+  }
+  owner: {
+    username: string | null
+    display_name: string
+  }
+}
+
 export interface DbPersonaEvent {
   id: string
   persona_id: string
