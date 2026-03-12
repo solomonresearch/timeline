@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Lane, TimelineEvent, ValueProjection } from '@/types/timeline'
+import type { Lane, TimelineEvent, ValueProjection, EventLink } from '@/types/timeline'
 import type {
   DbProfile,
   DbTimeline,
@@ -57,6 +57,7 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
     ...(row.point_value != null ? { pointValue: row.point_value } : {}),
     ...(validProj != null ? { valueProjection: validProj } : {}),
     visibility: row.visibility ?? 'public',
+    ...(row.link != null && typeof row.link === 'object' ? { link: row.link as EventLink } : {}),
   }
 }
 
@@ -160,7 +161,11 @@ export async function fetchTimelines(userId: string): Promise<DbTimeline[]> {
   return data ?? []
 }
 
-export async function createTimelineWithDefaults(userId: string, name?: string): Promise<string | null> {
+export async function createTimelineWithDefaults(
+  userId: string,
+  name?: string,
+  options?: { emoji?: string; color?: string },
+): Promise<string | null> {
   // Use the RPC to create timeline + default lanes
   const { data, error } = await supabase.rpc('create_default_timeline', {
     p_user_id: userId,
@@ -170,14 +175,128 @@ export async function createTimelineWithDefaults(userId: string, name?: string):
     return null
   }
   const timelineId = data as string
-  // If a custom name was provided, update it
-  if (name && name !== 'My Life') {
-    await supabase
-      .from('timelines')
-      .update({ name })
-      .eq('id', timelineId)
+  const updates: Record<string, unknown> = {}
+  if (name && name !== 'My Life') updates.name = name
+  if (options?.emoji) updates.emoji = options.emoji
+  if (options?.color) updates.color = options.color
+  if (Object.keys(updates).length > 0) {
+    await supabase.from('timelines').update(updates).eq('id', timelineId)
   }
   return timelineId
+}
+
+/** Create a timeline record only — no default lanes. */
+export async function createEmptyTimeline(
+  userId: string,
+  name?: string,
+  options?: { emoji?: string; color?: string },
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('timelines')
+    .insert({
+      user_id: userId,
+      name: name ?? 'New Timeline',
+      emoji: options?.emoji ?? null,
+      color: options?.color ?? null,
+    })
+    .select('id')
+    .single()
+  if (error) {
+    console.error('createEmptyTimeline error:', error)
+    return null
+  }
+  return (data as { id: string }).id
+}
+
+export type LaneEventFilter = 'all' | 'past_current' | 'none'
+
+export async function copyTimelineData(
+  sourceTimelineId: string,
+  destTimelineId: string,
+  options: {
+    laneIds?: string[]                               // undefined = all lanes
+    eventFilter?: LaneEventFilter                   // global default (default: 'all')
+    perLaneEventFilter?: Record<string, LaneEventFilter>  // per-lane override
+  },
+): Promise<boolean> {
+  const [lanesRes, eventsRes] = await Promise.all([
+    supabase.from('lanes').select('*').eq('timeline_id', sourceTimelineId).order('order', { ascending: true }),
+    supabase.from('events').select('*').eq('timeline_id', sourceTimelineId),
+  ])
+  if (lanesRes.error || eventsRes.error) {
+    console.error('copyTimelineData fetch error:', lanesRes.error ?? eventsRes.error)
+    return false
+  }
+
+  const sourceLanes = (lanesRes.data ?? []) as DbLane[]
+  const sourceEvents = (eventsRes.data ?? []) as DbEvent[]
+
+  const filteredLanes = options.laneIds
+    ? sourceLanes.filter(l => options.laneIds!.includes(l.id))
+    : sourceLanes
+  if (filteredLanes.length === 0) return true
+
+  const globalFilter: LaneEventFilter = options.eventFilter ?? 'all'
+  const now = new Date().toISOString()
+
+  function eventPassesFilter(e: DbEvent, filter: LaneEventFilter): boolean {
+    if (filter === 'none') return false
+    if (filter === 'past_current') return e.start_time <= now
+    return true
+  }
+
+  // Insert lanes sequentially and build old→new id map
+  const laneIdMap = new Map<string, string>()
+  for (const lane of filteredLanes) {
+    const { data: newLane, error: laneErr } = await supabase
+      .from('lanes')
+      .insert({
+        timeline_id: destTimelineId,
+        name: lane.name,
+        color: lane.color,
+        visible: lane.visible,
+        is_default: false,  // copied lanes are not "default" in the new timeline
+        order: lane.order,
+        emoji: lane.emoji,
+        visibility: lane.visibility,
+      })
+      .select('id')
+      .single()
+    if (laneErr) { console.error('copyTimelineData insert lane error:', laneErr); continue }
+    if (newLane) laneIdMap.set(lane.id, (newLane as { id: string }).id)
+  }
+
+  // Build events list, applying per-lane or global filter
+  const eventsToInsert = sourceEvents
+    .filter(e => laneIdMap.has(e.lane_id))
+    .filter(e => {
+      const filter = options.perLaneEventFilter?.[e.lane_id] ?? globalFilter
+      return eventPassesFilter(e, filter)
+    })
+    .map(e => ({
+      timeline_id: destTimelineId,
+      lane_id: laneIdMap.get(e.lane_id)!,
+      title: e.title,
+      description: e.description,
+      start_time: e.start_time,
+      end_time: e.end_time,
+      color: e.color,
+      emoji: e.emoji,
+      point_value: e.point_value,
+      value_projection: e.value_projection,
+      visibility: e.visibility,
+      // link intentionally omitted — references old event IDs from source timeline
+    }))
+
+  if (eventsToInsert.length > 0) {
+    const { error } = await supabase.from('events').insert(eventsToInsert)
+    if (error) {
+      console.error('copyTimelineData insert events error:', error)
+      return false
+    }
+  }
+
+  return true
 }
 
 export async function updateTimeline(
@@ -317,6 +436,7 @@ export async function insertEvent(
     point_value?: number
     value_projection?: ValueProjection
     visibility?: string
+    link?: EventLink | null
   },
 ): Promise<DbEvent | null> {
   const { data, error } = await supabase
@@ -333,6 +453,7 @@ export async function insertEvent(
       point_value: event.point_value ?? null,
       visibility: event.visibility ?? 'public',
       ...(event.value_projection != null ? { value_projection: event.value_projection } : {}),
+      link: event.link ?? null,
     })
     .select()
     .single()
@@ -356,6 +477,7 @@ export async function updateEventDb(
     point_value: number | null
     value_projection: ValueProjection | null
     visibility: string
+    link: EventLink | null
   }>,
 ): Promise<boolean> {
   const { error } = await supabase

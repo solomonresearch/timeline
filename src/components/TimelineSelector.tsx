@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronDown, Plus, Pencil, Trash2, X, Copy } from 'lucide-react'
 import { useTimelineContext } from '@/contexts/TimelineContext'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
+import { fetchLanes } from '@/lib/api'
+import type { DbLane } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -78,6 +80,7 @@ export function TimelineSelector() {
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    copyTimelineData,
     updateTimeline,
     deleteTimeline,
   } = useTimelineContext()
@@ -96,6 +99,31 @@ export function TimelineSelector() {
   const [endTime, setEndTime] = useState('00:00')
   const [isPublic, setIsPublic] = useState(false)
 
+  // Copy/duplicate state (create mode only)
+  const [copySourceId, setCopySourceId] = useState('')
+  const [copyFilter, setCopyFilter] = useState<'all' | 'past_current' | 'all_no_events' | 'lanes'>('all')
+  const [copyLaneIds, setCopyLaneIds] = useState<Set<string>>(new Set())
+  const [sourceLanes, setSourceLanes] = useState<DbLane[]>([])
+  const [loadingSourceLanes, setLoadingSourceLanes] = useState(false)
+  const [copying, setCopying] = useState(false)
+
+  // Load lanes from source timeline when copy source changes
+  useEffect(() => {
+    if (!copySourceId) {
+      setSourceLanes([])
+      return
+    }
+    let cancelled = false
+    setLoadingSourceLanes(true)
+    fetchLanes(copySourceId).then(lanes => {
+      if (cancelled) return
+      setSourceLanes(lanes)
+      setCopyLaneIds(new Set(lanes.map(l => l.id)))
+      setLoadingSourceLanes(false)
+    })
+    return () => { cancelled = true }
+  }, [copySourceId])
+
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
 
   function handleCreate() {
@@ -107,6 +135,10 @@ export function TimelineSelector() {
     setStartTime('00:00')
     setEndDate('')
     setEndTime('00:00')
+    setCopySourceId('')
+    setCopyFilter('all')
+    setCopyLaneIds(new Set())
+    setSourceLanes([])
     setTargetId(null)
     setDialogOpen(true)
   }
@@ -143,10 +175,21 @@ export function TimelineSelector() {
     if (!name) return
 
     if (dialogMode === 'create') {
-      const newId = await createTimeline(name)
-      if (newId && emojiValue.trim()) {
-        await updateTimeline(newId, { emoji: emojiValue.trim() })
+      setCopying(true)
+      const newId = await createTimeline(
+        name,
+        emojiValue.trim() || undefined,
+        colorValue !== DEFAULT_COLOR ? colorValue : undefined,
+      )
+      if (newId && copySourceId) {
+        await copyTimelineData(copySourceId, newId, {
+          laneIds: copyFilter === 'lanes' ? [...copyLaneIds] : undefined,
+          eventFilter: copyFilter === 'past_current' ? 'past_current'
+            : copyFilter === 'all_no_events' ? 'none'
+            : 'all',
+        })
       }
+      setCopying(false)
     } else if (targetId) {
       const start_year = startDate ? dateTimeToFracYear(startDate, startTime) : null
       const end_year = endDate ? dateTimeToFracYear(endDate, endTime) : null
@@ -165,6 +208,15 @@ export function TimelineSelector() {
   async function handleDelete(id: string) {
     if (timelines.length <= 1) return
     await deleteTimeline(id)
+  }
+
+  function toggleLane(laneId: string) {
+    setCopyLaneIds(prev => {
+      const next = new Set(prev)
+      if (next.has(laneId)) next.delete(laneId)
+      else next.add(laneId)
+      return next
+    })
   }
 
   return (
@@ -193,7 +245,7 @@ export function TimelineSelector() {
                   onClick={() => selectTimeline(t.id)}
                 >
                   {t.emoji ? (
-                    <span className="shrink-0">{t.emoji}</span>
+                    <span className="shrink-0 text-base leading-none">{t.emoji}</span>
                   ) : t.color ? (
                     <span
                       className="h-2 w-2 rounded-full shrink-0"
@@ -295,6 +347,103 @@ export function TimelineSelector() {
               </div>
             </div>
 
+            {/* ── Duplicate from existing timeline (create mode only) ── */}
+            {dialogMode === 'create' && (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Label className="text-sm font-medium">Duplicate from existing timeline</Label>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Source timeline</Label>
+                  <select
+                    value={copySourceId}
+                    onChange={e => { setCopySourceId(e.target.value); setCopyFilter('all') }}
+                    className="h-8 text-sm border rounded-md px-2 bg-background w-full"
+                  >
+                    <option value="">— none (start fresh) —</option>
+                    {timelines.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.emoji ? `${t.emoji} ` : ''}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {copySourceId && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">What to copy</Label>
+                    <div className="space-y-1.5">
+                      {(
+                        [
+                          { value: 'all', label: 'All lanes & events' },
+                          { value: 'past_current', label: 'All lanes · past & ongoing events only' },
+                          { value: 'lanes', label: 'Select specific lanes' },
+                        ] as const
+                      ).map(opt => (
+                        <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="copyFilter"
+                            value={opt.value}
+                            checked={copyFilter === opt.value}
+                            onChange={() => setCopyFilter(opt.value)}
+                            className="h-3.5 w-3.5 accent-primary"
+                          />
+                          {opt.label}
+                        </label>
+                      ))}
+                    </div>
+
+                    {copyFilter === 'lanes' && (
+                      <div className="mt-2 rounded-md border p-2 space-y-1 max-h-40 overflow-y-auto">
+                        {loadingSourceLanes ? (
+                          <p className="text-xs text-muted-foreground">Loading lanes…</p>
+                        ) : sourceLanes.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No lanes found.</p>
+                        ) : (
+                          <>
+                            <div className="flex gap-2 pb-1 border-b mb-1">
+                              <button
+                                type="button"
+                                onClick={() => setCopyLaneIds(new Set(sourceLanes.map(l => l.id)))}
+                                className="text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                All
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCopyLaneIds(new Set())}
+                                className="text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                None
+                              </button>
+                            </div>
+                            {sourceLanes.map(lane => (
+                              <label key={lane.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={copyLaneIds.has(lane.id)}
+                                  onChange={() => toggleLane(lane.id)}
+                                  className="h-3.5 w-3.5 accent-primary"
+                                />
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: lane.color }}
+                                />
+                                {lane.emoji ? `${lane.emoji} ` : ''}{lane.name}
+                              </label>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {dialogMode === 'edit' && (
               <>
                 {/* Color */}
@@ -371,8 +520,8 @@ export function TimelineSelector() {
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {dialogMode === 'create' ? 'Create' : 'Save'}
+              <Button type="submit" disabled={copying}>
+                {copying ? 'Duplicating…' : dialogMode === 'create' ? 'Create' : 'Save'}
               </Button>
             </DialogFooter>
           </form>

@@ -135,7 +135,8 @@ export function useDemoTimeline() {
   // ---- Timeline management (noops for demo) ----
 
   const selectTimeline = useCallback((_id: string) => {}, [])
-  const createTimeline = useCallback(async (_name?: string): Promise<string | null> => null, [])
+  const createTimeline = useCallback(async (_name?: string, _emoji?: string, _color?: string, _withDefaultLanes?: boolean): Promise<string | null> => null, [])
+  const copyTimelineData = useCallback(async (_sourceId: string, _destId: string, _options: { laneIds?: string[]; eventFilter?: 'all' | 'past_current' | 'none'; perLaneEventFilter?: Record<string, 'all' | 'past_current' | 'none'> }): Promise<boolean> => false, [])
   const updateTimeline = useCallback(async (_id: string, _updates: object): Promise<boolean> => true, [])
   const renameTimeline = useCallback(async (_id: string, _name: string): Promise<boolean> => true, [])
   const deleteTimeline = useCallback(async (_id: string): Promise<boolean> => false, [])
@@ -147,6 +148,7 @@ export function useDemoTimeline() {
     selectedTimelineId: 'demo' as string | null,
     selectTimeline,
     createTimeline,
+    copyTimelineData,
     updateTimeline,
     renameTimeline,
     deleteTimeline,
@@ -171,6 +173,7 @@ export function useDemoTimeline() {
     deleteLane,
     moveLane,
     toggleLaneVisibility,
+    refreshTimeline: () => {},
     dataLoading: false,
   }
 }

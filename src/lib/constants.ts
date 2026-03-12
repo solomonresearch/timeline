@@ -200,6 +200,41 @@ export function getCurrentYearFraction(): number {
 }
 
 
+// ── Event link resolution ────────────────────────────────────────────────────
+
+import type { TimelineEvent } from '@/types/timeline'
+
+/** Resolve all dependency links in a set of events (one pass — handles direct links). */
+export function resolveEventLinks(events: TimelineEvent[]): TimelineEvent[] {
+  const byId = new Map(events.map(e => [e.id, e]))
+  const today = dateToFracYear(new Date())
+
+  return events.map(event => {
+    const link = event.link
+    if (!link) return event
+
+    let anchor: number
+    if (link.anchorType === 'today') {
+      anchor = today
+    } else if (link.linkedEventId) {
+      const linked = byId.get(link.linkedEventId)
+      if (!linked) return event // linked event not found — use stored times
+      anchor = link.linkedAnchor === 'end'
+        ? (linked.endYear ?? linked.startYear)
+        : linked.startYear
+    } else {
+      return event
+    }
+
+    const startYear = anchor + link.startOffset
+    const endYear = link.duration != null
+      ? startYear + link.duration
+      : event.endYear
+
+    return { ...event, startYear, ...(endYear !== undefined ? { endYear } : {}) }
+  })
+}
+
 const _MLBL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 /** Format a fractional year as "15 Mar 2025, 14:30" (UTC). */
 export function fracYearToDateLabel(fy: number): string {

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -14,10 +14,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { DbPersona } from '@/types/database'
+import type { DbPersona, DbLane } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
+import { fetchLanes } from '@/lib/api'
 
 const DEFAULT_COLOR = '#3b82f6'
 
@@ -72,8 +73,10 @@ export function TimelinePersonaSelector({
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    copyTimelineData,
     updateTimeline,
     deleteTimeline,
+    refreshTimeline,
   } = useTimelineContext()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -87,10 +90,70 @@ export function TimelinePersonaSelector({
   const [endDate, setEndDate] = useState('')
   const [endTime, setEndTime] = useState('00:00')
 
+  // Sentinel values for "start fresh" options in the source selector
+  const COPY_DEFAULTS = '_defaults_'  // create with default lanes
+  const COPY_EMPTY    = '_empty_'     // create empty (no lanes)
+
+  type CopyMode = 'all' | 'all_no_events' | 'past_current' | 'lanes'
+  type LaneEvtFilter = 'all' | 'past_current' | 'none'
+
+  // copySourceId: COPY_DEFAULTS | COPY_EMPTY | <real timeline id>
+  const [copySourceId, setCopySourceId] = useState(COPY_DEFAULTS)
+  const [copyMode, setCopyMode] = useState<CopyMode>('all')
+  const [copyLaneIds, setCopyLaneIds] = useState<Set<string>>(new Set())
+  const [perLaneFilter, setPerLaneFilter] = useState<Record<string, LaneEvtFilter>>({})
+  const [sourceLanes, setSourceLanes] = useState<DbLane[]>([])
+  const [loadingSourceLanes, setLoadingSourceLanes] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const [isPublic, setIsPublic] = useState(false)
+
+  const isRealSource = (id: string) => id !== COPY_DEFAULTS && id !== COPY_EMPTY
+
+  useEffect(() => {
+    if (!isRealSource(copySourceId)) {
+      setSourceLanes([])
+      // Clear auto-filled dates when switching away from a real source
+      setStartDate(''); setStartTime('00:00')
+      setEndDate(''); setEndTime('00:00')
+      return
+    }
+    // Auto-fill dates from source timeline
+    const src = timelines.find(t => t.id === copySourceId)
+    if (src?.start_year != null) {
+      setStartDate(fracYearToDateStr(src.start_year))
+      setStartTime(fracYearToTimeStr(src.start_year))
+    } else { setStartDate(''); setStartTime('00:00') }
+    if (src?.end_year != null) {
+      setEndDate(fracYearToDateStr(src.end_year))
+      setEndTime(fracYearToTimeStr(src.end_year))
+    } else { setEndDate(''); setEndTime('00:00') }
+
+    let cancelled = false
+    setLoadingSourceLanes(true)
+    fetchLanes(copySourceId).then(lanes => {
+      if (cancelled) return
+      setSourceLanes(lanes)
+      setCopyLaneIds(new Set(lanes.map(l => l.id)))
+      setPerLaneFilter(Object.fromEntries(lanes.map(l => [l.id, 'all' as LaneEvtFilter])))
+      setLoadingSourceLanes(false)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copySourceId])
+
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
   const otherTimelines = timelines.filter(t => t.id !== selectedTimelineId)
   const activePersonaCount = activePersonaIds.size
   const activeOverlayCount = activeOverlayIds.size
+
+  function toggleLane(laneId: string) {
+    setCopyLaneIds(prev => {
+      const next = new Set(prev)
+      if (next.has(laneId)) next.delete(laneId)
+      else next.add(laneId)
+      return next
+    })
+  }
 
   function handleCreate() {
     setDialogMode('create')
@@ -99,6 +162,11 @@ export function TimelinePersonaSelector({
     setColorValue(DEFAULT_COLOR)
     setStartDate(''); setStartTime('00:00')
     setEndDate(''); setEndTime('00:00')
+    setCopySourceId(COPY_DEFAULTS)
+    setCopyMode('all')
+    setCopyLaneIds(new Set())
+    setPerLaneFilter({})
+    setSourceLanes([])
     setTargetId(null)
     setDialogOpen(true)
   }
@@ -115,6 +183,7 @@ export function TimelinePersonaSelector({
     else { setStartDate(''); setStartTime('00:00') }
     if (t.end_year != null) { setEndDate(fracYearToDateStr(t.end_year)); setEndTime(fracYearToTimeStr(t.end_year)) }
     else { setEndDate(''); setEndTime('00:00') }
+    setIsPublic(t.visibility === 'public')
     setTargetId(id)
     setDialogOpen(true)
   }
@@ -124,7 +193,35 @@ export function TimelinePersonaSelector({
     const name = nameValue.trim()
     if (!name) return
     if (dialogMode === 'create') {
-      await createTimeline(name)
+      setCopying(true)
+      const emoji = emojiValue.trim() || undefined
+      const color = colorValue !== DEFAULT_COLOR ? colorValue : undefined
+      // Only use default lanes when explicitly chosen; copying always starts empty
+      const withDefaultLanes = copySourceId === COPY_DEFAULTS
+      const newId = await createTimeline(name, emoji, color, withDefaultLanes)
+      if (newId) {
+        // Save dates if provided
+        if (startDate || endDate) {
+          await updateTimeline(newId, {
+            start_year: startDate ? dateTimeToFracYear(startDate, startTime) : null,
+            end_year: endDate ? dateTimeToFracYear(endDate, endTime) : null,
+          })
+        }
+        // Copy lanes/events from source timeline (if a real one was selected)
+        if (isRealSource(copySourceId)) {
+          const isLaneMode = copyMode === 'lanes'
+          await copyTimelineData(copySourceId, newId, {
+            laneIds: isLaneMode ? [...copyLaneIds] : undefined,
+            eventFilter: copyMode === 'all' ? 'all'
+              : copyMode === 'all_no_events' ? 'none'
+              : copyMode === 'past_current' ? 'past_current'
+              : 'all',
+            perLaneEventFilter: isLaneMode ? perLaneFilter : undefined,
+          })
+          refreshTimeline()
+        }
+      }
+      setCopying(false)
     } else if (targetId) {
       await updateTimeline(targetId, {
         name,
@@ -132,6 +229,7 @@ export function TimelinePersonaSelector({
         color: colorValue,
         start_year: startDate ? dateTimeToFracYear(startDate, startTime) : null,
         end_year: endDate ? dateTimeToFracYear(endDate, endTime) : null,
+        visibility: isPublic ? 'public' : 'private',
       })
     }
     setDialogOpen(false)
@@ -172,6 +270,9 @@ export function TimelinePersonaSelector({
                 onClick={() => selectTimeline(currentTimeline.id)}
               >
                 <Star className="h-3 w-3 shrink-0 text-primary mr-1.5" />
+                {currentTimeline.emoji && (
+                  <span className="text-base leading-none mr-1 shrink-0">{currentTimeline.emoji}</span>
+                )}
                 <span className="flex-1 text-sm font-semibold truncate">{currentTimeline.name}</span>
                 <button
                   className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
@@ -199,9 +300,10 @@ export function TimelinePersonaSelector({
                 <div key={t.id} className="rounded-md px-2 py-1.5 hover:bg-accent group">
                   <div className="flex items-center justify-between gap-2">
                     <div
-                      className="min-w-0 flex-1 cursor-pointer"
+                      className="min-w-0 flex-1 cursor-pointer flex items-center gap-1"
                       onClick={() => selectTimeline(t.id)}
                     >
+                      {t.emoji && <span className="text-base leading-none shrink-0">{t.emoji}</span>}
                       <p className="text-sm truncate">{t.name}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -363,44 +465,25 @@ export function TimelinePersonaSelector({
             <DialogTitle>{dialogMode === 'create' ? 'New Timeline' : 'Edit Timeline'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4">
-            {/* Name + Emoji */}
-            <div className="grid grid-cols-[1fr_auto] gap-3">
+            {/* Name + Color */}
+            <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
               <div className="grid gap-1.5">
                 <Label htmlFor="tpName">Name</Label>
                 <Input id="tpName" value={nameValue} onChange={e => setNameValue(e.target.value)} placeholder="Timeline name" autoFocus />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="tpEmoji">Emoji</Label>
-                <Input
-                  id="tpEmoji"
-                  value={emojiValue}
-                  onChange={e => {
-                    const segs = [...new Intl.Segmenter().segment(e.target.value)]
-                    setEmojiValue(segs.length > 0 ? segs[0].segment : '')
-                  }}
-                  placeholder="🌍"
-                  className="w-16 text-center text-lg"
-                  maxLength={4}
-                />
-              </div>
-            </div>
-
-            {/* Color */}
-            <div className="grid gap-1.5">
-              <Label htmlFor="tpColor">Color</Label>
-              <div className="flex items-center gap-2">
+                <Label htmlFor="tpColor">Color</Label>
                 <input
                   id="tpColor"
                   type="color"
                   value={colorValue}
                   onChange={e => setColorValue(e.target.value)}
-                  className="h-8 w-12 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                  className="h-9 w-12 cursor-pointer rounded border border-input bg-transparent p-0.5"
                 />
-                <span className="text-sm text-muted-foreground font-mono">{colorValue}</span>
               </div>
             </div>
 
-            {/* Start date/time */}
+            {/* Start + End date/time — always shown */}
             <div className="grid gap-1.5">
               <Label>Start <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <div className="flex gap-2">
@@ -408,8 +491,6 @@ export function TimelinePersonaSelector({
                 <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-28" disabled={!startDate} />
               </div>
             </div>
-
-            {/* End date/time */}
             <div className="grid gap-1.5">
               <Label>End <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <div className="flex gap-2">
@@ -418,9 +499,116 @@ export function TimelinePersonaSelector({
               </div>
             </div>
 
+            {/* ── Start / duplicate section (create mode only) ── */}
+            {dialogMode === 'create' && (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Label className="text-sm font-medium">Start from</Label>
+                </div>
+                <select
+                  value={copySourceId}
+                  onChange={e => { setCopySourceId(e.target.value); setCopyMode('all') }}
+                  className="h-8 text-sm border rounded-md px-2 bg-background w-full"
+                >
+                  <option value={COPY_DEFAULTS}>— start fresh (default lanes) —</option>
+                  <option value={COPY_EMPTY}>— start fresh (empty) —</option>
+                  {timelines.length > 0 && <option disabled>────────────</option>}
+                  {timelines.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.emoji ? `${t.emoji} ` : ''}{t.name}
+                    </option>
+                  ))}
+                </select>
+
+                {isRealSource(copySourceId) && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">What to copy</Label>
+                    <div className="space-y-1.5">
+                      {([
+                        { value: 'all',           label: 'All lanes & events' },
+                        { value: 'past_current',  label: 'All lanes · past & ongoing events only' },
+                        { value: 'all_no_events', label: 'All lanes (no events)' },
+                        { value: 'lanes',         label: 'Select specific lanes…' },
+                      ] as const).map(opt => (
+                        <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                          <input
+                            type="radio" name="copyMode" value={opt.value}
+                            checked={copyMode === opt.value}
+                            onChange={() => setCopyMode(opt.value)}
+                            className="h-3.5 w-3.5 accent-primary"
+                          />
+                          {opt.label}
+                        </label>
+                      ))}
+                    </div>
+
+                    {copyMode === 'lanes' && (
+                      <div className="rounded-md border p-2 space-y-1.5 max-h-48 overflow-y-auto">
+                        {loadingSourceLanes ? (
+                          <p className="text-xs text-muted-foreground">Loading…</p>
+                        ) : sourceLanes.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No lanes found.</p>
+                        ) : (
+                          <>
+                            <div className="flex gap-3 pb-1.5 border-b">
+                              <button type="button" onClick={() => setCopyLaneIds(new Set(sourceLanes.map(l => l.id)))} className="text-[11px] text-muted-foreground hover:text-foreground">Select all</button>
+                              <button type="button" onClick={() => setCopyLaneIds(new Set())} className="text-[11px] text-muted-foreground hover:text-foreground">None</button>
+                            </div>
+                            {sourceLanes.map(lane => (
+                              <div key={lane.id} className="space-y-1">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={copyLaneIds.has(lane.id)}
+                                    onChange={() => toggleLane(lane.id)}
+                                    className="h-3.5 w-3.5 accent-primary"
+                                  />
+                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: lane.color }} />
+                                  <span className="flex-1 truncate">{lane.emoji ? `${lane.emoji} ` : ''}{lane.name}</span>
+                                </label>
+                                {copyLaneIds.has(lane.id) && (
+                                  <div className="ml-6 flex items-center gap-1.5">
+                                    <span className="text-[11px] text-muted-foreground">Events:</span>
+                                    {(['all', 'past_current', 'none'] as LaneEvtFilter[]).map(f => (
+                                      <button
+                                        key={f}
+                                        type="button"
+                                        onClick={() => setPerLaneFilter(prev => ({ ...prev, [lane.id]: f }))}
+                                        className={`text-[11px] px-1.5 py-0.5 rounded border transition-colors ${(perLaneFilter[lane.id] ?? 'all') === f ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:text-foreground'}`}
+                                      >
+                                        {f === 'all' ? 'All' : f === 'past_current' ? 'Past & ongoing' : 'None'}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Visibility — edit mode only */}
+            {dialogMode === 'edit' && (
+              <div className="flex items-center justify-between">
+                <div className="grid gap-0.5">
+                  <Label>Public</Label>
+                  <p className="text-xs text-muted-foreground">Visible on your public profile</p>
+                </div>
+                <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit">{dialogMode === 'create' ? 'Create' : 'Save'}</Button>
+              <Button type="submit" disabled={copying}>
+                {copying ? 'Duplicating…' : dialogMode === 'create' ? 'Create' : 'Save'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

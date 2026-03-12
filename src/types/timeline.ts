@@ -43,6 +43,15 @@ export interface ValueProjection {
   deposits: ValueDeposit[]
 }
 
+export interface EventLink {
+  anchorType: 'event' | 'today'
+  linkedEventId?: string        // when anchorType === 'event'
+  linkedAnchor?: 'start' | 'end'  // which time of linked event to anchor to
+  startOffset: number           // fractional years offset from anchor (negative = before)
+  duration?: number             // if set, endYear = startYear + duration
+  onDelete?: 'freeze' | 'delete' // only relevant when anchorType === 'event'
+}
+
 export interface TimelineEvent {
   id: string
   laneId: string
@@ -56,4 +65,5 @@ export interface TimelineEvent {
   pointValue?: number
   valueProjection?: ValueProjection
   visibility?: string
+  link?: EventLink
 }

@@ -4,6 +4,8 @@ import {
   fetchTimelines,
   fetchProfile,
   createTimelineWithDefaults,
+  createEmptyTimeline,
+  copyTimelineData as copyTimelineDataApi,
   updateTimeline as updateTimelineApi,
   deleteTimeline as deleteTimelineApi,
 } from '@/lib/api'
@@ -103,9 +105,11 @@ export function useTimelines() {
   }, [])
 
   const createTimeline = useCallback(
-    async (name?: string) => {
+    async (name?: string, emoji?: string, color?: string, withDefaultLanes = true) => {
       if (!user) return null
-      const newId = await createTimelineWithDefaults(user.id, name)
+      const newId = withDefaultLanes
+        ? await createTimelineWithDefaults(user.id, name, { emoji, color })
+        : await createEmptyTimeline(user.id, name, { emoji, color })
       if (newId) {
         const refreshed = await fetchTimelines(user.id)
         setTimelines(refreshed)
@@ -114,6 +118,13 @@ export function useTimelines() {
       return newId
     },
     [user],
+  )
+
+  const copyTimelineData = useCallback(
+    async (sourceId: string, destId: string, options: Parameters<typeof copyTimelineDataApi>[2]) => {
+      return copyTimelineDataApi(sourceId, destId, options)
+    },
+    [],
   )
 
   const updateTimeline = useCallback(
@@ -156,6 +167,7 @@ export function useTimelines() {
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    copyTimelineData,
     updateTimeline,
     renameTimeline,
     deleteTimeline,
