@@ -41,26 +41,46 @@ export function ExternalOverlayToggle({
     setSearching(true)
     setSearchError(null)
     setSearchResults([])
+
+    // Public timelines for this user
     const profile = await fetchPublicProfile(username)
-    if (!profile) {
-      setSearchError(`No public profile found for @${username}`)
-      setSearching(false)
-      return
+    const publicResults: ExternalOverlayInfo[] = profile
+      ? profile.timelines.map(t => ({
+          username: profile.profile.username,
+          timelineId: t.id,
+          timelineName: t.name,
+          displayName: profile.profile.display_name || profile.profile.username,
+          startYear: t.start_year ?? null,
+        }))
+      : []
+
+    // Timelines this user has shared with me (already in sharedWithMe prop)
+    const sharedResults: ExternalOverlayInfo[] = sharedWithMe
+      .filter(item => (item.owner.username ?? '').toLowerCase() === username)
+      .map(item => ({
+        username: item.owner.username ?? '',
+        timelineId: item.timeline.id,
+        timelineName: item.timeline.name,
+        displayName: item.owner.display_name || item.owner.username || '',
+        startYear: item.timeline.start_year ?? null,
+      }))
+
+    // Merge, deduplicate by timelineId (public takes precedence)
+    const seen = new Set<string>()
+    const results: ExternalOverlayInfo[] = []
+    for (const r of [...publicResults, ...sharedResults]) {
+      if (!seen.has(r.timelineId)) { seen.add(r.timelineId); results.push(r) }
     }
-    const results: ExternalOverlayInfo[] = profile.timelines.map(t => ({
-      username: profile.profile.username,
-      timelineId: t.id,
-      timelineName: t.name,
-      displayName: profile.profile.display_name || profile.profile.username,
-      startYear: t.start_year ?? null,
-    }))
+
     if (results.length === 0) {
-      setSearchError(`@${username} has no public timelines`)
+      setSearchError(profile
+        ? `@${username} has no public timelines and hasn't shared any with you`
+        : `No profile found for @${username} and no timelines shared with you by that user`)
     } else {
       setSearchResults(results)
     }
     setSearching(false)
-  }, [searchInput])
+  }, [searchInput, sharedWithMe])
 
   return (
     <Popover>
@@ -181,7 +201,7 @@ export function ExternalOverlayToggle({
 
         {/* Search for public timelines */}
         <div className={cn('space-y-2', (sharedWithMe.length > 0 || stored.length > 0) && 'border-t pt-3')}>
-          <p className="text-xs font-medium text-muted-foreground">Find public timelines</p>
+          <p className="text-xs font-medium text-muted-foreground">Find timelines public or shared with you</p>
           <div className="flex gap-1.5">
             <Input
               value={searchInput}
