@@ -88,10 +88,28 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
   const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
   const timelineLanes: Lane[] = lanes
     .filter(l => l.timeline_id === selectedTimelineId)
-    .map(l => mapDbLane({ ...l, visible: true, is_default: false, visibility: 'public' } as DbLane))
+    .map(l => mapDbLane({
+      ...l,
+      visible: true,        // all lanes of a public timeline are visible
+      is_default: false,
+      visibility: 'public',
+    } as DbLane))
   const timelineEvents: TimelineEvent[] = events
     .filter(e => e.timeline_id === selectedTimelineId)
-    .map(e => mapDbEvent({ ...e, point_value: null, value_points: null, value_projection: null, source: null, visibility: 'public' } as DbEvent))
+    .map(e => mapDbEvent({
+      ...e,
+      point_value: null,
+      value_points: null,
+      value_projection: null,
+      source: null,
+      visibility: 'public',
+      // enrichment fields — not exposed in public view
+      url: null,
+      location: null,
+      rating: null,
+      metadata: null,
+      link: null,
+    } as DbEvent))
 
   const timelineMeta = selectedTimeline?.start_year != null && selectedTimeline?.end_year != null
     ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
