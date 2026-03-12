@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import { useTimelineContext } from '@/contexts/TimelineContext'
+import { usePersonas } from '@/hooks/usePersonas'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
 import { EventDialog } from '@/components/dialogs/EventDialog'
 import { LaneDialog } from '@/components/dialogs/LaneDialog'
@@ -60,6 +61,33 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
     moveLane,
     toggleLaneVisibility,
   } = useTimelineContext()
+
+  // Alex Weber's birth year — used for age-aligning persona overlays
+  const DEMO_BIRTH_YEAR = 1980
+
+  const {
+    personas,
+    activePersonaEvents,
+    activePersonaIds,
+    togglePersona,
+    alignedPersonaIds,
+    togglePersonaAlignment,
+    personaDisplayModes,
+  } = usePersonas(DEMO_BIRTH_YEAR)
+
+  // Auto-activate Einstein with age alignment on first load
+  const einsteinInitRef = useRef(false)
+  useEffect(() => {
+    if (einsteinInitRef.current) return
+    if (personas.length === 0) return
+    einsteinInitRef.current = true
+    if (activePersonaIds.size > 0) return
+    const einstein = personas.find(p => p.name.toLowerCase().includes('einstein'))
+    if (einstein) {
+      togglePersona(einstein.id)
+      if (!alignedPersonaIds.has(einstein.id)) togglePersonaAlignment(einstein.id)
+    }
+  }, [personas, activePersonaIds, alignedPersonaIds, togglePersona, togglePersonaAlignment])
 
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId } = useSkin()
@@ -288,9 +316,9 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
           onLaneClick={handleLaneClick}
           onLaneDragRange={handleLaneDragRange}
           onEventDrop={handleEventDrop}
-          personaEvents={[]}
-          personas={[]}
-          personaDisplayModes={new Map()}
+          personaEvents={activePersonaEvents}
+          personas={personas}
+          personaDisplayModes={personaDisplayModes}
           scrollToTodayRef={scrollToTodayRef}
           scrollToEventRef={scrollToEventRef}
           overlayEvents={[]}

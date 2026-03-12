@@ -5,9 +5,10 @@ import { DEMO_LANES, DEMO_EVENTS } from '@/data/demoData'
 import {
   TIMELINE_YEAR_MIN,
   TIMELINE_YEAR_MAX,
+  MIN_PIXELS_PER_YEAR,
 } from '@/lib/constants'
 
-const STORAGE_KEY = 'timeline_demo_v1'
+const STORAGE_KEY = 'timeline_demo_v2'
 
 interface DemoState {
   lanes: Lane[]
@@ -53,7 +54,7 @@ function saveState(state: DemoState) {
 export function useDemoTimeline() {
   const [lanes, setLanes] = useState<Lane[]>(() => loadState().lanes)
   const [events, setEvents] = useState<TimelineEvent[]>(() => loadState().events)
-  const [pixelsPerYear, setPixelsPerYear] = useState(6) // second-furthest-out zoom
+  const [pixelsPerYear, setPixelsPerYear] = useState(MIN_PIXELS_PER_YEAR)
 
   const yearStart = TIMELINE_YEAR_MIN
   const yearEnd = TIMELINE_YEAR_MAX

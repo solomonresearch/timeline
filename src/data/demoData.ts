@@ -25,7 +25,7 @@ export const DEMO_EVENTS: TimelineEvent[] = [
   // Health
   { id: 'demo-evt-leg',        laneId: 'health',        title: 'Broke Left Leg',   description: 'Skiing accident in the Alps',   type: 'point', startYear: 2010, color: '#ef4444' },
   // Family
-  { id: 'demo-evt-kid',        laneId: 'family',        title: 'Leo Born',         description: 'First child born (2015)',       type: 'range', startYear: 2015, endYear: 2100, color: '#f97316' },
+  { id: 'demo-evt-kid',        laneId: 'family',        title: 'Kid Born',         description: 'First child born (2015)',       type: 'range', startYear: 2015, endYear: 2100, color: '#f97316' },
   // Relationships
   { id: 'demo-evt-girlfriend', laneId: 'relationships', title: 'First Girlfriend', description: 'High school relationship',      type: 'range', startYear: 1996, endYear: 1999, color: '#ec4899' },
   { id: 'demo-evt-married',    laneId: 'relationships', title: 'Married',          description: 'Married to Sarah',             type: 'range', startYear: 2007, endYear: 2065, color: '#ec4899' },
@@ -38,4 +38,6 @@ export const DEMO_EVENTS: TimelineEvent[] = [
   { id: 'demo-evt-bank',       laneId: 'assets',        title: 'Bank Account',     description: 'Deutsche Bank savings account', type: 'range', startYear: 1998, endYear: 2065, color: '#14b8a6' },
   // Vehicles
   { id: 'demo-evt-volvo',      laneId: 'vehicles',      title: 'Volvo XC60',       description: 'Current car — keeping 5 more years', type: 'range', startYear: 2021, endYear: 2031, color: '#64748b' },
+  // Achievements
+  { id: 'demo-evt-nobel',      laneId: 'achievements',  title: '🏆 Nobel Prize',   description: 'Nobel Prize in Physics, 2050',  type: 'point', startYear: 2050, color: '#eab308' },
 ]
