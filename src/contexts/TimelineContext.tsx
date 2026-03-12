@@ -9,7 +9,8 @@ interface TimelineContextType {
   timelines: DbTimeline[]
   selectedTimelineId: string | null
   selectTimeline: (id: string) => void
-  createTimeline: (name?: string) => Promise<string | null>
+  createTimeline: (name?: string, emoji?: string, color?: string, withDefaultLanes?: boolean) => Promise<string | null>
+  copyTimelineData: (sourceId: string, destId: string, options: { laneIds?: string[]; eventFilter?: 'all' | 'past_current' | 'none'; perLaneEventFilter?: Record<string, 'all' | 'past_current' | 'none'> }) => Promise<boolean>
   updateTimeline: (id: string, updates: { name?: string; start_year?: number | null; end_year?: number | null; color?: string | null; emoji?: string | null; visibility?: string }) => Promise<boolean>
   renameTimeline: (id: string, name: string) => Promise<boolean>
   deleteTimeline: (id: string) => Promise<boolean>
@@ -34,6 +35,7 @@ interface TimelineContextType {
   deleteLane: (id: string) => Promise<void>
   moveLane: (id: string, direction: 'up' | 'down') => Promise<void>
   toggleLaneVisibility: (id: string) => Promise<void>
+  refreshTimeline: () => void
   dataLoading: boolean
 }
 
@@ -45,6 +47,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     selectedTimelineId,
     selectTimeline,
     createTimeline,
+    copyTimelineData,
     updateTimeline,
     renameTimeline,
     deleteTimeline,
@@ -70,6 +73,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
     deleteLane,
     moveLane,
     toggleLaneVisibility,
+    refreshTimeline,
     loading: dataLoading,
   } = useSupabaseTimeline(selectedTimelineId)
 
@@ -80,6 +84,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         selectedTimelineId,
         selectTimeline,
         createTimeline,
+        copyTimelineData,
         updateTimeline,
         renameTimeline,
         deleteTimeline,
@@ -102,6 +107,7 @@ export function TimelineProvider({ children }: { children: React.ReactNode }) {
         deleteLane,
         moveLane,
         toggleLaneVisibility,
+        refreshTimeline,
         dataLoading,
       }}
     >

@@ -422,6 +422,7 @@ function TimelineView() {
               open={eventDialogOpen}
               onOpenChange={setEventDialogOpen}
               lanes={lanes}
+              events={events}
               editingEvent={editingEvent}
               onSave={handleSaveEvent}
               defaultLaneId={defaultLaneId}

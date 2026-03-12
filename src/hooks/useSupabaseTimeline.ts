@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import {
   fetchLanes,
@@ -17,6 +17,7 @@ import {
   DEFAULT_PIXELS_PER_YEAR,
   TIMELINE_YEAR_MIN,
   TIMELINE_YEAR_MAX,
+  resolveEventLinks,
 } from '@/lib/constants'
 
 export function useSupabaseTimeline(timelineId: string | null) {
@@ -24,13 +25,17 @@ export function useSupabaseTimeline(timelineId: string | null) {
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR)
   const [loading, setLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Fixed full range for the timeline canvas
   const yearStart = TIMELINE_YEAR_MIN
   const yearEnd = TIMELINE_YEAR_MAX
 
+  // Resolve dependency links (e.g. "start 2 years after event X")
+  const resolvedEvents = useMemo(() => resolveEventLinks(events), [events])
+
   // Compute data range from events (for scroll-to-center)
-  const allYears = events.flatMap(e =>
+  const allYears = resolvedEvents.flatMap(e =>
     e.endYear != null ? [e.startYear, e.endYear] : [e.startYear],
   )
   const dataYearMin = allYears.length > 0 ? Math.floor(Math.min(...allYears)) - 2 : 1990
@@ -60,7 +65,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
 
     load()
     return () => { cancelled = true }
-  }, [timelineId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelineId, refreshKey])
 
   // ---- Event CRUD ----
 
@@ -83,6 +89,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
         point_value: event.pointValue,
         value_projection: event.valueProjection,
         visibility: event.visibility ?? 'public',
+        link: event.link ?? null,
       })
 
       if (dbRow) {
@@ -114,6 +121,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if ('pointValue' in updates) dbUpdates.point_value = updates.pointValue ?? null
       if ('valueProjection' in updates) dbUpdates.value_projection = updates.valueProjection ?? null
       if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility
+      if ('link' in updates) dbUpdates.link = updates.link ?? null
 
       const ok = await updateEventDb(id, dbUpdates as Parameters<typeof updateEventDb>[1])
       if (!ok) {
@@ -130,9 +138,31 @@ export function useSupabaseTimeline(timelineId: string | null) {
   const deleteEvent = useCallback(
     async (id: string) => {
       const prev = events
-      setEvents(p => p.filter(e => e.id !== id))
+      // Find events that link to this one
+      const dependents = events.filter(
+        e => e.link?.anchorType === 'event' && e.link?.linkedEventId === id,
+      )
+      const toDelete = dependents.filter(e => e.link?.onDelete === 'delete')
+      const toFreeze = dependents.filter(e => e.link?.onDelete !== 'delete')
+
+      // Optimistic: remove target + dependents-to-delete, strip link from frozen
+      setEvents(p =>
+        p
+          .filter(e => e.id !== id && !toDelete.find(d => d.id === e.id))
+          .map(e => toFreeze.find(f => f.id === e.id) ? { ...e, link: undefined } : e),
+      )
+
       const ok = await deleteEventDb(id)
-      if (!ok) setEvents(prev)
+      if (!ok) {
+        setEvents(prev)
+        return
+      }
+
+      // Cascade deletes + freeze (remove link) in parallel
+      await Promise.all([
+        ...toDelete.map(d => deleteEventDb(d.id)),
+        ...toFreeze.map(f => updateEventDb(f.id, { link: null })),
+      ])
     },
     [events],
   )
@@ -229,6 +259,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
     [lanes],
   )
 
+  const refreshTimeline = useCallback(() => setRefreshKey(k => k + 1), [])
+
   const toggleLaneVisibility = useCallback(
     async (id: string) => {
       const lane = lanes.find(l => l.id === id)
@@ -244,7 +276,8 @@ export function useSupabaseTimeline(timelineId: string | null) {
 
   return {
     lanes,
-    events,
+    events: resolvedEvents,
+    rawEvents: events,
     pixelsPerYear,
     setPixelsPerYear,
     yearStart,
@@ -259,6 +292,7 @@ export function useSupabaseTimeline(timelineId: string | null) {
     deleteLane,
     moveLane,
     toggleLaneVisibility,
+    refreshTimeline,
     loading,
   }
 }

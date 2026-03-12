@@ -49,6 +49,7 @@ export interface DbEvent {
   value_projection: unknown | null
   source: string | null
   visibility: string
+  link: unknown | null
 }
 
 export interface PublicProfileData {
