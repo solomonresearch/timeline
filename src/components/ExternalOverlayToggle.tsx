@@ -34,6 +34,7 @@ export function ExternalOverlayToggle({
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<ExternalOverlayInfo[]>([])
+  const [searchResultAccess, setSearchResultAccess] = useState<Map<string, 'public' | 'shared' | 'both'>>(new Map())
 
   const handleSearch = useCallback(async () => {
     const username = searchInput.trim().toLowerCase()
@@ -41,35 +42,52 @@ export function ExternalOverlayToggle({
     setSearching(true)
     setSearchError(null)
     setSearchResults([])
+    setSearchResultAccess(new Map())
 
     // Public timelines for this user
     const profile = await fetchPublicProfile(username)
+    const publicIds = new Set<string>()
     const publicResults: ExternalOverlayInfo[] = profile
-      ? profile.timelines.map(t => ({
-          username: profile.profile.username,
-          timelineId: t.id,
-          timelineName: t.name,
-          displayName: profile.profile.display_name || profile.profile.username,
-          startYear: t.start_year ?? null,
-        }))
+      ? profile.timelines.map(t => {
+          publicIds.add(t.id)
+          return {
+            username: profile.profile.username,
+            timelineId: t.id,
+            timelineName: t.name,
+            displayName: profile.profile.display_name || profile.profile.username,
+            startYear: t.start_year ?? null,
+          }
+        })
       : []
 
     // Timelines this user has shared with me (already in sharedWithMe prop)
+    const sharedIds = new Set<string>()
     const sharedResults: ExternalOverlayInfo[] = sharedWithMe
       .filter(item => (item.owner.username ?? '').toLowerCase() === username)
-      .map(item => ({
-        username: item.owner.username ?? '',
-        timelineId: item.timeline.id,
-        timelineName: item.timeline.name,
-        displayName: item.owner.display_name || item.owner.username || '',
-        startYear: item.timeline.start_year ?? null,
-      }))
+      .map(item => {
+        sharedIds.add(item.timeline.id)
+        return {
+          username: item.owner.username ?? '',
+          timelineId: item.timeline.id,
+          timelineName: item.timeline.name,
+          displayName: item.owner.display_name || item.owner.username || '',
+          startYear: item.timeline.start_year ?? null,
+        }
+      })
 
-    // Merge, deduplicate by timelineId (public takes precedence)
+    // Merge, deduplicate by timelineId
     const seen = new Set<string>()
     const results: ExternalOverlayInfo[] = []
     for (const r of [...publicResults, ...sharedResults]) {
       if (!seen.has(r.timelineId)) { seen.add(r.timelineId); results.push(r) }
+    }
+
+    // Build access map
+    const access = new Map<string, 'public' | 'shared' | 'both'>()
+    for (const id of seen) {
+      if (publicIds.has(id) && sharedIds.has(id)) access.set(id, 'both')
+      else if (publicIds.has(id)) access.set(id, 'public')
+      else access.set(id, 'shared')
     }
 
     if (results.length === 0) {
@@ -78,6 +96,7 @@ export function ExternalOverlayToggle({
         : `No profile found for @${username} and no timelines shared with you by that user`)
     } else {
       setSearchResults(results)
+      setSearchResultAccess(access)
     }
     setSearching(false)
   }, [searchInput, sharedWithMe])
@@ -226,11 +245,15 @@ export function ExternalOverlayToggle({
             <div className="space-y-1">
               {searchResults.map(r => {
                 const alreadyAdded = !!stored.find(s => s.timelineId === r.timelineId)
+                const access = searchResultAccess.get(r.timelineId)
+                const accessLabel = access === 'both' ? 'public · shared with you'
+                  : access === 'shared' ? 'shared with you'
+                  : 'public'
                 return (
                   <div key={r.timelineId} className="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-accent">
                     <div className="min-w-0">
                       <p className="text-xs font-medium truncate">{r.timelineName}</p>
-                      <p className="text-[10px] text-muted-foreground">@{r.username}</p>
+                      <p className="text-[10px] text-muted-foreground">@{r.username} · {accessLabel}</p>
                     </div>
                     <Button
                       size="sm"
