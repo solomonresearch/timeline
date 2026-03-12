@@ -8,6 +8,7 @@ import { DemoTimelineView } from '@/components/DemoTimelineView'
 import { SkinProvider } from '@/contexts/SkinContext'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
+import { Footer } from '@/components/Footer'
 
 type AuthMode = 'sign-in' | 'sign-up' | 'forgot-password' | 'check-email'
 
@@ -35,12 +36,12 @@ export function AuthPage() {
         {/* Brand + tagline */}
         <div className="shrink-0">
           <div className="text-xl font-bold leading-tight">LifeSaga</div>
-          <div className="text-xs text-muted-foreground italic">"Past, Life, Future Saga"</div>
+          <div className="text-xs text-muted-foreground italic">"Past Life, Future Saga"</div>
         </div>
 
         {/* Short description — hidden on small screens */}
         <p className="hidden sm:block text-sm text-muted-foreground text-center flex-1 max-w-md">
-          Map your entire life on one timeline — where you lived, worked, studied, and what mattered.
+          Visualize your entire life on one timeline — past events, future plans, and value tracking across every dimension of life.
         </p>
 
         {/* Auth popover anchored top-right */}
@@ -82,6 +83,7 @@ export function AuthPage() {
           </DemoTimelineProvider>
         </SkinProvider>
       </div>
+      <Footer />
     </div>
   )
 }

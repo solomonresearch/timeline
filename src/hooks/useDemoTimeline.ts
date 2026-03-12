@@ -8,7 +8,7 @@ import {
   MIN_PIXELS_PER_YEAR,
 } from '@/lib/constants'
 
-const STORAGE_KEY = 'timeline_demo_v2'
+const STORAGE_KEY = 'timeline_demo_v3'
 
 interface DemoState {
   lanes: Lane[]

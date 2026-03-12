@@ -9,6 +9,7 @@ import { UiSizeProvider } from '@/contexts/UiSizeContext'
 import { SkinProvider } from '@/contexts/SkinContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { TIMELINE_YEAR_MIN, TIMELINE_YEAR_MAX, DEFAULT_PIXELS_PER_YEAR } from '@/lib/constants'
+import { Footer } from '@/components/Footer'
 
 interface PublicProfilePageProps {
   username: string
@@ -172,6 +173,7 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
                 />
               </div>
             )}
+            <Footer />
           </div>
         </TooltipProvider>
       </UiSizeProvider>
