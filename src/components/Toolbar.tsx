@@ -297,7 +297,7 @@ export function Toolbar({
               </Button>
               <Button size="sm" onClick={onAddEvent}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add Event
+                Event
               </Button>
             </div>
           )}
@@ -355,7 +355,7 @@ export function Toolbar({
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={onAddEvent}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Event
+                    Event
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>

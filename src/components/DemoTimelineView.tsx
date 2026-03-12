@@ -14,6 +14,8 @@ import { SkinDialog } from '@/components/SkinDialog'
 import { ImportDialog, type ImportTab } from '@/components/ImportDialog'
 import { SearchDialog } from '@/components/SearchDialog'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import {
   Plus,
   Layers,
@@ -25,6 +27,11 @@ import {
   FileText,
   Mic,
   Search,
+  Users,
+  Link2,
+  Link2Off,
+  LayoutList,
+  ChevronDown,
 } from 'lucide-react'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 import {
@@ -34,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface DemoTimelineViewProps {
   onSignUpWithTimeline: () => void
@@ -72,6 +80,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
     alignedPersonaIds,
     togglePersonaAlignment,
     personaDisplayModes,
+    setPersonaDisplayMode,
   } = usePersonas(DEMO_BIRTH_YEAR)
 
   // Auto-activate Einstein with age alignment on first load
@@ -204,7 +213,98 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Minimal demo toolbar */}
-      <div className="flex items-center justify-end border-b bg-background px-3 py-2 gap-2 shrink-0">
+      <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2 shrink-0">
+        {/* ── Left side ── */}
+        <div className="flex items-center gap-2 min-w-0">
+        {/* Compare with… persona selector */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Compare with…</span>
+              {activePersonaIds.size > 0 && (
+                <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
+                  {activePersonaIds.size}
+                </span>
+              )}
+              <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-0 max-h-[80vh] overflow-y-auto">
+            <div className="px-1 pt-1 pb-2">
+              {personas.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-muted-foreground text-center">No personas available</p>
+              ) : (
+                personas.map(p => {
+                  const isActive = activePersonaIds.has(p.id)
+                  const aligned = alignedPersonaIds.has(p.id)
+                  const mode = personaDisplayModes.get(p.id) ?? 'integrated'
+                  return (
+                    <div key={p.id} className="rounded-md px-2 py-1.5 hover:bg-accent">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.birth_year}–{p.death_year ?? 'present'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isActive && (
+                            <>
+                              <button
+                                onClick={() => togglePersonaAlignment(p.id)}
+                                title={aligned ? 'Showing age-aligned — click for real years' : 'Showing real years — click to age-align'}
+                                className={cn(
+                                  'p-1 rounded transition-colors',
+                                  aligned
+                                    ? 'text-primary bg-primary/10 hover:bg-primary/20'
+                                    : 'text-muted-foreground hover:bg-muted',
+                                )}
+                              >
+                                {aligned ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
+                              </button>
+                              <div className="flex items-center rounded border overflow-hidden">
+                                <button
+                                  onClick={() => setPersonaDisplayMode(p.id, 'integrated')}
+                                  title="Blend into timeline lanes"
+                                  className={cn(
+                                    'p-1 transition-colors',
+                                    mode === 'integrated'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'text-muted-foreground hover:bg-muted',
+                                  )}
+                                >
+                                  <Layers className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => setPersonaDisplayMode(p.id, 'separate')}
+                                  title="Show as separate timeline below"
+                                  className={cn(
+                                    'p-1 transition-colors',
+                                    mode === 'separate'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'text-muted-foreground hover:bg-muted',
+                                  )}
+                                >
+                                  <LayoutList className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          <Switch checked={isActive} onCheckedChange={() => togglePersona(p.id)} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+        </div>
+
+        {/* ── Right side ── */}
+        <div className="flex items-center gap-2 shrink-0">
         {/* Today */}
         <Button variant="outline" size="sm" onClick={() => scrollToTodayRef.current?.()} title="Scroll to today">
           <CalendarDays className="h-4 w-4" />
@@ -223,7 +323,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
         {/* Add Event */}
         <Button size="sm" onClick={handleAddEvent}>
           <Plus className="h-4 w-4 mr-1" />
-          Add Event
+          Event
         </Button>
 
         {/* Three-dot overflow menu */}
@@ -290,6 +390,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
