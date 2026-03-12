@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { fetchPublicProfile } from '@/lib/api'
 import type { PublicProfileData } from '@/types/database'
 import type { Lane, TimelineEvent } from '@/types/timeline'
@@ -26,7 +26,6 @@ function navigate(path: string) {
 export function PublicProfilePage({ username, timelineIndex }: PublicProfilePageProps) {
   const [state, setState] = useState<LoadState>('loading')
   const [data, setData] = useState<PublicProfileData | null>(null)
-  const [selectedTimelineId, setSelectedTimelineId] = useState<string | null>(null)
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR)
 
   // Fetch profile only when username changes
@@ -43,23 +42,22 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
     })
   }, [username])
 
-  // Select the right timeline whenever data loads or the URL index changes
+  // Redirect to canonical URL with index if missing
   useEffect(() => {
-    if (!data) return
-    // If no index in URL, canonicalize to /username/1 so direct links always work
-    if (timelineIndex == null && data.timelines.length > 0) {
+    if (data && timelineIndex == null && data.timelines.length > 0) {
       navigate(`/${username}/1`)
-      return
     }
-    const idx = timelineIndex != null ? timelineIndex - 1 : 0
-    const clamped = Math.max(0, Math.min(idx, data.timelines.length - 1))
-    setSelectedTimelineId(data.timelines[clamped]?.id ?? null)
   }, [data, timelineIndex, username])
 
-  function handleSelectTimeline(_timelineId: string, index: number) {
-    // Only update the URL — the effect above will handle selectedTimelineId
+  // Compute selected timeline directly — no state, no timing gap
+  const selectedTimeline = data && data.timelines.length > 0
+    ? data.timelines[Math.max(0, Math.min((timelineIndex ?? 1) - 1, data.timelines.length - 1))]
+    : undefined
+  const selectedTimelineId = selectedTimeline?.id ?? null
+
+  const handleSelectTimeline = useCallback((_timelineId: string, index: number) => {
     navigate(`/${username}/${index + 1}`)
-  }
+  }, [username])
 
   if (state === 'loading') {
     return (
@@ -85,7 +83,6 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
 
   const { profile, timelines, lanes, events } = data
 
-  const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
   const timelineLanes: Lane[] = lanes
     .filter(l => l.timeline_id === selectedTimelineId)
     .map(l => mapDbLane({

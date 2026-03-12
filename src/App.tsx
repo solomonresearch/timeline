@@ -4,6 +4,8 @@ import { useTimelineContext, TimelineProvider } from '@/contexts/TimelineContext
 import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
 import { useTimelineOverlays } from '@/hooks/useTimelineOverlays'
+import { useExternalOverlays } from '@/hooks/useExternalOverlays'
+import { ExternalOverlayToggle } from '@/components/ExternalOverlayToggle'
 import { useProfile } from '@/hooks/useProfile'
 import { isOpenAIConfigured } from '@/lib/openai'
 import { birthDateToFloatYear } from '@/lib/utils'
@@ -172,6 +174,26 @@ function TimelineView() {
     activeOverlayEvents,
     activeOverlayTimelines,
   } = useTimelineOverlays()
+
+  const {
+    stored: externalOverlays,
+    activeIds: externalActiveIds,
+    alignedIds: externalAlignedIds,
+    displayModes: externalDisplayModes,
+    externalOverlayEvents,
+    externalOverlayTimelines,
+    addExternalOverlay,
+    removeExternalOverlay,
+    toggleActive: toggleExternalActive,
+    toggleAlignment: toggleExternalAlignment,
+    setDisplayMode: setExternalDisplayMode,
+  } = useExternalOverlays()
+
+  const mergedOverlayDisplayModes = useMemo(() => {
+    const m = new Map(overlayDisplayModes)
+    for (const [k, v] of externalDisplayModes) m.set(k, v)
+    return m
+  }, [overlayDisplayModes, externalDisplayModes])
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
@@ -368,6 +390,20 @@ function TimelineView() {
           onToggleOverlayAlignment={toggleOverlayAlignment}
           overlayDisplayModes={overlayDisplayModes}
           onSetOverlayDisplayMode={setOverlayDisplayMode}
+          extraActions={
+            <ExternalOverlayToggle
+              stored={externalOverlays}
+              activeIds={externalActiveIds}
+              alignedIds={externalAlignedIds}
+              displayModes={externalDisplayModes}
+              onAdd={addExternalOverlay}
+              onRemove={removeExternalOverlay}
+              onToggleActive={toggleExternalActive}
+              onToggleAlignment={toggleExternalAlignment}
+              onSetDisplayMode={setExternalDisplayMode}
+              mainStartYear={selectedTimeline?.start_year}
+            />
+          }
         />
 
         {activeView === 'overview' ? (
@@ -397,9 +433,9 @@ function TimelineView() {
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
               timelineMeta={timelineMeta}
-              overlayEvents={activeOverlayEvents}
-              overlayDisplayModes={overlayDisplayModes}
-              activeOverlayTimelines={activeOverlayTimelines}
+              overlayEvents={[...activeOverlayEvents, ...externalOverlayEvents]}
+              overlayDisplayModes={mergedOverlayDisplayModes}
+              activeOverlayTimelines={[...activeOverlayTimelines, ...externalOverlayTimelines]}
             />
 
             {/* Event popover */}
