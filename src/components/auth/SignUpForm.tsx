@@ -22,13 +22,10 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   const [username, setUsername] = useState('')
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameOk, setUsernameOk] = useState(false)
-  const [birthYear, setBirthYear] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [bio, setBio] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  const currentYear = new Date().getFullYear()
 
   async function handleUsernameBlur() {
     const val = username.trim().toLowerCase()
@@ -48,12 +45,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   }
 
   function handleBirthDateChange(value: string) {
-    const formatted = formatDMYInput(value)
-    setBirthDate(formatted)
-    if (formatted.length === 10) {
-      const year = parseInt(formatted.slice(6), 10)
-      if (!isNaN(year)) setBirthYear(String(year))
-    }
+    setBirthDate(formatDMYInput(value))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,9 +72,8 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
       return
     }
 
-    const parsedYear = parseInt(birthYear.trim(), 10)
-    if (isNaN(parsedYear) || parsedYear < 1900 || parsedYear > currentYear) {
-      setError(`Birth year must be between 1900 and ${currentYear}`)
+    if (!birthDate || birthDate.length < 10 || !dmy2iso(birthDate)) {
+      setError('Please enter a valid birth date (DD/MM/YYYY)')
       return
     }
 
@@ -100,8 +91,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
       localStorage.setItem(
         'timeline_pending_profile',
         JSON.stringify({
-          birth_year: parsedYear,
-          birth_date: birthDate ? dmy2iso(birthDate) || null : null,
+          birth_date: dmy2iso(birthDate),
           bio: bio.trim(),
           username: trimmedUsername,
           email,
@@ -191,26 +181,14 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signupBirthYear">Birth Year <span className="text-red-500">*</span></Label>
-        <Input
-          id="signupBirthYear"
-          type="number"
-          placeholder="e.g. 1990"
-          value={birthYear}
-          onChange={e => setBirthYear(e.target.value)}
-          required
-          min={1900}
-          max={currentYear}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="signupBirthDate">Birth Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
+        <Label htmlFor="signupBirthDate">Birth Date <span className="text-red-500">*</span></Label>
         <Input
           id="signupBirthDate"
           type="text"
           value={birthDate}
           placeholder="DD/MM/YYYY"
           onChange={e => handleBirthDateChange(e.target.value)}
+          required
         />
       </div>
       <div className="space-y-2">

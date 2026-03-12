@@ -79,7 +79,7 @@ export async function fetchProfile(userId: string): Promise<DbProfile | null> {
 
 export async function updateProfile(
   userId: string,
-  updates: { display_name?: string; bio?: string; birth_year?: number | null; birth_date?: string | null; username?: string | null; is_public?: boolean },
+  updates: { display_name?: string; bio?: string; birth_date?: string | null; username?: string | null; is_public?: boolean },
 ): Promise<DbProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -129,9 +129,8 @@ export async function applyPendingProfileData(userId: string): Promise<void> {
       }
     }
 
-    const updates: { bio?: string; birth_year?: number; birth_date?: string; username?: string } = {}
+    const updates: { bio?: string; birth_date?: string; username?: string } = {}
     if (pending.bio) updates.bio = pending.bio
-    if (pending.birth_year) updates.birth_year = pending.birth_year
     if (pending.birth_date) updates.birth_date = pending.birth_date
     if (pending.username) updates.username = pending.username
 

@@ -22,7 +22,7 @@ export function useProfile() {
   }, [user])
 
   const updateProfile = useCallback(
-    async (data: { display_name?: string; bio?: string; birth_year?: number | null; birth_date?: string | null; username?: string | null; is_public?: boolean }) => {
+    async (data: { display_name?: string; bio?: string; birth_date?: string | null; username?: string | null; is_public?: boolean }) => {
       if (!user) return
       const updated = await updateProfileApi(user.id, data)
       if (updated) setProfile(updated)

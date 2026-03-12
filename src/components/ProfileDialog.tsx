@@ -27,7 +27,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const { profile, updateProfile } = useProfile()
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
-  const [birthYear, setBirthYear] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [username, setUsername] = useState('')
   const [isPublic, setIsPublic] = useState(true)
@@ -39,7 +38,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     if (profile && open) {
       setDisplayName(profile.display_name)
       setBio(profile.bio)
-      setBirthYear(profile.birth_year != null ? String(profile.birth_year) : '')
       setBirthDate(profile.birth_date ? iso2dmy(profile.birth_date) : '')
       setUsername(profile.username ?? '')
       setIsPublic(profile.is_public ?? true)
@@ -72,23 +70,16 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   }
 
   function handleBirthDateChange(value: string) {
-    const formatted = formatDMYInput(value)
-    setBirthDate(formatted)
-    if (formatted.length === 10) {
-      const year = parseInt(formatted.slice(6), 10)
-      if (!isNaN(year)) setBirthYear(String(year))
-    }
+    setBirthDate(formatDMYInput(value))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const parsedBirthYear = birthYear.trim() ? parseInt(birthYear.trim(), 10) : null
     const trimmedUsername = username.trim().toLowerCase() || null
     await updateProfile({
       display_name: displayName.trim(),
       bio: bio.trim(),
-      birth_year: parsedBirthYear && !isNaN(parsedBirthYear) ? parsedBirthYear : null,
       birth_date: birthDate ? dmy2iso(birthDate) || null : null,
       username: trimmedUsername,
       is_public: isPublic,
@@ -132,18 +123,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             }
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="profileBirthYear">Birth Year</Label>
-            <Input
-              id="profileBirthYear"
-              type="number"
-              value={birthYear}
-              onChange={e => setBirthYear(e.target.value)}
-              placeholder="e.g. 1990"
-            />
-            <p className="text-xs text-muted-foreground">Used to align persona comparisons by age</p>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="profileBirthDate">Birth Date</Label>
+            <Label htmlFor="profileBirthDate">Birth Date <span className="text-red-500">*</span></Label>
             <Input
               id="profileBirthDate"
               type="text"
@@ -151,6 +131,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               placeholder="DD/MM/YYYY"
               onChange={e => handleBirthDateChange(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Used to align persona comparisons by age</p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bio">Bio</Label>

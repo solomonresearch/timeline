@@ -8,6 +8,7 @@ import {
   deleteTimeline as deleteTimelineApi,
 } from '@/lib/api'
 import type { DbTimeline } from '@/types/database'
+import { birthDateToFloatYear } from '@/lib/utils'
 
 const SELECTED_TIMELINE_KEY = 'timeline_selected_id'
 
@@ -50,12 +51,13 @@ export function useTimelines() {
         const newId = await createTimelineWithDefaults(user!.id)
         if (cancelled) return
         if (newId) {
-          // Set timeline start/end years from user's birth year
+          // Set timeline start/end years from user's birth date
           const profile = await fetchProfile(user!.id)
-          if (profile?.birth_year) {
+          if (profile?.birth_date) {
+            const floatYear = birthDateToFloatYear(profile.birth_date)
             await updateTimelineApi(newId, {
-              start_year: profile.birth_year,
-              end_year: profile.birth_year + 100,
+              start_year: floatYear,
+              end_year: floatYear + 100,
             })
           }
           // Check if user wants to import their demo timeline

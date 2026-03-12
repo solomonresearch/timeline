@@ -6,6 +6,7 @@ import { usePersonas } from '@/hooks/usePersonas'
 import { useTimelineOverlays } from '@/hooks/useTimelineOverlays'
 import { useProfile } from '@/hooks/useProfile'
 import { isOpenAIConfigured } from '@/lib/openai'
+import { birthDateToFloatYear } from '@/lib/utils'
 import { OnboardingQuestionnaire } from '@/components/onboarding/OnboardingQuestionnaire'
 import { Toolbar, type AppView } from '@/components/Toolbar'
 import { TimelineContainer } from '@/components/timeline/TimelineContainer'
@@ -126,8 +127,7 @@ function TimelineView() {
   const { user } = useAuth()
   const { profile } = useProfile()
 
-  const birthYear = profile?.birth_year
-    ?? (profile?.birth_date ? new Date(profile.birth_date).getUTCFullYear() : null)
+  const birthYear = profile?.birth_date ? birthDateToFloatYear(profile.birth_date) : null
 
   const onboardingKey = user ? `timeline_onboarding_complete_${user.id}` : ''
   const [showQuestionnaire, setShowQuestionnaire] = useState(() => {

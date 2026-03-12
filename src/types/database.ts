@@ -2,7 +2,6 @@ export interface DbProfile {
   id: string
   display_name: string
   bio: string
-  birth_year: number | null
   birth_date: string | null
   username: string | null
   is_public: boolean
