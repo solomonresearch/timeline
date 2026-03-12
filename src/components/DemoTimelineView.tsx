@@ -209,7 +209,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
     updateEvent(eventId, { laneId: newLaneId, startYear: newStartYear, ...(newEndYear !== undefined ? { endYear: newEndYear } : { endYear: undefined }) })
   }, [updateEvent])
 
-  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string; visibility: string }) => {
+  const handleSaveLane = useCallback((data: { name: string; color: string; visible: boolean; emoji?: string }) => {
     if (editingLane) updateLane(editingLane.id, data); else addLane(data)
   }, [editingLane, updateLane, addLane])
 

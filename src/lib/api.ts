@@ -8,6 +8,8 @@ import type {
   DbPersona,
   DbPersonaEvent,
   PublicProfileData,
+  DbTimelineShare,
+  SharedWithMeItem,
 } from '@/types/database'
 import { dateToFracYear, fracYearToMs } from './constants'
 
@@ -701,4 +703,57 @@ export async function applyDemoTimeline(
       visibility: 'public',
     })
   }
+}
+
+// ── Timeline sharing ──────────────────────────────────────────────────────────
+
+export async function getSharedWithMe(): Promise<SharedWithMeItem[]> {
+  const { data, error } = await supabase.rpc('get_shared_with_me')
+  if (error) { console.error('getSharedWithMe error:', error); return [] }
+  return (data ?? []) as SharedWithMeItem[]
+}
+
+export async function getTimelineShares(timelineId: string): Promise<DbTimelineShare[]> {
+  const { data, error } = await supabase.rpc('get_timeline_shares', { p_timeline_id: timelineId })
+  if (error) { console.error('getTimelineShares error:', error); return [] }
+  return (data ?? []) as DbTimelineShare[]
+}
+
+export async function addTimelineShare(timelineId: string, sharedWithUserId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  const { error } = await supabase.from('timeline_shares').insert({
+    timeline_id: timelineId,
+    owner_id: user.id,
+    shared_with_id: sharedWithUserId,
+  })
+  if (error) { console.error('addTimelineShare error:', error); return false }
+  return true
+}
+
+export async function removeTimelineShare(shareId: string): Promise<boolean> {
+  const { error } = await supabase.from('timeline_shares').delete().eq('id', shareId)
+  if (error) { console.error('removeTimelineShare error:', error); return false }
+  return true
+}
+
+export async function lookupUserByUsername(username: string): Promise<{ id: string; username: string; display_name: string } | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name')
+    .eq('username', username.trim().toLowerCase())
+    .maybeSingle()
+  if (error || !data) return null
+  return data as { id: string; username: string; display_name: string }
+}
+
+export interface TimelineDataResult {
+  lanes: Array<{ id: string; timeline_id: string; name: string; color: string; emoji: string | null; order: number }>
+  events: Array<{ id: string; lane_id: string; timeline_id: string; title: string; description: string; start_time: string; end_time: string | null; color: string | null; emoji: string | null }>
+}
+
+export async function getTimelineData(timelineId: string): Promise<TimelineDataResult | null> {
+  const { data, error } = await supabase.rpc('get_timeline_data', { p_timeline_id: timelineId })
+  if (error || !data) { console.error('getTimelineData error:', error); return null }
+  return data as TimelineDataResult
 }

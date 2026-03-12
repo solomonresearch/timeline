@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, X, Copy } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, X, Copy, UserPlus } from 'lucide-react'
 import { useTimelineContext } from '@/contexts/TimelineContext'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
-import { fetchLanes } from '@/lib/api'
-import type { DbLane } from '@/types/database'
+import { fetchLanes, getTimelineShares, addTimelineShare, removeTimelineShare, lookupUserByUsername } from '@/lib/api'
+import type { DbLane, DbTimelineShare } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -99,6 +99,12 @@ export function TimelineSelector() {
   const [endTime, setEndTime] = useState('00:00')
   const [isPublic, setIsPublic] = useState(false)
 
+  // Sharing state (edit mode only)
+  const [shares, setShares] = useState<DbTimelineShare[]>([])
+  const [shareInput, setShareInput] = useState('')
+  const [shareSearching, setShareSearching] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   // Copy/duplicate state (create mode only)
   const [copySourceId, setCopySourceId] = useState('')
   const [copyFilter, setCopyFilter] = useState<'all' | 'past_current' | 'all_no_events' | 'lanes'>('all')
@@ -166,7 +172,36 @@ export function TimelineSelector() {
     }
     setIsPublic(t.visibility === 'public')
     setTargetId(id)
+    setShares([])
+    setShareInput('')
+    setShareError(null)
+    getTimelineShares(id).then(setShares)
     setDialogOpen(true)
+  }
+
+  async function handleAddShare() {
+    const username = shareInput.trim().toLowerCase()
+    if (!username || !targetId) return
+    setShareSearching(true)
+    setShareError(null)
+    const user = await lookupUserByUsername(username)
+    if (!user) { setShareError(`No user found: @${username}`); setShareSearching(false); return }
+    if (shares.find(s => s.user_id === user.id)) { setShareError('Already shared with this user'); setShareSearching(false); return }
+    const ok = await addTimelineShare(targetId, user.id)
+    if (ok) {
+      setShares(prev => [...prev, { share_id: '', user_id: user.id, username: user.username, display_name: user.display_name }])
+      setShareInput('')
+    } else {
+      setShareError('Could not add share. Try again.')
+    }
+    setShareSearching(false)
+  }
+
+  async function handleRemoveShare(shareId: string, userId: string) {
+    if (shareId) {
+      await removeTimelineShare(shareId)
+    }
+    setShares(prev => prev.filter(s => s.user_id !== userId))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -512,6 +547,42 @@ export function TimelineSelector() {
                     checked={isPublic}
                     onCheckedChange={setIsPublic}
                   />
+                </div>
+
+                {/* Share with specific people */}
+                <div className="rounded-md border p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Share with people</p>
+                    <p className="text-xs text-muted-foreground">Give specific users access regardless of public setting</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={shareInput}
+                      onChange={e => { setShareInput(e.target.value); setShareError(null) }}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddShare())}
+                      placeholder="username"
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button type="button" size="sm" className="h-8 px-2 shrink-0" onClick={handleAddShare} disabled={shareSearching || !shareInput.trim()}>
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {shareError && <p className="text-xs text-destructive">{shareError}</p>}
+                  {shares.length > 0 && (
+                    <div className="space-y-1">
+                      {shares.map(s => (
+                        <div key={s.user_id} className="flex items-center justify-between gap-2 rounded px-2 py-1 bg-muted/40">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{s.display_name || s.username}</p>
+                            {s.username && <p className="text-[10px] text-muted-foreground">@{s.username}</p>}
+                          </div>
+                          <button type="button" onClick={() => handleRemoveShare(s.share_id, s.user_id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
