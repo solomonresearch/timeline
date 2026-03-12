@@ -20,6 +20,7 @@ export interface TimelineEventProps {
 }
 
 interface TooltipState { clientX: number; clientY: number; value: number }
+interface HoverPos { clientX: number; clientY: number }
 
 export function TimelineEventBar({
   event, yearStart, pixelsPerYear, laneColor, onClick, currentYear, topOffset = 0, scrollLeft = 0,
@@ -38,7 +39,9 @@ export function TimelineEventBar({
   const draggingStyle: React.CSSProperties | undefined = isDragging ? { opacity: 0.25, pointerEvents: 'none' } : undefined
 
   const hasValue = !!event.valueProjection
+  const hasImage = !!event.metadata?.image_url
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+  const [imageHover, setImageHover] = useState<HoverPos | null>(null)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const [isGrabbing, setIsGrabbing] = useState(false)
 
@@ -147,11 +150,16 @@ export function TimelineEventBar({
             style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, fontSize: DOT_SIZE - 2, lineHeight: 1, ...pastStyle, ...draggingStyle }}
             {...interactionProps}
             onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
-            onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
+            onMouseMove={e => {
+              if (hasPointValue) setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! })
+              if (hasImage) setImageHover({ clientX: e.clientX, clientY: e.clientY })
+            }}
+            onMouseLeave={() => { handleMouseLeave(); setTooltip(null); setImageHover(null) }}
           >
             {event.emoji}
           </div>
           {tooltip && <ValueTooltip title={event.title} tooltip={tooltip} />}
+          {imageHover && event.metadata?.image_url && <ImageHoverThumbnail imageUrl={event.metadata.image_url} pos={imageHover} />}
           {contextMenu}
         </>
       )
@@ -163,11 +171,18 @@ export function TimelineEventBar({
           className={`absolute rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-black/20 transition-all select-none ${grabRing}`}
           style={{ left: left - DOT_SIZE / 2, top, width: DOT_SIZE, height: DOT_SIZE, backgroundColor: color, ...pastStyle, ...draggingStyle }}
           {...interactionProps}
-          onMouseEnter={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
-          onMouseMove={hasPointValue ? e => setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! }) : undefined}
-          onMouseLeave={() => { handleMouseLeave(); if (hasPointValue) setTooltip(null) }}
+          onMouseEnter={e => {
+            if (hasPointValue) setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! })
+            if (hasImage) setImageHover({ clientX: e.clientX, clientY: e.clientY })
+          }}
+          onMouseMove={e => {
+            if (hasPointValue) setTooltip({ clientX: e.clientX, clientY: e.clientY, value: event.pointValue! })
+            if (hasImage) setImageHover({ clientX: e.clientX, clientY: e.clientY })
+          }}
+          onMouseLeave={() => { handleMouseLeave(); setTooltip(null); setImageHover(null) }}
         />
         {tooltip && <ValueTooltip title={event.title} tooltip={tooltip} />}
+        {imageHover && event.metadata?.image_url && <ImageHoverThumbnail imageUrl={event.metadata.image_url} pos={imageHover} />}
         {contextMenu}
       </>
     )
@@ -208,8 +223,11 @@ export function TimelineEventBar({
         style={{ left, top, width: Math.max(width, 4), height: BAR_HEIGHT, backgroundColor: color, ...pastStyle, ...draggingStyle }}
         title={event.title}
         {...interactionProps}
-        onMouseMove={hasValue ? handleMouseMove : undefined}
-        onMouseLeave={() => { handleMouseLeave(); if (hasValue) setTooltip(null) }}
+        onMouseMove={e => {
+          if (hasValue) handleMouseMove(e)
+          if (hasImage) setImageHover({ clientX: e.clientX, clientY: e.clientY })
+        }}
+        onMouseLeave={() => { handleMouseLeave(); setTooltip(null); setImageHover(null) }}
       >
         {sparklineSeries.length >= 2 && (
           <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', overflow: 'hidden' }} preserveAspectRatio="none">
@@ -224,6 +242,7 @@ export function TimelineEventBar({
         )}
       </div>
       {tooltip && <ValueTooltip title={event.title} tooltip={tooltip} />}
+      {imageHover && event.metadata?.image_url && <ImageHoverThumbnail imageUrl={event.metadata.image_url} pos={imageHover} />}
       {contextMenu}
     </>
   )
@@ -234,6 +253,24 @@ function ValueTooltip({ title, tooltip }: { title: string; tooltip: TooltipState
     <div className="fixed z-50 pointer-events-none rounded bg-black/80 text-white text-xs px-2 py-1 whitespace-nowrap" style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 36 }}>
       <span className="opacity-70">{title}: </span>
       <span className="font-semibold">{formatValue(tooltip.value)}</span>
+    </div>
+  )
+}
+
+const THUMB_SIZE = 96
+
+function ImageHoverThumbnail({ imageUrl, pos }: { imageUrl: string; pos: HoverPos }) {
+  return (
+    <div
+      className="fixed z-50 pointer-events-none rounded-md overflow-hidden shadow-xl border border-white/20"
+      style={{
+        width: THUMB_SIZE,
+        height: THUMB_SIZE,
+        left: pos.clientX - THUMB_SIZE - 10,
+        top: pos.clientY + 10,
+      }}
+    >
+      <img src={imageUrl} alt="" className="w-full h-full object-cover" />
     </div>
   )
 }

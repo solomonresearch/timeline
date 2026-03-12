@@ -52,6 +52,13 @@ export interface EventLink {
   onDelete?: 'freeze' | 'delete' // only relevant when anchorType === 'event'
 }
 
+export interface EventMetadata {
+  image_url?: string
+  tags?: string[]
+  external_id?: string
+  source_data?: unknown
+}
+
 export interface TimelineEvent {
   id: string
   laneId: string
@@ -66,4 +73,10 @@ export interface TimelineEvent {
   valueProjection?: ValueProjection
   visibility?: string
   link?: EventLink
+  // Enrichment fields
+  url?: string
+  location?: string
+  rating?: number       // 1–5
+  source?: string       // import provenance: "strava" | "outlook" | "netflix" | "instagram" | "manual" | …
+  metadata?: EventMetadata
 }

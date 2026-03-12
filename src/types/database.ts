@@ -50,6 +50,11 @@ export interface DbEvent {
   source: string | null
   visibility: string
   link: unknown | null
+  // Enrichment fields (added in migration 016)
+  url: string | null
+  location: string | null
+  rating: number | null
+  metadata: unknown | null  // { image_url?, tags?, external_id?, source_data? }
 }
 
 export interface PublicProfileData {

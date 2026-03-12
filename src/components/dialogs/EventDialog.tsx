@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Plus, X, Smile, Link2 } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { Plus, X, Smile, Link2, ChevronDown, ChevronUp, Star, Upload, ImageIcon } from 'lucide-react'
+import { uploadEventImage } from '@/lib/imageUpload'
 import type {
   Lane,
   TimelineEvent,
   EventLink,
+  EventMetadata,
   ValueDeposit,
   ValueProjection,
   ValueSpotChange,
@@ -51,6 +53,7 @@ interface EventDialogProps {
   defaultLaneId?: string
   defaultStartYear?: number
   defaultEndYear?: number
+  userId?: string | null
 }
 
 interface DraftSpotChange { id: string; dateStr: string; amountStr: string; label: string }
@@ -86,6 +89,7 @@ export function EventDialog({
   defaultLaneId,
   defaultStartYear,
   defaultEndYear,
+  userId,
 }: EventDialogProps) {
   const [laneId, setLaneId] = useState('')
   const [title, setTitle] = useState('')
@@ -107,6 +111,31 @@ export function EventDialog({
   const [spotChanges, setSpotChanges] = useState<DraftSpotChange[]>([])
   const [growthPeriods, setGrowthPeriods] = useState<DraftGrowthPeriod[]>([])
   const [deposits, setDeposits] = useState<DraftDeposit[]>([])
+
+  // Enrichment fields
+  const [url, setUrl] = useState('')
+  const [location, setLocation] = useState('')
+  const [rating, setRating] = useState<number>(0)
+  const [imageUrl, setImageUrl] = useState('')
+  const [tags, setTags] = useState('')       // comma-separated
+  const [source, setSource] = useState('')
+  const [showDetails, setShowDetails] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageDragOver, setImageDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImageFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    if (userId) {
+      setImageUploading(true)
+      const url = await uploadEventImage(userId, file)
+      setImageUploading(false)
+      if (url) setImageUrl(url)
+    } else {
+      // Offline/demo: create object URL as temporary preview
+      setImageUrl(URL.createObjectURL(file))
+    }
+  }, [userId])
 
   // Dependency link state
   const [linkEnabled, setLinkEnabled] = useState(false)
@@ -169,6 +198,17 @@ export function EventDialog({
         setGrowthPeriods([])
         setDeposits([])
       }
+      // Enrichment
+      setUrl(editingEvent.url ?? '')
+      setLocation(editingEvent.location ?? '')
+      setRating(editingEvent.rating ?? 0)
+      setSource(editingEvent.source ?? '')
+      const meta = editingEvent.metadata
+      setImageUrl(meta?.image_url ?? '')
+      setTags(meta?.tags ? meta.tags.join(', ') : '')
+      setShowDetails(
+        !!(editingEvent.url || editingEvent.location || editingEvent.rating || editingEvent.source || meta?.image_url || meta?.tags?.length)
+      )
       // Link
       const lnk = editingEvent.link
       setLinkEnabled(!!lnk)
@@ -202,6 +242,13 @@ export function EventDialog({
       setLinkStartOffsetStr('0')
       setLinkDurationStr('')
       setLinkOnDelete('freeze')
+      setUrl('')
+      setLocation('')
+      setRating(0)
+      setImageUrl('')
+      setTags('')
+      setSource('')
+      setShowDetails(false)
     }
   }, [editingEvent, open, lanes, defaultLaneId, defaultStartYear, defaultEndYear])
 
@@ -309,6 +356,15 @@ export function EventDialog({
       }
     }
 
+    // Build metadata
+    const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean)
+    const metaOut: EventMetadata | undefined = (imageUrl.trim() || parsedTags.length)
+      ? {
+          ...(imageUrl.trim() ? { image_url: imageUrl.trim() } : {}),
+          ...(parsedTags.length ? { tags: parsedTags } : {}),
+        }
+      : undefined
+
     const data: Omit<TimelineEvent, 'id'> = {
       laneId,
       title: title.trim(),
@@ -322,6 +378,11 @@ export function EventDialog({
       ...(valueProjectionOut ? { valueProjection: valueProjectionOut } : {}),
       visibility,
       ...(linkOut ? { link: linkOut } : {}),
+      ...(url.trim() ? { url: url.trim() } : {}),
+      ...(location.trim() ? { location: location.trim() } : {}),
+      ...(rating > 0 ? { rating } : {}),
+      ...(source.trim() ? { source: source.trim() } : {}),
+      ...(metaOut ? { metadata: metaOut } : {}),
     }
     onSave(data)
     onOpenChange(false)
@@ -458,6 +519,140 @@ export function EventDialog({
               <div className="grid gap-1.5">
                 <Label htmlFor="pointval" className="text-xs text-muted-foreground">Point Value (optional)</Label>
                 <Input id="pointval" type="number" value={pointValueStr} placeholder="e.g. 50000" onChange={e => setPointValueStr(e.target.value)} className="h-8 text-xs" />
+              </div>
+            )}
+          </div>
+
+          {/* ── More details (collapsible) ── */}
+          <div className="rounded-md border">
+            <button
+              type="button"
+              onClick={() => setShowDetails(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/40 transition-colors rounded-md"
+            >
+              <span className="flex items-center gap-2">
+                More details
+                {(url || location || rating > 0 || imageUrl || tags || source) && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" title="Has values" />
+                )}
+              </span>
+              {showDetails ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+            {showDetails && (
+              <div className="px-3 pb-3 space-y-3 border-t pt-3">
+                {/* URL */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ev-url" className="text-xs">URL <span className="text-muted-foreground font-normal">(link to article, post, activity…)</span></Label>
+                  <Input id="ev-url" type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" className="h-8 text-xs" />
+                </div>
+                {/* Location */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ev-location" className="text-xs">Location</Label>
+                  <Input id="ev-location" value={location} onChange={e => setLocation(e.target.value)} placeholder="City, venue, address…" className="h-8 text-xs" />
+                </div>
+                {/* Rating */}
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">Rating</Label>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setRating(rating === n ? 0 : n)}
+                        className="p-0.5 rounded hover:scale-110 transition-transform"
+                        title={`${n} star${n > 1 ? 's' : ''}`}
+                      >
+                        <Star className={`h-5 w-5 ${n <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                      </button>
+                    ))}
+                    {rating > 0 && (
+                      <button type="button" onClick={() => setRating(0)} className="ml-1 text-[10px] text-muted-foreground hover:text-foreground">clear</button>
+                    )}
+                  </div>
+                </div>
+                {/* Image upload */}
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">Image <span className="text-muted-foreground font-normal">(photo, poster, map…)</span></Label>
+                  {imageUrl ? (
+                    <div className="relative rounded-md overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt="preview"
+                        className="w-full max-h-32 object-cover"
+                        onError={e => (e.currentTarget.style.display = 'none')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl('')}
+                        className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-0.5 transition-colors"
+                        title="Remove image"
+                      >
+                        <X className="h-3 w-3 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className={`border-2 border-dashed rounded-md px-3 py-4 text-center transition-colors cursor-pointer ${imageDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-muted-foreground/60'}`}
+                      onDragOver={e => { e.preventDefault(); setImageDragOver(true) }}
+                      onDragLeave={() => setImageDragOver(false)}
+                      onDrop={e => {
+                        e.preventDefault()
+                        setImageDragOver(false)
+                        const file = e.dataTransfer.files[0]
+                        if (file) handleImageFile(file)
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {imageUploading ? (
+                        <p className="text-xs text-muted-foreground">Uploading…</p>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                          <div className="flex gap-2 text-muted-foreground">
+                            <Upload className="h-4 w-4" />
+                            <ImageIcon className="h-4 w-4" />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Drag & drop or click to upload</p>
+                          <p className="text-[10px] text-muted-foreground/60">Large images are compressed automatically</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleImageFile(file)
+                      e.target.value = ''
+                    }}
+                  />
+                  <Input
+                    type="url"
+                    value={imageUrl}
+                    onChange={e => setImageUrl(e.target.value)}
+                    placeholder="Or paste image URL…"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                {/* Tags */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ev-tags" className="text-xs">Tags <span className="text-muted-foreground font-normal">(comma-separated)</span></Label>
+                  <Input id="ev-tags" value={tags} onChange={e => setTags(e.target.value)} placeholder="travel, work, family…" className="h-8 text-xs" />
+                  {tags && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
+                        <span key={tag} className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Source */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ev-source" className="text-xs">Source <span className="text-muted-foreground font-normal">(import provenance)</span></Label>
+                  <Input id="ev-source" value={source} onChange={e => setSource(e.target.value)} placeholder="strava, outlook, netflix, manual…" className="h-8 text-xs" />
+                </div>
               </div>
             )}
           </div>

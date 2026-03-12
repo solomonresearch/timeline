@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Lane, TimelineEvent, ValueProjection, EventLink } from '@/types/timeline'
+import type { Lane, TimelineEvent, ValueProjection, EventLink, EventMetadata } from '@/types/timeline'
 import type {
   DbProfile,
   DbTimeline,
@@ -44,6 +44,7 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
   const validProj = proj != null && 'startValue' in proj ? proj as unknown as ValueProjection : null
   const startYear = dbTimeToFracYear(row.start_time)
   const endYear = row.end_time != null ? dbTimeToFracYear(row.end_time) : undefined
+  const meta = row.metadata != null && typeof row.metadata === 'object' ? row.metadata as EventMetadata : undefined
   return {
     id: row.id,
     laneId: row.lane_id,
@@ -58,6 +59,11 @@ export function mapDbEvent(row: DbEvent): TimelineEvent {
     ...(validProj != null ? { valueProjection: validProj } : {}),
     visibility: row.visibility ?? 'public',
     ...(row.link != null && typeof row.link === 'object' ? { link: row.link as EventLink } : {}),
+    ...(row.url != null ? { url: row.url } : {}),
+    ...(row.location != null ? { location: row.location } : {}),
+    ...(row.rating != null ? { rating: row.rating } : {}),
+    ...(row.source != null ? { source: row.source } : {}),
+    ...(meta != null ? { metadata: meta } : {}),
   }
 }
 
@@ -437,6 +443,11 @@ export async function insertEvent(
     value_projection?: ValueProjection
     visibility?: string
     link?: EventLink | null
+    url?: string | null
+    location?: string | null
+    rating?: number | null
+    source?: string | null
+    metadata?: EventMetadata | null
   },
 ): Promise<DbEvent | null> {
   const { data, error } = await supabase
@@ -454,6 +465,11 @@ export async function insertEvent(
       visibility: event.visibility ?? 'public',
       ...(event.value_projection != null ? { value_projection: event.value_projection } : {}),
       link: event.link ?? null,
+      url: event.url ?? null,
+      location: event.location ?? null,
+      rating: event.rating ?? null,
+      source: event.source ?? null,
+      metadata: event.metadata ?? null,
     })
     .select()
     .single()
@@ -478,6 +494,11 @@ export async function updateEventDb(
     value_projection: ValueProjection | null
     visibility: string
     link: EventLink | null
+    url: string | null
+    location: string | null
+    rating: number | null
+    source: string | null
+    metadata: EventMetadata | null
   }>,
 ): Promise<boolean> {
   const { error } = await supabase

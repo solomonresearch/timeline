@@ -428,6 +428,7 @@ function TimelineView() {
               defaultLaneId={defaultLaneId}
               defaultStartYear={defaultStartYear}
               defaultEndYear={defaultEndYear}
+              userId={user?.id}
             />
             <LaneDialog
               open={laneDialogOpen}

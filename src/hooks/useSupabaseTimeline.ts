@@ -90,6 +90,11 @@ export function useSupabaseTimeline(timelineId: string | null) {
         value_projection: event.valueProjection,
         visibility: event.visibility ?? 'public',
         link: event.link ?? null,
+        url: event.url ?? null,
+        location: event.location ?? null,
+        rating: event.rating ?? null,
+        source: event.source ?? null,
+        metadata: event.metadata ?? null,
       })
 
       if (dbRow) {
@@ -122,6 +127,11 @@ export function useSupabaseTimeline(timelineId: string | null) {
       if ('valueProjection' in updates) dbUpdates.value_projection = updates.valueProjection ?? null
       if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility
       if ('link' in updates) dbUpdates.link = updates.link ?? null
+      if ('url' in updates) dbUpdates.url = updates.url ?? null
+      if ('location' in updates) dbUpdates.location = updates.location ?? null
+      if ('rating' in updates) dbUpdates.rating = updates.rating ?? null
+      if ('source' in updates) dbUpdates.source = updates.source ?? null
+      if ('metadata' in updates) dbUpdates.metadata = updates.metadata ?? null
 
       const ok = await updateEventDb(id, dbUpdates as Parameters<typeof updateEventDb>[1])
       if (!ok) {

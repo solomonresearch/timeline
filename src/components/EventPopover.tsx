@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Pencil, Trash2, X } from 'lucide-react'
+import { Pencil, Trash2, X, ExternalLink, MapPin, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TimelineEvent } from '@/types/timeline'
 import { fracYearToDMY, fracYearToTimeStr } from '@/lib/constants'
@@ -50,7 +50,7 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, lane
       </div>
       <p className="text-xs text-muted-foreground mb-1">{laneEmoji && <span className="mr-1">{laneEmoji}</span>}{laneName}</p>
       {event.description && <p className="text-xs mb-1">{event.description}</p>}
-      <p className={`text-xs text-muted-foreground ${event.pointValue == null ? 'mb-3' : 'mb-1'}`}>
+      <p className="text-xs text-muted-foreground mb-1">
         {event.type === 'point'
           ? (() => { const t = fracYearToTimeStr(event.startYear); return t !== '00:00' ? `${fracYearToDMY(event.startYear)} ${t}` : fracYearToDMY(event.startYear) })()
           : (() => {
@@ -62,9 +62,49 @@ export function EventPopover({ event, anchorEl, anchorX, anchorY, laneName, lane
             })()}
       </p>
       {event.pointValue != null && (
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs text-muted-foreground mb-1">
           Value: <span className="font-medium text-foreground">{formatValue(event.pointValue)}</span>
         </p>
+      )}
+      {/* Enrichment fields */}
+      {event.metadata?.image_url && (
+        <img
+          src={event.metadata.image_url}
+          alt=""
+          className="w-full rounded-md mb-2 max-h-28 object-cover"
+          onError={e => (e.currentTarget.style.display = 'none')}
+        />
+      )}
+      {event.location && (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+          <MapPin className="h-3 w-3 shrink-0" />
+          {event.location}
+        </p>
+      )}
+      {event.rating != null && event.rating > 0 && (
+        <div className="flex items-center gap-0.5 mb-1">
+          {[1,2,3,4,5].map(n => (
+            <Star key={n} className={`h-3 w-3 ${n <= event.rating! ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+          ))}
+        </div>
+      )}
+      {event.metadata?.tags && event.metadata.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {event.metadata.tags.map(tag => (
+            <span key={tag} className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground">{tag}</span>
+          ))}
+        </div>
+      )}
+      {event.url && (
+        <a
+          href={event.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-primary hover:underline mb-2 truncate"
+        >
+          <ExternalLink className="h-3 w-3 shrink-0" />
+          <span className="truncate">{event.url.replace(/^https?:\/\//, '')}</span>
+        </a>
       )}
       <div className="flex gap-1">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(event)}>
