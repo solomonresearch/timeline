@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
 
 interface ProfileDialogProps {
   open: boolean
@@ -29,7 +28,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const [bio, setBio] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [username, setUsername] = useState('')
-  const [isPublic, setIsPublic] = useState(true)
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameOk, setUsernameOk] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -40,7 +38,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       setBio(profile.bio)
       setBirthDate(profile.birth_date ? iso2dmy(profile.birth_date) : '')
       setUsername(profile.username ?? '')
-      setIsPublic(profile.is_public ?? true)
       setUsernameError(null)
       setUsernameOk(false)
     }
@@ -82,7 +79,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       bio: bio.trim(),
       birth_date: birthDate ? dmy2iso(birthDate) || null : null,
       username: trimmedUsername,
-      is_public: isPublic,
     })
     setSaving(false)
     onOpenChange(false)
@@ -142,15 +138,6 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               placeholder="A short bio..."
               rows={3}
             />
-          </div>
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
-            <div className="grid gap-0.5">
-              <Label htmlFor="isPublic" className="cursor-pointer">Public profile</Label>
-              <p className="text-xs text-muted-foreground">
-                {isPublic ? `Anyone can view your timeline at /${username || '…'}` : 'Your profile is hidden from public view'}
-              </p>
-            </div>
-            <Switch id="isPublic" checked={isPublic} onCheckedChange={setIsPublic} />
           </div>
           <DialogFooter className="mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
