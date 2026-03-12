@@ -141,26 +141,29 @@ export function TotalAssetsLane({
       setTooltip(null)
       return
     }
-    const nowYear = new Date().getFullYear()
+    // Jan 1 of the hovered year — used to compute year-only net change
+    const yearFloor = Math.floor(hoverYear)
     const items: { label: string; valueNow: number; valueHover: number }[] = []
     let totalNow = 0
     let totalHover = 0
     for (const ev of valueEvents) {
       const evEnd = ev.endYear ?? ev.startYear + 100
-      // value at hovered year
+      // cumulative total up to hovered year
       let valueHover = 0
       if (hoverYear >= ev.startYear - 1e-9) {
         valueHover = hoverYear > evEnd + 1e-9
           ? computeValueAtYear(evEnd, ev.startYear, ev.valueProjection!)
           : computeValueAtYear(hoverYear, ev.startYear, ev.valueProjection!)
       }
-      // value at current real-world year
-      let valueNow = 0
-      if (nowYear >= ev.startYear - 1e-9) {
-        valueNow = nowYear > evEnd + 1e-9
+      // cumulative total up to Jan 1 of hovered year (year-start baseline)
+      let valueYearStart = 0
+      if (yearFloor >= ev.startYear - 1e-9) {
+        valueYearStart = yearFloor > evEnd + 1e-9
           ? computeValueAtYear(evEnd, ev.startYear, ev.valueProjection!)
-          : computeValueAtYear(nowYear, ev.startYear, ev.valueProjection!)
+          : computeValueAtYear(yearFloor, ev.startYear, ev.valueProjection!)
       }
+      // net change within the year = total@hover − total@Jan1
+      const valueNow = valueHover - valueYearStart
       if (valueHover === 0 && valueNow === 0) continue
       items.push({ label: ev.title, valueNow, valueHover })
       totalNow += valueNow
@@ -227,31 +230,29 @@ export function TotalAssetsLane({
       </div>
 
       {tooltip && (() => {
-        const nowYear = new Date().getFullYear()
-        const hoverYearLabel = Math.round(tooltip.hoverYear) === tooltip.hoverYear
-          ? String(Math.round(tooltip.hoverYear))
-          : tooltip.hoverYear.toFixed(1)
-        const showNowCol = Math.abs(tooltip.hoverYear - nowYear) > 0.5
+        const yearFloor = Math.floor(tooltip.hoverYear)
+        // hide year column when hovering at exactly Jan 1 (no within-year data yet)
+        const showYearCol = (tooltip.hoverYear - yearFloor) > 0.01
         return (
           <div
             className="fixed z-50 pointer-events-none rounded bg-black/80 text-white px-3 py-2"
             style={{
               left: tooltip.clientX + 16,
               top: tooltip.clientY - (tooltip.items.length * 20 + 52),
-              minWidth: showNowCol ? 240 : 180,
+              minWidth: showYearCol ? 240 : 180,
             }}
           >
             {/* Column headers */}
             <div className="flex justify-between gap-4 text-[10px] leading-4 opacity-50 mb-0.5">
               <span className="flex-1" />
-              {showNowCol && <span className="w-16 text-right">{nowYear}</span>}
-              <span className="w-16 text-right">{hoverYearLabel}</span>
+              {showYearCol && <span className="w-16 text-right">{yearFloor}</span>}
+              <span className="w-16 text-right">Total</span>
             </div>
             {/* Per-event rows */}
             {tooltip.items.map((item, i) => (
               <div key={i} className="flex justify-between gap-4 text-xs leading-5">
                 <span className="opacity-70 truncate flex-1 max-w-[120px]">{item.label}</span>
-                {showNowCol && (
+                {showYearCol && (
                   <span className="w-16 text-right" style={{ color: item.valueNow < 0 ? '#fca5a5' : 'inherit' }}>
                     {formatValue(item.valueNow)}
                   </span>
@@ -264,7 +265,7 @@ export function TotalAssetsLane({
             {/* Total row */}
             <div className="flex justify-between gap-4 text-xs leading-5 font-bold border-t border-white/30 mt-1 pt-1">
               <span className="flex-1">Total</span>
-              {showNowCol && (
+              {showYearCol && (
                 <span className="w-16 text-right" style={{ color: tooltip.totalNow < 0 ? '#fca5a5' : 'inherit' }}>
                   {formatValue(tooltip.totalNow)}
                 </span>
