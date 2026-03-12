@@ -121,6 +121,14 @@ export function usePersonas(userBirthYear: number | null = null) {
           saveAlignedIds(nextAligned)
           return nextAligned
         })
+        // Default display mode to 'separate' for newly activated personas
+        setPersonaDisplayModesState(prevModes => {
+          if (prevModes.has(personaId)) return prevModes
+          const nextModes = new Map(prevModes)
+          nextModes.set(personaId, 'separate')
+          saveDisplayModes(nextModes)
+          return nextModes
+        })
       }
       saveActiveIds(next)
       return next

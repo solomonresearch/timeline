@@ -19,7 +19,8 @@ export function AuthPage() {
   function handleSignUpWithTimeline() {
     localStorage.setItem('timeline_import_demo', '1')
     setMode('sign-up')
-    setAuthOpen(true)
+    // Defer opening to let the dropdown finish closing before the popover opens
+    setTimeout(() => setAuthOpen(true), 50)
   }
 
   const modeLabel: Record<AuthMode, string> = {

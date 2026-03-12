@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchTimelines,
+  fetchProfile,
   createTimelineWithDefaults,
   updateTimeline as updateTimelineApi,
   deleteTimeline as deleteTimelineApi,
@@ -49,13 +50,21 @@ export function useTimelines() {
         const newId = await createTimelineWithDefaults(user!.id)
         if (cancelled) return
         if (newId) {
+          // Set timeline start/end years from user's birth year
+          const profile = await fetchProfile(user!.id)
+          if (profile?.birth_year) {
+            await updateTimelineApi(newId, {
+              start_year: profile.birth_year,
+              end_year: profile.birth_year + 100,
+            })
+          }
           // Check if user wants to import their demo timeline
           if (localStorage.getItem('timeline_import_demo') === '1') {
             try {
               const { DEMO_LANES, DEMO_EVENTS } = await import('@/data/demoData')
               const { applyDemoTimeline } = await import('@/lib/api')
               // Load user-modified demo from localStorage
-              const raw = localStorage.getItem('timeline_demo_v1')
+              const raw = localStorage.getItem('timeline_demo_v3')
               const demoState = raw
                 ? (JSON.parse(raw) as { lanes: typeof DEMO_LANES; events: typeof DEMO_EVENTS })
                 : { lanes: DEMO_LANES, events: DEMO_EVENTS }

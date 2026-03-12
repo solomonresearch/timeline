@@ -292,7 +292,7 @@ export function TimelinePersonaSelector({
               personas.map(p => {
                 const isActive = activePersonaIds.has(p.id)
                 const aligned = alignedPersonaIds.has(p.id)
-                const mode = personaDisplayModes.get(p.id) ?? 'integrated'
+                const mode = personaDisplayModes.get(p.id) ?? 'separate'
                 return (
                   <div key={p.id} className="rounded-md px-2 py-1.5 hover:bg-accent">
                     <div className="flex items-center justify-between gap-2">

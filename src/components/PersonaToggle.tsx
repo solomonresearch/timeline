@@ -47,7 +47,7 @@ export function PersonaToggle({
         {personas.map(p => {
           const isActive = activePersonaIds.has(p.id)
           const aligned = alignedPersonaIds.has(p.id)
-          const mode = personaDisplayModes.get(p.id) ?? 'integrated'
+          const mode = personaDisplayModes.get(p.id) ?? 'separate'
           return (
             <div
               key={p.id}

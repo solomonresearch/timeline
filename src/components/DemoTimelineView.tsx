@@ -83,19 +83,22 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
     setPersonaDisplayMode,
   } = usePersonas(DEMO_BIRTH_YEAR)
 
-  // Auto-activate Einstein with age alignment on first load
+  // Auto-activate Einstein with age alignment and separate display on first load
   const einsteinInitRef = useRef(false)
   useEffect(() => {
     if (einsteinInitRef.current) return
     if (personas.length === 0) return
     einsteinInitRef.current = true
-    if (activePersonaIds.size > 0) return
     const einstein = personas.find(p => p.name.toLowerCase().includes('einstein'))
     if (einstein) {
-      togglePersona(einstein.id)
+      if (!activePersonaIds.has(einstein.id)) togglePersona(einstein.id)
       if (!alignedPersonaIds.has(einstein.id)) togglePersonaAlignment(einstein.id)
+      // Always default Einstein to separate timeline on the demo page
+      if (personaDisplayModes.get(einstein.id) !== 'separate') {
+        setPersonaDisplayMode(einstein.id, 'separate')
+      }
     }
-  }, [personas, activePersonaIds, alignedPersonaIds, togglePersona, togglePersonaAlignment])
+  }, [personas, activePersonaIds, alignedPersonaIds, personaDisplayModes, togglePersona, togglePersonaAlignment, setPersonaDisplayMode])
 
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId } = useSkin()
