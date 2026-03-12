@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, Palette, LayoutList, Download, CalendarDays, Globe, FileText, Mic, Search } from 'lucide-react'
+import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, LayoutList, Download, CalendarDays, Globe, FileText, Mic, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
@@ -171,14 +171,14 @@ export function Toolbar({
           {/* Size selector — desktop only */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1 w-20 hidden md:flex">
+              <Button variant="outline" size="sm" className="gap-1 w-20 hidden lg:flex">
                 <span className="text-xs text-muted-foreground">Size:</span>
                 <span className="font-medium">{SIZE_LABELS[size]}</span>
                 <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {(['small', 'medium', 'large', 'fitscreen'] as UiSize[]).map(s => (
+              {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
                 <DropdownMenuItem
                   key={s}
                   onClick={() => setSize(s)}
@@ -193,14 +193,14 @@ export function Toolbar({
           {/* Theme selector — desktop only */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 hidden md:flex">
+              <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex">
                 <SkinSwatch bg={swatchBg} accent={swatchAccent} />
                 <span className="text-xs font-medium">{skinLabel}</span>
                 <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {SKINS.map(s => (
+              {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
                 <DropdownMenuItem
                   key={s.id}
                   onClick={() => handleSelectSkin(s.id)}
@@ -210,21 +210,13 @@ export function Toolbar({
                   {s.name}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleSelectSkin('custom')}
-                className={`gap-2 ${skinId === 'custom' ? 'font-semibold' : ''}`}
-              >
-                <Palette className="h-3.5 w-3.5 shrink-0" />
-                Custom…
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {/* Import dropdown — desktop only */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 hidden md:flex">
+              <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex">
                 <Download className="h-3.5 w-3.5" />
                 <span className="text-xs font-medium">Import</span>
                 <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
@@ -251,7 +243,7 @@ export function Toolbar({
           </DropdownMenu>
 
           {/* Max events input — desktop only */}
-          <div className="hidden md:flex items-center gap-1.5">
+          <div className="hidden lg:flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground whitespace-nowrap">Max:</span>
             <input
               type="number"
@@ -265,7 +257,7 @@ export function Toolbar({
           </div>
 
           {/* Search button — desktop only */}
-          <Button variant="outline" size="sm" className="gap-1.5 hidden md:flex" onClick={() => setSearchOpen(true)}>
+          <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex" onClick={() => setSearchOpen(true)}>
             <Search className="h-3.5 w-3.5" />
             <span className="text-xs font-medium">Search</span>
           </Button>
@@ -276,7 +268,7 @@ export function Toolbar({
 
           {/* Desktop controls */}
           {activeView === 'timeline' && (
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
               {onScrollToToday && (
                 <Button variant="outline" size="sm" onClick={onScrollToToday}>
                   Today
@@ -314,7 +306,7 @@ export function Toolbar({
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
             size="sm"
-            className="hidden md:flex"
+            className="hidden lg:flex"
             onClick={() => onSetActiveView(activeView === 'overview' ? 'timeline' : 'overview')}
           >
             <LayoutList className="h-4 w-4 mr-1" />
@@ -325,7 +317,7 @@ export function Toolbar({
           <Button
             variant={activeView === 'kanban' ? 'default' : 'outline'}
             size="sm"
-            className="hidden md:flex"
+            className="hidden lg:flex"
             onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}
           >
             <Kanban className="h-4 w-4 mr-1" />
@@ -335,11 +327,12 @@ export function Toolbar({
           {/* Mobile meatball menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex md:hidden px-2">
+              <Button variant="outline" size="sm" className="flex lg:hidden px-2">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+            <div className="max-h-[85vh] overflow-y-auto">
               {activeView === 'timeline' && (
                 <>
                   {onScrollToToday && (
@@ -377,7 +370,7 @@ export function Toolbar({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Size options */}
-              {(['small', 'medium', 'large', 'fitscreen'] as UiSize[]).map(s => (
+              {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
                 <DropdownMenuItem
                   key={s}
                   onClick={() => setSize(s)}
@@ -388,7 +381,7 @@ export function Toolbar({
               ))}
               <DropdownMenuSeparator />
               {/* Theme options */}
-              {SKINS.map(s => (
+              {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
                 <DropdownMenuItem
                   key={s.id}
                   onClick={() => handleSelectSkin(s.id)}
@@ -398,13 +391,6 @@ export function Toolbar({
                   {s.name}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuItem
-                onClick={() => handleSelectSkin('custom')}
-                className={`gap-2 ${skinId === 'custom' ? 'font-semibold' : ''}`}
-              >
-                <Palette className="h-4 w-4 mr-1 shrink-0" />
-                Custom Theme…
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Import options */}
               <DropdownMenuItem onClick={() => openImport('calendar-file')}>
@@ -428,6 +414,7 @@ export function Toolbar({
                 <Search className="h-4 w-4 mr-2" />
                 Search Events
               </DropdownMenuItem>
+            </div>
             </DropdownMenuContent>
           </DropdownMenu>
 

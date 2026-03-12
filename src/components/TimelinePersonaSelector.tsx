@@ -159,7 +159,7 @@ export function TimelinePersonaSelector({
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-72 p-0">
+        <PopoverContent align="start" className="w-72 p-0 max-h-[85vh] overflow-y-auto">
           {/* ── Timelines ── */}
           <div className="px-3 pt-2 pb-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Timelines</p>

@@ -185,49 +185,51 @@ export function TimelineSelector() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
-          {timelines.map(t => (
-            <div key={t.id} className="flex items-center">
-              <DropdownMenuItem
-                className="flex-1 gap-2"
-                onClick={() => selectTimeline(t.id)}
-              >
-                {t.emoji ? (
-                  <span className="shrink-0">{t.emoji}</span>
-                ) : t.color ? (
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: t.color }}
-                  />
-                ) : null}
-                <div className="flex flex-col min-w-0">
-                  <span className={`truncate ${t.id === selectedTimelineId ? 'font-semibold' : ''}`}>
-                    {t.name}
-                  </span>
-                  {(t.start_year != null || t.end_year != null) && (
-                    <span className="text-[10px] text-muted-foreground">
-                      {t.start_year != null ? Math.floor(t.start_year) : '?'}
-                      {' – '}
-                      {t.end_year != null ? Math.floor(t.end_year) : '?'}
-                    </span>
-                  )}
-                </div>
-              </DropdownMenuItem>
-              <button
-                className="p-1 text-muted-foreground hover:text-foreground"
-                onClick={e => { e.stopPropagation(); handleEdit(t.id) }}
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-              {timelines.length > 1 && (
-                <button
-                  className="p-1 text-muted-foreground hover:text-destructive"
-                  onClick={e => { e.stopPropagation(); handleDelete(t.id) }}
+          <div className="max-h-[70vh] overflow-y-auto">
+            {timelines.map(t => (
+              <div key={t.id} className="flex items-center">
+                <DropdownMenuItem
+                  className="flex-1 gap-2"
+                  onClick={() => selectTimeline(t.id)}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  {t.emoji ? (
+                    <span className="shrink-0">{t.emoji}</span>
+                  ) : t.color ? (
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                  ) : null}
+                  <div className="flex flex-col min-w-0">
+                    <span className={`truncate ${t.id === selectedTimelineId ? 'font-semibold' : ''}`}>
+                      {t.name}
+                    </span>
+                    {(t.start_year != null || t.end_year != null) && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {t.start_year != null ? Math.floor(t.start_year) : '?'}
+                        {' – '}
+                        {t.end_year != null ? Math.floor(t.end_year) : '?'}
+                      </span>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+                <button
+                  className="p-1 text-muted-foreground hover:text-foreground"
+                  onClick={e => { e.stopPropagation(); handleEdit(t.id) }}
+                >
+                  <Pencil className="h-3 w-3" />
                 </button>
-              )}
-            </div>
-          ))}
+                {timelines.length > 1 && (
+                  <button
+                    className="p-1 text-muted-foreground hover:text-destructive"
+                    onClick={e => { e.stopPropagation(); handleDelete(t.id) }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />

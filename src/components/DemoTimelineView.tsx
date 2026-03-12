@@ -20,7 +20,6 @@ import {
   ZoomIn,
   ZoomOut,
   MoreHorizontal,
-  Palette,
   CalendarDays,
   Globe,
   FileText,
@@ -234,66 +233,61 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 max-h-[70vh] overflow-y-auto">
-            <DropdownMenuItem onClick={handleAddLane}>
-              <Layers className="h-4 w-4 mr-2" />
-              Add Lane
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSearchOpen(true)}>
-              <Search className="h-4 w-4 mr-2" />
-              Search Events
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {/* Size */}
-            {(['small', 'medium', 'large', 'fitscreen'] as UiSize[]).map(s => (
-              <DropdownMenuItem
-                key={s}
-                onClick={() => setSize(s)}
-                className={size === s ? 'font-semibold' : ''}
-              >
-                {SIZE_NAMES[s]}
+          <DropdownMenuContent align="end" className="w-52">
+            <div className="max-h-[70vh] overflow-y-auto">
+              <DropdownMenuItem onClick={handleAddLane}>
+                <Layers className="h-4 w-4 mr-2" />
+                Add Lane
               </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            {/* Theme */}
-            {SKINS.map(s => (
-              <DropdownMenuItem
-                key={s.id}
-                onClick={() => handleSelectSkin(s.id)}
-                className={skinId === s.id ? 'font-semibold' : ''}
-              >
-                {s.name}
+              <DropdownMenuItem onClick={() => setSearchOpen(true)}>
+                <Search className="h-4 w-4 mr-2" />
+                Search Events
               </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem
-              onClick={() => handleSelectSkin('custom')}
-              className={skinId === 'custom' ? 'font-semibold' : ''}
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              Custom Theme…
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {/* Import */}
-            <DropdownMenuItem onClick={() => openImport('calendar-file')}>
-              <CalendarDays className="h-4 w-4 mr-2" />
-              Import Calendar File
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openImport('google-calendar')}>
-              <Globe className="h-4 w-4 mr-2" />
-              Import Google Calendar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openImport('text')}>
-              <FileText className="h-4 w-4 mr-2" />
-              Import from Text
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openImport('voice')}>
-              <Mic className="h-4 w-4 mr-2" />
-              Import from Voice
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onSignUpWithTimeline}>
-              Sign up with this timeline →
-            </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {/* Size */}
+              {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
+                <DropdownMenuItem
+                  key={s}
+                  onClick={() => setSize(s)}
+                  className={size === s ? 'font-semibold' : ''}
+                >
+                  {SIZE_NAMES[s]}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {/* Theme */}
+              {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
+                <DropdownMenuItem
+                  key={s.id}
+                  onClick={() => handleSelectSkin(s.id)}
+                  className={skinId === s.id ? 'font-semibold' : ''}
+                >
+                  {s.name}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {/* Import */}
+              <DropdownMenuItem onClick={() => openImport('calendar-file')}>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Import Calendar File
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('google-calendar')}>
+                <Globe className="h-4 w-4 mr-2" />
+                Import Google Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('text')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Import from Text
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openImport('voice')}>
+                <Mic className="h-4 w-4 mr-2" />
+                Import from Voice
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onSignUpWithTimeline}>
+                Sign up with this timeline →
+              </DropdownMenuItem>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
