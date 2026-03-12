@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star, Copy } from 'lucide-react'
+import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star, Copy, UserPlus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,8 @@ import type { DbPersona, DbLane } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
-import { fetchLanes } from '@/lib/api'
+import { fetchLanes, getTimelineShares, addTimelineShare, removeTimelineShare, lookupUserByUsername } from '@/lib/api'
+import type { DbTimelineShare } from '@/types/database'
 
 const DEFAULT_COLOR = '#3b82f6'
 
@@ -107,6 +108,12 @@ export function TimelinePersonaSelector({
   const [copying, setCopying] = useState(false)
   const [isPublic, setIsPublic] = useState(false)
 
+  // Sharing state (edit mode only)
+  const [shares, setShares] = useState<DbTimelineShare[]>([])
+  const [shareInput, setShareInput] = useState('')
+  const [shareSearching, setShareSearching] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   const isRealSource = (id: string) => id !== COPY_DEFAULTS && id !== COPY_EMPTY
 
   useEffect(() => {
@@ -185,7 +192,34 @@ export function TimelinePersonaSelector({
     else { setEndDate(''); setEndTime('00:00') }
     setIsPublic(t.visibility === 'public')
     setTargetId(id)
+    setShares([])
+    setShareInput('')
+    setShareError(null)
+    getTimelineShares(id).then(setShares)
     setDialogOpen(true)
+  }
+
+  async function handleAddShare() {
+    const username = shareInput.trim().toLowerCase()
+    if (!username || !targetId) return
+    setShareSearching(true)
+    setShareError(null)
+    const user = await lookupUserByUsername(username)
+    if (!user) { setShareError(`No user found: @${username}`); setShareSearching(false); return }
+    if (shares.find(s => s.user_id === user.id)) { setShareError('Already shared with this user'); setShareSearching(false); return }
+    const ok = await addTimelineShare(targetId, user.id)
+    if (ok) {
+      setShares(prev => [...prev, { share_id: '', user_id: user.id, username: user.username, display_name: user.display_name }])
+      setShareInput('')
+    } else {
+      setShareError('Could not add share. Try again.')
+    }
+    setShareSearching(false)
+  }
+
+  async function handleRemoveShare(shareId: string, userId: string) {
+    if (shareId) await removeTimelineShare(shareId)
+    setShares(prev => prev.filter(s => s.user_id !== userId))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -460,7 +494,7 @@ export function TimelinePersonaSelector({
 
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogMode === 'create' ? 'New Timeline' : 'Edit Timeline'}</DialogTitle>
           </DialogHeader>
@@ -593,15 +627,53 @@ export function TimelinePersonaSelector({
               </div>
             )}
 
-            {/* Visibility — edit mode only */}
+            {/* Visibility + sharing — edit mode only */}
             {dialogMode === 'edit' && (
-              <div className="flex items-center justify-between">
-                <div className="grid gap-0.5">
-                  <Label>Public</Label>
-                  <p className="text-xs text-muted-foreground">Visible on your public profile</p>
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="grid gap-0.5">
+                    <Label>Public</Label>
+                    <p className="text-xs text-muted-foreground">Visible on your public profile</p>
+                  </div>
+                  <Switch checked={isPublic} onCheckedChange={setIsPublic} />
                 </div>
-                <Switch checked={isPublic} onCheckedChange={setIsPublic} />
-              </div>
+
+                {/* Share with specific people */}
+                <div className="rounded-md border p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Share with people</p>
+                    <p className="text-xs text-muted-foreground">Give specific users access regardless of public setting</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={shareInput}
+                      onChange={e => { setShareInput(e.target.value); setShareError(null) }}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddShare())}
+                      placeholder="username"
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button type="button" size="sm" className="h-8 px-2 shrink-0" onClick={handleAddShare} disabled={shareSearching || !shareInput.trim()}>
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {shareError && <p className="text-xs text-destructive">{shareError}</p>}
+                  {shares.length > 0 && (
+                    <div className="space-y-1">
+                      {shares.map(s => (
+                        <div key={s.user_id} className="flex items-center justify-between gap-2 rounded px-2 py-1 bg-muted/40">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{s.display_name || s.username}</p>
+                            {s.username && <p className="text-[10px] text-muted-foreground">@{s.username}</p>}
+                          </div>
+                          <button type="button" onClick={() => handleRemoveShare(s.share_id, s.user_id)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <DialogFooter>
