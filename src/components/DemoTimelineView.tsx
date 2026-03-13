@@ -134,6 +134,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
   const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
+  const [todayOffScreen, setTodayOffScreen] = useState<{ direction: 'left' | 'right' } | null>(null)
 
   const [maxEvents] = useState(100)
   const [navigatedEventId, setNavigatedEventId] = useState<string | null>(null)
@@ -319,9 +320,19 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
         {/* ── Right side ── */}
         <div className="flex items-center gap-2 shrink-0">
         {/* Today */}
-        <Button variant="outline" size="sm" onClick={() => scrollToTodayRef.current?.()} title="Scroll to today">
-          <CalendarDays className="h-4 w-4" />
-        </Button>
+        <div className="relative">
+          <Button variant="outline" size="sm" onClick={() => scrollToTodayRef.current?.()} title="Scroll to today">
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+          {todayOffScreen && (
+            <button
+              onClick={() => scrollToTodayRef.current?.()}
+              className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border-2 border-red-500 bg-background text-red-500 hover:bg-red-500 hover:text-white transition-colors z-50 shadow-sm"
+            >
+              {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
+            </button>
+          )}
+        </div>
 
         {/* Zoom out */}
         <Button variant="outline" size="sm" onClick={() => stepZoom(1 / 1.3)} title="Zoom out">
@@ -429,6 +440,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
           personaDisplayModes={personaDisplayModes}
           scrollToTodayRef={scrollToTodayRef}
           scrollToEventRef={scrollToEventRef}
+          onTodayVisibilityChange={setTodayOffScreen}
           lifeSpan={{ birthYear: 1980, endYear: null }}
           overlayEvents={[]}
           overlayDisplayModes={new Map()}

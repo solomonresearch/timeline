@@ -41,6 +41,7 @@ interface ToolbarProps {
   activeView: AppView
   onSetActiveView: (v: AppView) => void
   onScrollToToday?: () => void
+  todayOffScreen?: { direction: 'left' | 'right' } | null
   lanes: Lane[]
   events: TimelineEvent[]
   addEvent: (event: Omit<TimelineEvent, 'id'>) => Promise<TimelineEvent | null>
@@ -98,6 +99,7 @@ export function Toolbar({
   activeView,
   onSetActiveView: _onSetActiveView,
   onScrollToToday,
+  todayOffScreen,
   lanes,
   events,
   addEvent,
@@ -223,9 +225,19 @@ export function Toolbar({
           {activeView === 'timeline' && (
             <>
               {onScrollToToday && (
-                <Button variant="outline" size="sm" onClick={onScrollToToday} title="Scroll to today">
-                  <CalendarDays className="h-4 w-4" />
-                </Button>
+                <div className="relative">
+                  <Button variant="outline" size="sm" onClick={onScrollToToday} title="Scroll to today">
+                    <CalendarDays className="h-4 w-4" />
+                  </Button>
+                  {todayOffScreen && (
+                    <button
+                      onClick={onScrollToToday}
+                      className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border-2 border-red-500 bg-background text-red-500 hover:bg-red-500 hover:text-white transition-colors z-50 shadow-sm"
+                    >
+                      {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
+                    </button>
+                  )}
+                </div>
               )}
               <Button variant="outline" size="sm" onClick={() => stepZoom(1 / 1.3)} title="Zoom out">
                 <ZoomOut className="h-4 w-4" />

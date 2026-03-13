@@ -203,6 +203,7 @@ function TimelineView() {
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
   const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
+  const [todayOffScreen, setTodayOffScreen] = useState<{ direction: 'left' | 'right' } | null>(null)
   const [requestCreateTimeline, setRequestCreateTimeline] = useState(false)
 
   // Max-events filter: show the N longest-duration events (point events have duration 0)
@@ -406,6 +407,7 @@ function TimelineView() {
           activeView={activeView}
           onSetActiveView={setActiveView}
           onScrollToToday={() => scrollToTodayRef.current?.()}
+          todayOffScreen={todayOffScreen}
           lanes={lanes}
           events={events}
           addEvent={addEvent}
@@ -462,6 +464,7 @@ function TimelineView() {
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
               lifeSpan={profile?.birth_date ? { birthYear: birthDateToFloatYear(profile.birth_date), endYear: profile.end_date ? birthDateToFloatYear(profile.end_date) : null } : undefined}
+              onTodayVisibilityChange={setTodayOffScreen}
               overlayEvents={displayedOverlayEvents}
               overlayDisplayModes={mergedOverlayDisplayModes}
               activeOverlayTimelines={[...activeOverlayTimelines, ...externalOverlayTimelines]}

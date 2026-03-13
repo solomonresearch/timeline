@@ -98,6 +98,7 @@ interface TimelineContainerProps {
   overlayEvents?: OverlayTimelineEvent[]
   overlayDisplayModes?: Map<string, OverlayDisplayMode>
   activeOverlayTimelines?: DbTimeline[]
+  onTodayVisibilityChange?: (offScreen: { direction: 'left' | 'right' } | null) => void
 }
 
 export function TimelineContainer({
@@ -126,6 +127,7 @@ export function TimelineContainer({
   overlayEvents = [],
   overlayDisplayModes = new Map(),
   activeOverlayTimelines = [],
+  onTodayVisibilityChange,
 }: TimelineContainerProps) {
   const { sc, size, updateFitScreenConfig } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, TOTAL_ASSETS_HEIGHT } = sc
@@ -205,6 +207,19 @@ export function TimelineContainer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [yearStart, yearEnd])
+
+  // Notify parent when today line goes off-screen left or right
+  useEffect(() => {
+    if (!onTodayVisibilityChange) return
+    const today = getCurrentYearFraction()
+    const todayPx = (today - effectiveYearStart) * pixelsPerYear
+    const visible = todayPx >= scrollLeft && todayPx <= scrollLeft + viewportWidth
+    if (visible) {
+      onTodayVisibilityChange(null)
+    } else {
+      onTodayVisibilityChange({ direction: todayPx < scrollLeft ? 'left' : 'right' })
+    }
+  }, [scrollLeft, viewportWidth, effectiveYearStart, pixelsPerYear, onTodayVisibilityChange])
 
   // Cursor position line — updated via direct DOM to avoid re-renders on every mousemove
   useEffect(() => {
