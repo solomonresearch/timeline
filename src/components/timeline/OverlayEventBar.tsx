@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { OverlayTimelineEvent } from '@/types/database'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
+import { registerOverlay, unregisterOverlay } from '@/lib/overlayTooltipState'
 
 interface OverlayEventBarProps {
   event: OverlayTimelineEvent
@@ -36,9 +37,16 @@ export function OverlayEventBar({
   const [pinned, setPinned] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0 })
 
+  const closeRef = useRef(() => {
+    setPinned(false)
+    setOpen(false)
+  })
+
+  // Close this tooltip on any click (next click anywhere)
   useEffect(() => {
     if (!pinned) return
     function handleOutside() {
+      unregisterOverlay(closeRef.current)
       setPinned(false)
       setOpen(false)
     }
@@ -76,9 +84,11 @@ export function OverlayEventBar({
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
     if (pinned) {
+      unregisterOverlay(closeRef.current)
       setPinned(false)
       setOpen(false)
     } else {
+      registerOverlay(closeRef.current)
       setPinned(true)
       setPos({ x: e.clientX, y: e.clientY })
       setOpen(true)
@@ -92,14 +102,13 @@ export function OverlayEventBar({
 
   const tooltip = open ? createPortal(
     <div
-      className="fixed z-50 rounded-md bg-primary px-3 py-1.5 shadow-md pointer-events-auto"
+      className="fixed z-50 rounded-md bg-primary px-3 py-1.5 shadow-md pointer-events-none"
       style={{
         left: tooltipLeft,
         top: pos.y - TOOLTIP_PADDING,
         transform: 'translateY(-100%)',
         maxWidth: TOOLTIP_MAX_WIDTH,
       }}
-      onClick={(e) => e.stopPropagation()}
     >
       <p className="font-medium text-xs text-primary-foreground">{event.title}</p>
       <p className="text-xs text-primary-foreground opacity-70">{timelineName}</p>
