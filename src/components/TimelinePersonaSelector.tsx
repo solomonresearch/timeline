@@ -74,6 +74,8 @@ interface TimelinePersonaSelectorProps {
   onSetExternalDisplayMode?: (timelineId: string, mode: OverlayDisplayMode) => void
   mainStartYear?: number | null
   sharedWithMe?: SharedWithMeItem[]
+  requestCreate?: boolean
+  onRequestCreateHandled?: () => void
 }
 
 export function TimelinePersonaSelector({
@@ -101,6 +103,8 @@ export function TimelinePersonaSelector({
   onSetExternalDisplayMode,
   mainStartYear,
   sharedWithMe = [],
+  requestCreate,
+  onRequestCreateHandled,
 }: TimelinePersonaSelectorProps) {
   const {
     timelines,
@@ -267,6 +271,15 @@ export function TimelinePersonaSelector({
     setTargetId(null)
     setDialogOpen(true)
   }
+
+  // Open create dialog when triggered externally (e.g. from the + toolbar button)
+  useEffect(() => {
+    if (requestCreate) {
+      handleCreate()
+      onRequestCreateHandled?.()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestCreate])
 
   function handleEdit(id: string, e: React.MouseEvent) {
     e.stopPropagation()

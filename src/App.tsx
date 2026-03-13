@@ -206,6 +206,7 @@ function TimelineView() {
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
   const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
+  const [requestCreateTimeline, setRequestCreateTimeline] = useState(false)
 
   // Max-events filter: show the N longest-duration events (point events have duration 0)
   const [maxEvents, setMaxEvents] = useState(100)
@@ -432,6 +433,9 @@ function TimelineView() {
           onSetExternalDisplayMode={setExternalDisplayMode}
           mainStartYear={selectedTimeline?.start_year}
           sharedWithMe={sharedWithMe}
+          onAddTimeline={() => setRequestCreateTimeline(true)}
+          requestCreateTimeline={requestCreateTimeline}
+          onRequestCreateTimelineHandled={() => setRequestCreateTimeline(false)}
         />
 
         {activeView === 'overview' ? (
