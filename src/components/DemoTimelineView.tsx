@@ -236,11 +236,6 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
             <Button variant="outline" size="sm" className="gap-1.5">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Compare with…</span>
-              {activePersonaIds.size > 0 && (
-                <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
-                  {activePersonaIds.size}
-                </span>
-              )}
               <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
             </Button>
           </PopoverTrigger>
