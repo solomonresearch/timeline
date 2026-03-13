@@ -1,12 +1,15 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, Layers, ZoomIn, ZoomOut, Kanban, ChevronDown, MoreHorizontal, LayoutList, Download, CalendarDays, Globe, FileText, Mic, Search } from 'lucide-react'
+import { Plus, ZoomIn, ZoomOut, MoreHorizontal, CalendarDays, CalendarSearch, Globe, FileText, Mic, Search, LogOut, UserPen } from 'lucide-react' // Globe kept for import menu item
 import { Button } from '@/components/ui/button'
-import { UserMenu } from '@/components/UserMenu'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
-import type { DbPersona } from '@/types/database'
+import { ProfileDialog } from '@/components/ProfileDialog'
+import { useAuth } from '@/contexts/AuthContext'
+import { useProfile } from '@/hooks/useProfile'
+import type { DbPersona, SharedWithMeItem } from '@/types/database'
 import type { Lane, TimelineEvent } from '@/types/timeline'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
+import type { ExternalOverlayInfo } from '@/hooks/useExternalOverlays'
 import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
 import { useSizeConfig, type UiSize } from '@/contexts/UiSizeContext'
 import { useSkin, SKINS, type SkinId } from '@/contexts/SkinContext'
@@ -51,11 +54,21 @@ interface ToolbarProps {
   onToggleOverlayAlignment: (id: string) => void
   overlayDisplayModes: Map<string, OverlayDisplayMode>
   onSetOverlayDisplayMode: (id: string, mode: OverlayDisplayMode) => void
+  externalStored?: ExternalOverlayInfo[]
+  externalActiveIds?: Set<string>
+  externalAlignedIds?: Set<string>
+  externalDisplayModes?: Map<string, OverlayDisplayMode>
+  onAddExternal?: (info: ExternalOverlayInfo) => void
+  onRemoveExternal?: (timelineId: string) => void
+  onToggleExternalActive?: (timelineId: string) => void
+  onToggleExternalAlignment?: (timelineId: string) => void
+  onSetExternalDisplayMode?: (timelineId: string, mode: OverlayDisplayMode) => void
+  mainStartYear?: number | null
+  sharedWithMe?: SharedWithMeItem[]
   showUserMenu?: boolean
   extraActions?: React.ReactNode
 }
 
-const SIZE_LABELS: Record<UiSize, string> = { small: 'S', medium: 'M', large: 'L', fitscreen: 'Fit' }
 const SIZE_NAMES: Record<UiSize, string> = { small: 'Small', medium: 'Medium', large: 'Large', fitscreen: 'Fit Screen' }
 
 function SkinSwatch({ bg, accent, size = 14 }: { bg: string; accent: string; size?: number }) {
@@ -80,7 +93,7 @@ export function Toolbar({
   personaDisplayModes,
   onSetPersonaDisplayMode,
   activeView,
-  onSetActiveView,
+  onSetActiveView: _onSetActiveView,
   onScrollToToday,
   lanes,
   events,
@@ -95,15 +108,29 @@ export function Toolbar({
   onToggleOverlayAlignment,
   overlayDisplayModes,
   onSetOverlayDisplayMode,
+  externalStored,
+  externalActiveIds,
+  externalAlignedIds,
+  externalDisplayModes,
+  onAddExternal,
+  onRemoveExternal,
+  onToggleExternalActive,
+  onToggleExternalAlignment,
+  onSetExternalDisplayMode,
+  mainStartYear,
+  sharedWithMe,
   showUserMenu = true,
   extraActions,
 }: ToolbarProps) {
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId, customInput } = useSkin()
+  const { user, signOut } = useAuth()
+  const { profile } = useProfile()
   const [skinDialogOpen, setSkinDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [importTab, setImportTab] = useState<ImportTab>('calendar-file')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const logMin = useMemo(() => Math.log(MIN_PIXELS_PER_YEAR), [])
   const logMax = useMemo(() => Math.log(MAX_PIXELS_PER_YEAR), [])
@@ -146,10 +173,13 @@ export function Toolbar({
     setImportDialogOpen(true)
   }
 
+  const displayName = profile?.display_name || ''
+  const userInitial = (displayName || user?.email?.[0] || '?').charAt(0).toUpperCase()
+
   return (
     <>
       <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2">
-        {/* ── Left side ── */}
+        {/* ── Left: branding + timeline selector ── */}
         <div className="flex items-center gap-2 min-w-0">
           <h1 className="text-lg font-semibold shrink-0 hidden sm:block">LifeSaga</h1>
           <TimelinePersonaSelector
@@ -166,266 +196,181 @@ export function Toolbar({
             onToggleOverlayAlignment={onToggleOverlayAlignment}
             overlayDisplayModes={overlayDisplayModes}
             onSetOverlayDisplayMode={onSetOverlayDisplayMode}
+            externalStored={externalStored}
+            externalActiveIds={externalActiveIds}
+            externalAlignedIds={externalAlignedIds}
+            externalDisplayModes={externalDisplayModes}
+            onAddExternal={onAddExternal}
+            onRemoveExternal={onRemoveExternal}
+            onToggleExternalActive={onToggleExternalActive}
+            onToggleExternalAlignment={onToggleExternalAlignment}
+            onSetExternalDisplayMode={onSetExternalDisplayMode}
+            mainStartYear={mainStartYear}
+            sharedWithMe={sharedWithMe}
           />
-
-          {/* Size selector — desktop only */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1 w-20 hidden lg:flex">
-                <span className="text-xs text-muted-foreground">Size:</span>
-                <span className="font-medium">{SIZE_LABELS[size]}</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
-                <DropdownMenuItem
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className={size === s ? 'font-semibold' : ''}
-                >
-                  {SIZE_NAMES[s]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Theme selector — desktop only */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex">
-                <SkinSwatch bg={swatchBg} accent={swatchAccent} />
-                <span className="text-xs font-medium">{skinLabel}</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
-                <DropdownMenuItem
-                  key={s.id}
-                  onClick={() => handleSelectSkin(s.id)}
-                  className={`gap-2 ${skinId === s.id ? 'font-semibold' : ''}`}
-                >
-                  <SkinSwatch bg={s.bgColor} accent={s.accentColor} />
-                  {s.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Import dropdown — desktop only */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex">
-                <Download className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Import</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => openImport('calendar-file')}>
-                <CalendarDays className="h-4 w-4 mr-2" />
-                Calendar File
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('google-calendar')}>
-                <Globe className="h-4 w-4 mr-2" />
-                Google Calendar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('text')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Text
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('voice')}>
-                <Mic className="h-4 w-4 mr-2" />
-                Voice
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Max events input — desktop only */}
-          <div className="hidden lg:flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Max:</span>
-            <input
-              type="number"
-              min={1}
-              max={99999}
-              value={maxEvents}
-              onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) onMaxEventsChange(v) }}
-              className="w-16 h-8 rounded-md border border-input bg-background px-2 text-xs text-center"
-              title="Maximum number of events to display (longest first)"
-            />
-          </div>
-
-          {/* Search button — desktop only */}
-          <Button variant="outline" size="sm" className="gap-1.5 hidden lg:flex" onClick={() => setSearchOpen(true)}>
-            <Search className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Search</span>
-          </Button>
         </div>
 
-        {/* ── Right side ── */}
-        <div className="flex items-center gap-2 shrink-0">
-
-          {/* Desktop controls */}
+        {/* ── Right: lean action bar ── */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {activeView === 'timeline' && (
-            <div className="hidden lg:flex items-center gap-2">
+            <>
               {onScrollToToday && (
-                <Button variant="outline" size="sm" onClick={onScrollToToday}>
-                  Today
+                <Button variant="outline" size="sm" onClick={onScrollToToday} title="Scroll to today">
+                  <CalendarDays className="h-4 w-4" />
                 </Button>
               )}
-              <div className="flex items-center gap-1 rounded-md border px-2 py-1">
-                <button onClick={() => stepZoom(1 / 1.3)} className="text-muted-foreground hover:text-foreground">
-                  <ZoomOut className="h-4 w-4" />
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={250}
-                  value={sliderValue}
-                  onChange={handleSliderChange}
-                  className="h-1 w-24 cursor-pointer accent-primary"
-                />
-                <button onClick={() => stepZoom(1.3)} className="text-muted-foreground hover:text-foreground">
-                  <ZoomIn className="h-4 w-4" />
-                </button>
-                <span className="text-[10px] text-muted-foreground ml-1 w-14 text-right">{zoomLabel}</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={onAddLane}>
-                <Layers className="h-4 w-4 mr-1" />
-                Add Lane
+              <Button variant="outline" size="sm" onClick={() => stepZoom(1 / 1.3)} title="Zoom out">
+                <ZoomOut className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={onAddEvent}>
-                <Plus className="h-4 w-4 mr-1" />
-                Event
+              <Button variant="outline" size="sm" onClick={() => stepZoom(1.3)} title="Zoom in">
+                <ZoomIn className="h-4 w-4" />
               </Button>
-            </div>
+            </>
           )}
 
-          {/* Desktop overview toggle */}
-          <Button
-            variant={activeView === 'overview' ? 'default' : 'outline'}
-            size="sm"
-            className="hidden lg:flex"
-            onClick={() => onSetActiveView(activeView === 'overview' ? 'timeline' : 'overview')}
-          >
-            <LayoutList className="h-4 w-4 mr-1" />
-            Overview
+          <Button size="sm" onClick={onAddEvent}>
+            <Plus className="h-4 w-4 mr-1" />
+            Event
           </Button>
 
-          {/* Desktop kanban toggle */}
-          <Button
-            variant={activeView === 'kanban' ? 'default' : 'outline'}
-            size="sm"
-            className="hidden lg:flex"
-            onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}
-          >
-            <Kanban className="h-4 w-4 mr-1" />
-            Kanban
-          </Button>
-
-          {/* Mobile meatball menu */}
+          {/* ── 3-dot menu: everything else ── */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex lg:hidden px-2">
+              <Button variant="outline" size="sm" className="px-2">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-            <div className="max-h-[85vh] overflow-y-auto">
-              {activeView === 'timeline' && (
-                <>
-                  {onScrollToToday && (
-                    <DropdownMenuItem onClick={onScrollToToday}>
-                      Today
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="max-h-[85vh] overflow-y-auto">
+
+                {/* Add Lane */}
+                <DropdownMenuItem onClick={onAddLane}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Lane
+                </DropdownMenuItem>
+
+                {/* Search */}
+                <DropdownMenuItem onClick={() => setSearchOpen(true)}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Search Events
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Zoom slider + label */}
+                <div className="px-2 py-1.5 flex items-center gap-2">
+                  <ZoomOut className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="range"
+                    min={0}
+                    max={250}
+                    value={sliderValue}
+                    onChange={handleSliderChange}
+                    className="h-1 flex-1 cursor-pointer accent-primary"
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <ZoomIn className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">{zoomLabel}</span>
+                </div>
+
+                {/* Max events */}
+                <div className="px-2 py-1.5 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Max events:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={99999}
+                    value={maxEvents}
+                    onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) onMaxEventsChange(v) }}
+                    onClick={e => e.stopPropagation()}
+                    className="w-16 h-7 rounded-md border border-input bg-background px-2 text-xs text-center ml-auto"
+                    title="Maximum number of events to display (longest first)"
+                  />
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {/* Size */}
+                {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={() => setSize(s)}
+                    className={size === s ? 'font-semibold' : ''}
+                  >
+                    {SIZE_NAMES[s]}
+                  </DropdownMenuItem>
+                ))}
+
+                <DropdownMenuSeparator />
+
+                {/* Theme */}
+                {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
+                  <DropdownMenuItem
+                    key={s.id}
+                    onClick={() => handleSelectSkin(s.id)}
+                    className={`gap-2 ${skinId === s.id ? 'font-semibold' : ''}`}
+                  >
+                    <SkinSwatch bg={s.bgColor} accent={s.accentColor} />
+                    {s.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem onClick={() => handleSelectSkin('custom')} className={`gap-2 ${skinId === 'custom' ? 'font-semibold' : ''}`}>
+                  <SkinSwatch bg={swatchBg} accent={swatchAccent} />
+                  {skinId === 'custom' ? skinLabel : 'Custom…'}
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Import */}
+                <DropdownMenuItem onClick={() => openImport('calendar-file')}>
+                  <CalendarSearch className="h-4 w-4 mr-2" />
+                  Import Calendar File
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openImport('google-calendar')}>
+                  <Globe className="h-4 w-4 mr-2" />
+                  Import Google Calendar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openImport('text')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Import from Text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openImport('voice')}>
+                  <Mic className="h-4 w-4 mr-2" />
+                  Import from Voice
+                </DropdownMenuItem>
+
+                {/* User section */}
+                {showUserMenu && user && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground truncate flex items-center gap-2">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-medium shrink-0">
+                        {userInitial}
+                      </span>
+                      {displayName || user.email}
+                    </div>
+                    <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+                      <UserPen className="h-4 w-4 mr-2" />
+                      Edit Profile
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => stepZoom(1.3)}>
-                    <ZoomIn className="h-4 w-4 mr-2" />
-                    Zoom In
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => stepZoom(1 / 1.3)}>
-                    <ZoomOut className="h-4 w-4 mr-2" />
-                    Zoom Out
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onAddLane}>
-                    <Layers className="h-4 w-4 mr-2" />
-                    Add Lane
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onAddEvent}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Event
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem onClick={() => onSetActiveView(activeView === 'overview' ? 'timeline' : 'overview')}>
-                <LayoutList className="h-4 w-4 mr-2" />
-                {activeView === 'overview' ? 'View Timeline' : 'Overview'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSetActiveView(activeView === 'kanban' ? 'timeline' : 'kanban')}>
-                <Kanban className="h-4 w-4 mr-2" />
-                {activeView === 'kanban' ? 'View Timeline' : 'View Kanban'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {/* Size options */}
-              {(['small', 'large', 'fitscreen'] as UiSize[]).map(s => (
-                <DropdownMenuItem
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className={size === s ? 'font-semibold' : ''}
-                >
-                  {SIZE_NAMES[s]}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {/* Theme options */}
-              {SKINS.filter(s => ['classic', 'dark', 'sepia'].includes(s.id)).map(s => (
-                <DropdownMenuItem
-                  key={s.id}
-                  onClick={() => handleSelectSkin(s.id)}
-                  className={`gap-2 ${skinId === s.id ? 'font-semibold' : ''}`}
-                >
-                  <SkinSwatch bg={s.bgColor} accent={s.accentColor} />
-                  {s.name}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {/* Import options */}
-              <DropdownMenuItem onClick={() => openImport('calendar-file')}>
-                <CalendarDays className="h-4 w-4 mr-2" />
-                Import Calendar File
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('google-calendar')}>
-                <Globe className="h-4 w-4 mr-2" />
-                Import Google Calendar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('text')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Import from Text
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openImport('voice')}>
-                <Mic className="h-4 w-4 mr-2" />
-                Import from Voice
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setSearchOpen(true)}>
-                <Search className="h-4 w-4 mr-2" />
-                Search Events
-              </DropdownMenuItem>
-            </div>
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {extraActions}
-          {showUserMenu && <UserMenu />}
         </div>
       </div>
 
       <SkinDialog open={skinDialogOpen} onOpenChange={setSkinDialogOpen} />
       <ImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} defaultTab={importTab} lanes={lanes} addEvent={addEvent} addLane={addLane} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} events={events} lanes={lanes} onNavigate={onSearchNavigate} />
+      {showUserMenu && <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />}
     </>
   )
 }

@@ -44,12 +44,13 @@ export interface ValueProjection {
 }
 
 export interface EventLink {
-  anchorType: 'event' | 'today'
+  anchorType: 'event' | 'today' | 'start_to_today' | 'today_to_end'
   linkedEventId?: string        // when anchorType === 'event'
   linkedAnchor?: 'start' | 'end'  // which time of linked event to anchor to
   startOffset: number           // fractional years offset from anchor (negative = before)
   duration?: number             // if set, endYear = startYear + duration
   onDelete?: 'freeze' | 'delete' // only relevant when anchorType === 'event'
+  fixedYear?: number            // for 'start_to_today' (fixed start) or 'today_to_end' (fixed end)
 }
 
 export interface EventMetadata {

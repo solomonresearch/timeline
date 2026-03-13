@@ -138,12 +138,15 @@ export function EventDialog({
 
   // Dependency link state
   const [linkEnabled, setLinkEnabled] = useState(false)
-  const [linkAnchorType, setLinkAnchorType] = useState<'today' | 'event'>('today')
+  const [linkAnchorType, setLinkAnchorType] = useState<'today' | 'event' | 'start_to_today' | 'today_to_end'>('today')
   const [linkEventId, setLinkEventId] = useState('')
   const [linkEventAnchor, setLinkEventAnchor] = useState<'start' | 'end'>('start')
   const [linkStartOffsetStr, setLinkStartOffsetStr] = useState('0')
   const [linkDurationStr, setLinkDurationStr] = useState('')
   const [linkOnDelete, setLinkOnDelete] = useState<'freeze' | 'delete'>('freeze')
+  // Fixed date for 'start_to_today' (fixed start) and 'today_to_end' (fixed end)
+  const [linkFixedDate, setLinkFixedDate] = useState('')
+  const [linkFixedTime, setLinkFixedTime] = useState('')
 
   useEffect(() => {
     if (editingEvent) {
@@ -216,6 +219,13 @@ export function EventDialog({
       setLinkStartOffsetStr(lnk ? String(lnk.startOffset) : '0')
       setLinkDurationStr(lnk?.duration != null ? String(lnk.duration) : '')
       setLinkOnDelete(lnk?.onDelete ?? 'freeze')
+      if (lnk?.fixedYear != null) {
+        setLinkFixedDate(fracYearToDMY(lnk.fixedYear))
+        const t = fracYearToTimeStr(lnk.fixedYear)
+        setLinkFixedTime(t === '00:00' ? '' : t)
+      } else {
+        setLinkFixedDate(''); setLinkFixedTime('')
+      }
     } else {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '')
       setTitle('')
@@ -239,6 +249,7 @@ export function EventDialog({
       setLinkStartOffsetStr('0')
       setLinkDurationStr('')
       setLinkOnDelete('freeze')
+      setLinkFixedDate(''); setLinkFixedTime('')
       setUrl('')
       setLocation('')
       setRating(0)
@@ -252,10 +263,23 @@ export function EventDialog({
   // Compute resolved dates from the dependency link for preview
   const computedLink = useMemo(() => {
     if (!linkEnabled) return null
+    const today = dateToFracYear(new Date())
+
+    if (linkAnchorType === 'start_to_today') {
+      if (!linkFixedDate) return null
+      const startYear = dmyTimeToFracYear(linkFixedDate, linkFixedTime)
+      return { startYear, endYear: today }
+    }
+    if (linkAnchorType === 'today_to_end') {
+      if (!linkFixedDate) return null
+      const endYear = dmyTimeToFracYear(linkFixedDate, linkFixedTime)
+      return { startYear: today, endYear }
+    }
+
     const offset = parseFloat(linkStartOffsetStr) || 0
     let anchor: number | null = null
     if (linkAnchorType === 'today') {
-      anchor = dateToFracYear(new Date())
+      anchor = today
     } else if (linkEventId) {
       const linked = events.find(e => e.id === linkEventId)
       if (linked) anchor = linkEventAnchor === 'end' ? (linked.endYear ?? linked.startYear) : linked.startYear
@@ -265,7 +289,7 @@ export function EventDialog({
     const dur = parseFloat(linkDurationStr)
     const endYear = !isNaN(dur) && dur > 0 ? startYear + dur : undefined
     return { startYear, endYear }
-  }, [linkEnabled, linkAnchorType, linkEventId, linkEventAnchor, linkStartOffsetStr, linkDurationStr, events])
+  }, [linkEnabled, linkAnchorType, linkFixedDate, linkFixedTime, linkEventId, linkEventAnchor, linkStartOffsetStr, linkDurationStr, events])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -339,6 +363,10 @@ export function EventDialog({
     // Build link object
     let linkOut: EventLink | undefined
     if (linkEnabled) {
+      if (linkAnchorType === 'start_to_today' || linkAnchorType === 'today_to_end') {
+        const fixedYear = linkFixedDate ? dmyTimeToFracYear(linkFixedDate, linkFixedTime) : undefined
+        linkOut = { anchorType: linkAnchorType, startOffset: 0, ...(fixedYear != null ? { fixedYear } : {}) }
+      } else {
       const startOffset = parseFloat(linkStartOffsetStr) || 0
       const dur = parseFloat(linkDurationStr)
       linkOut = {
@@ -350,6 +378,7 @@ export function EventDialog({
         } : {}),
         startOffset,
         ...(!isNaN(dur) && dur > 0 ? { duration: dur } : {}),
+      }
       }
     }
 
@@ -874,13 +903,37 @@ export function EventDialog({
                   <Label className="text-xs text-muted-foreground shrink-0 w-20">Anchor to</Label>
                   <select
                     value={linkAnchorType}
-                    onChange={e => setLinkAnchorType(e.target.value as 'today' | 'event')}
+                    onChange={e => setLinkAnchorType(e.target.value as 'today' | 'event' | 'start_to_today' | 'today_to_end')}
                     className="h-7 text-xs border rounded-md px-1 bg-background flex-1"
                   >
                     <option value="today">Today's date</option>
                     <option value="event">Another event</option>
+                    <option value="start_to_today">Fixed start → today (ongoing)</option>
+                    <option value="today_to_end">Today → fixed end date</option>
                   </select>
                 </div>
+
+                {/* Fixed date input for start_to_today / today_to_end */}
+                {(linkAnchorType === 'start_to_today' || linkAnchorType === 'today_to_end') && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground shrink-0 w-20">
+                      {linkAnchorType === 'start_to_today' ? 'Start date' : 'End date'}
+                    </Label>
+                    <Input
+                      type="text"
+                      value={linkFixedDate}
+                      placeholder="DD/MM/YYYY"
+                      onChange={e => setLinkFixedDate(formatDMYInput(e.target.value))}
+                      className="w-32 h-7 text-xs"
+                    />
+                    <input
+                      type="time"
+                      value={linkFixedTime}
+                      onChange={e => setLinkFixedTime(e.target.value)}
+                      className="h-7 text-xs border rounded-md px-1 bg-background"
+                    />
+                  </div>
+                )}
 
                 {/* Event picker + anchor point */}
                 {linkAnchorType === 'event' && (
@@ -919,29 +972,32 @@ export function EventDialog({
                   </>
                 )}
 
-                {/* Start offset */}
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground shrink-0 w-20">Start offset</Label>
-                  <Input
-                    type="number" step="0.01" value={linkStartOffsetStr}
-                    onChange={e => setLinkStartOffsetStr(e.target.value)}
-                    className="w-24 h-7 text-xs"
-                    placeholder="0"
-                  />
-                  <span className="text-xs text-muted-foreground">years (− before, + after)</span>
-                </div>
+                {/* Start offset + Duration — not applicable for the fixed-date modes */}
+                {linkAnchorType !== 'start_to_today' && linkAnchorType !== 'today_to_end' && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground shrink-0 w-20">Start offset</Label>
+                      <Input
+                        type="number" step="0.01" value={linkStartOffsetStr}
+                        onChange={e => setLinkStartOffsetStr(e.target.value)}
+                        className="w-24 h-7 text-xs"
+                        placeholder="0"
+                      />
+                      <span className="text-xs text-muted-foreground">years (− before, + after)</span>
+                    </div>
 
-                {/* Duration */}
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground shrink-0 w-20">Duration</Label>
-                  <Input
-                    type="number" step="0.01" min="0" value={linkDurationStr}
-                    onChange={e => setLinkDurationStr(e.target.value)}
-                    className="w-24 h-7 text-xs"
-                    placeholder="optional"
-                  />
-                  <span className="text-xs text-muted-foreground">years (sets end date)</span>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground shrink-0 w-20">Duration</Label>
+                      <Input
+                        type="number" step="0.01" min="0" value={linkDurationStr}
+                        onChange={e => setLinkDurationStr(e.target.value)}
+                        className="w-24 h-7 text-xs"
+                        placeholder="optional"
+                      />
+                      <span className="text-xs text-muted-foreground">years (sets end date)</span>
+                    </div>
+                  </>
+                )}
 
                 {/* Computed preview */}
                 {computedLink ? (

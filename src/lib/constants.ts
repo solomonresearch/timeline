@@ -213,6 +213,16 @@ export function resolveEventLinks(events: TimelineEvent[]): TimelineEvent[] {
     const link = event.link
     if (!link) return event
 
+    // New anchor types: fixed start → today, or today → fixed end
+    if (link.anchorType === 'start_to_today') {
+      const startYear = link.fixedYear ?? event.startYear
+      return { ...event, startYear, endYear: today }
+    }
+    if (link.anchorType === 'today_to_end') {
+      const endYear = link.fixedYear ?? event.endYear
+      return { ...event, startYear: today, ...(endYear !== undefined ? { endYear } : {}) }
+    }
+
     let anchor: number
     if (link.anchorType === 'today') {
       anchor = today

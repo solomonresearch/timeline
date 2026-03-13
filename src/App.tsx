@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePersonas } from '@/hooks/usePersonas'
 import { useTimelineOverlays } from '@/hooks/useTimelineOverlays'
 import { useExternalOverlays } from '@/hooks/useExternalOverlays'
-import { ExternalOverlayToggle } from '@/components/ExternalOverlayToggle'
 import { getSharedWithMe } from '@/lib/api'
 import type { SharedWithMeItem } from '@/types/database'
 import { useProfile } from '@/hooks/useProfile'
@@ -226,6 +225,31 @@ function TimelineView() {
     return top
   }, [events, maxEvents, navigatedEventId])
 
+  const allOverlayEvents = useMemo(
+    () => [...activeOverlayEvents, ...externalOverlayEvents],
+    [activeOverlayEvents, externalOverlayEvents],
+  )
+
+  // Apply the same top-N filter per overlay timeline
+  const displayedOverlayEvents = useMemo(() => {
+    const byTimeline = new Map<string, typeof allOverlayEvents>()
+    for (const e of allOverlayEvents) {
+      const arr = byTimeline.get(e.timeline_id) ?? []
+      arr.push(e)
+      byTimeline.set(e.timeline_id, arr)
+    }
+    const result: typeof allOverlayEvents = []
+    for (const [, evts] of byTimeline) {
+      const sorted = [...evts].sort((a, b) => {
+        const durA = a.type === 'range' && a.end_year != null ? a.end_year - a.start_year : 0
+        const durB = b.type === 'range' && b.end_year != null ? b.end_year - b.start_year : 0
+        return durB - durA
+      })
+      result.push(...sorted.slice(0, Math.max(1, maxEvents)))
+    }
+    return result
+  }, [allOverlayEvents, maxEvents])
+
   const handleSearchNavigate = useCallback((event: TimelineEvent) => {
     setNavigatedEventId(event.id)
     scrollToEventRef.current?.(event)
@@ -397,21 +421,17 @@ function TimelineView() {
           onToggleOverlayAlignment={toggleOverlayAlignment}
           overlayDisplayModes={overlayDisplayModes}
           onSetOverlayDisplayMode={setOverlayDisplayMode}
-          extraActions={
-            <ExternalOverlayToggle
-              stored={externalOverlays}
-              activeIds={externalActiveIds}
-              alignedIds={externalAlignedIds}
-              displayModes={externalDisplayModes}
-              onAdd={addExternalOverlay}
-              onRemove={removeExternalOverlay}
-              onToggleActive={toggleExternalActive}
-              onToggleAlignment={toggleExternalAlignment}
-              onSetDisplayMode={setExternalDisplayMode}
-              mainStartYear={selectedTimeline?.start_year}
-              sharedWithMe={sharedWithMe}
-            />
-          }
+          externalStored={externalOverlays}
+          externalActiveIds={externalActiveIds}
+          externalAlignedIds={externalAlignedIds}
+          externalDisplayModes={externalDisplayModes}
+          onAddExternal={addExternalOverlay}
+          onRemoveExternal={removeExternalOverlay}
+          onToggleExternalActive={toggleExternalActive}
+          onToggleExternalAlignment={toggleExternalAlignment}
+          onSetExternalDisplayMode={setExternalDisplayMode}
+          mainStartYear={selectedTimeline?.start_year}
+          sharedWithMe={sharedWithMe}
         />
 
         {activeView === 'overview' ? (
@@ -441,7 +461,7 @@ function TimelineView() {
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
               timelineMeta={timelineMeta}
-              overlayEvents={[...activeOverlayEvents, ...externalOverlayEvents]}
+              overlayEvents={displayedOverlayEvents}
               overlayDisplayModes={mergedOverlayDisplayModes}
               activeOverlayTimelines={[...activeOverlayTimelines, ...externalOverlayTimelines]}
             />

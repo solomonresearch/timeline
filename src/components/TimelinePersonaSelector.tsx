@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star, Copy, UserPlus, X } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ChevronDown, Plus, Pencil, Trash2, Layers, LayoutList, Users, Link2, Link2Off, Star, Copy, UserPlus, X, Globe, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -11,15 +11,25 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { DbPersona, DbLane } from '@/types/database'
+import type { DbPersona, DbLane, DbTimelineShare, SharedWithMeItem } from '@/types/database'
 import type { PersonaDisplayMode } from '@/hooks/usePersonas'
 import type { OverlayDisplayMode } from '@/hooks/useTimelineOverlays'
+import type { ExternalOverlayInfo } from '@/hooks/useExternalOverlays'
 import { fracYearToMs, msToFracYear } from '@/lib/constants'
-import { fetchLanes, getTimelineShares, addTimelineShare, removeTimelineShare, lookupUserByUsername } from '@/lib/api'
-import type { DbTimelineShare } from '@/types/database'
+import { fetchLanes, getTimelineShares, addTimelineShare, removeTimelineShare, lookupUserByUsername, fetchPublicProfile } from '@/lib/api'
 
 const DEFAULT_COLOR = '#3b82f6'
 
@@ -52,6 +62,18 @@ interface TimelinePersonaSelectorProps {
   onToggleOverlayAlignment: (id: string) => void
   overlayDisplayModes: Map<string, OverlayDisplayMode>
   onSetOverlayDisplayMode: (id: string, mode: OverlayDisplayMode) => void
+  // External (other users') overlay props
+  externalStored?: ExternalOverlayInfo[]
+  externalActiveIds?: Set<string>
+  externalAlignedIds?: Set<string>
+  externalDisplayModes?: Map<string, OverlayDisplayMode>
+  onAddExternal?: (info: ExternalOverlayInfo) => void
+  onRemoveExternal?: (timelineId: string) => void
+  onToggleExternalActive?: (timelineId: string) => void
+  onToggleExternalAlignment?: (timelineId: string) => void
+  onSetExternalDisplayMode?: (timelineId: string, mode: OverlayDisplayMode) => void
+  mainStartYear?: number | null
+  sharedWithMe?: SharedWithMeItem[]
 }
 
 export function TimelinePersonaSelector({
@@ -68,6 +90,17 @@ export function TimelinePersonaSelector({
   onToggleOverlayAlignment,
   overlayDisplayModes,
   onSetOverlayDisplayMode,
+  externalStored = [],
+  externalActiveIds = new Set(),
+  externalAlignedIds = new Set(),
+  externalDisplayModes = new Map(),
+  onAddExternal,
+  onRemoveExternal,
+  onToggleExternalActive,
+  onToggleExternalAlignment,
+  onSetExternalDisplayMode,
+  mainStartYear,
+  sharedWithMe = [],
 }: TimelinePersonaSelectorProps) {
   const {
     timelines,
@@ -107,12 +140,69 @@ export function TimelinePersonaSelector({
   const [loadingSourceLanes, setLoadingSourceLanes] = useState(false)
   const [copying, setCopying] = useState(false)
   const [isPublic, setIsPublic] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // Sharing state (edit mode only)
   const [shares, setShares] = useState<DbTimelineShare[]>([])
   const [shareInput, setShareInput] = useState('')
   const [shareSearching, setShareSearching] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
+
+  // Users / external overlay search state
+  const [userSearchInput, setUserSearchInput] = useState('')
+  const [userSearching, setUserSearching] = useState(false)
+  const [userSearchError, setUserSearchError] = useState<string | null>(null)
+  const [userSearchResults, setUserSearchResults] = useState<ExternalOverlayInfo[]>([])
+  const [userSearchAccess, setUserSearchAccess] = useState<Map<string, 'public' | 'shared' | 'both'>>(new Map())
+
+  const handleUserSearch = useCallback(async () => {
+    const username = userSearchInput.trim().toLowerCase()
+    if (!username) return
+    setUserSearching(true)
+    setUserSearchError(null)
+    setUserSearchResults([])
+    setUserSearchAccess(new Map())
+
+    const profile = await fetchPublicProfile(username)
+    const publicIds = new Set<string>()
+    const publicResults: ExternalOverlayInfo[] = profile
+      ? profile.timelines.map(t => {
+          publicIds.add(t.id)
+          return { username: profile.profile.username, timelineId: t.id, timelineName: t.name, displayName: profile.profile.display_name || profile.profile.username, startYear: t.start_year ?? null }
+        })
+      : []
+
+    const sharedIds = new Set<string>()
+    const sharedResults: ExternalOverlayInfo[] = sharedWithMe
+      .filter(item => (item.owner.username ?? '').toLowerCase() === username)
+      .map(item => {
+        sharedIds.add(item.timeline.id)
+        return { username: item.owner.username ?? '', timelineId: item.timeline.id, timelineName: item.timeline.name, displayName: item.owner.display_name || item.owner.username || '', startYear: item.timeline.start_year ?? null }
+      })
+
+    const seen = new Set<string>()
+    const results: ExternalOverlayInfo[] = []
+    for (const r of [...publicResults, ...sharedResults]) {
+      if (!seen.has(r.timelineId)) { seen.add(r.timelineId); results.push(r) }
+    }
+
+    const access = new Map<string, 'public' | 'shared' | 'both'>()
+    for (const id of seen) {
+      if (publicIds.has(id) && sharedIds.has(id)) access.set(id, 'both')
+      else if (publicIds.has(id)) access.set(id, 'public')
+      else access.set(id, 'shared')
+    }
+
+    if (results.length === 0) {
+      setUserSearchError(profile
+        ? `@${username} has no public timelines and hasn't shared any with you`
+        : `No profile found for @${username}`)
+    } else {
+      setUserSearchResults(results)
+      setUserSearchAccess(access)
+    }
+    setUserSearching(false)
+  }, [userSearchInput, sharedWithMe])
 
   const isRealSource = (id: string) => id !== COPY_DEFAULTS && id !== COPY_EMPTY
 
@@ -269,10 +359,16 @@ export function TimelinePersonaSelector({
     setDialogOpen(false)
   }
 
-  async function handleDelete(id: string, e: React.MouseEvent) {
+  function handleDelete(id: string, e: React.MouseEvent) {
     e.stopPropagation()
     if (timelines.length <= 1) return
-    await deleteTimeline(id)
+    setDeleteConfirmId(id)
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirmId) return
+    await deleteTimeline(deleteConfirmId)
+    setDeleteConfirmId(null)
   }
 
   const buttonLabel = currentTimeline?.name ?? 'Timeline'
@@ -283,9 +379,9 @@ export function TimelinePersonaSelector({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="max-w-52 gap-1">
             <span className="truncate">{buttonLabel}</span>
-            {(activePersonaCount + activeOverlayCount) > 0 && (
+            {(activePersonaCount + activeOverlayCount + externalActiveIds.size) > 0 && (
               <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
-                +{activePersonaCount + activeOverlayCount}
+                +{activePersonaCount + activeOverlayCount + externalActiveIds.size}
               </span>
             )}
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
@@ -414,6 +510,132 @@ export function TimelinePersonaSelector({
             </button>
           </div>
 
+          {/* ── Users (external overlays) ── */}
+          <div className="border-t px-3 pt-2 pb-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+              <Globe className="h-3 w-3" />
+              Users
+              {externalActiveIds.size > 0 && (
+                <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{externalActiveIds.size}</span>
+              )}
+            </p>
+          </div>
+          <div className="px-1 pb-1">
+            {/* Shared with you */}
+            {sharedWithMe.length > 0 && (
+              <div className="px-2 pb-1 space-y-0.5">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Shared with you</p>
+                {sharedWithMe.map(item => {
+                  const alreadyAdded = !!externalStored.find(s => s.timelineId === item.timeline.id)
+                  return (
+                    <div key={item.timeline.id} className="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-accent">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{item.timeline.emoji ? `${item.timeline.emoji} ` : ''}{item.timeline.name}</p>
+                        <p className="text-[10px] text-muted-foreground">from @{item.owner.username || item.owner.display_name}</p>
+                      </div>
+                      <Button size="sm" variant={alreadyAdded ? 'secondary' : 'default'} className="h-6 text-[10px] px-2 shrink-0" disabled={alreadyAdded}
+                        onClick={() => { if (!alreadyAdded) onAddExternal?.({ username: item.owner.username ?? '', timelineId: item.timeline.id, timelineName: item.timeline.name, displayName: item.owner.display_name || item.owner.username || '', startYear: item.timeline.start_year ?? null }) }}>
+                        {alreadyAdded ? 'Added' : 'Add'}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Added external overlays */}
+            {externalStored.length > 0 && (
+              <div className="px-2 pb-1 space-y-0.5">
+                {(sharedWithMe.length > 0) && <div className="border-t my-1" />}
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Added timelines</p>
+                {externalStored.map(info => {
+                  const isActive = externalActiveIds.has(info.timelineId)
+                  const aligned = externalAlignedIds.has(info.timelineId)
+                  const mode = externalDisplayModes.get(info.timelineId) ?? 'separate'
+                  const canAlign = info.startYear != null && mainStartYear != null
+                  return (
+                    <div key={info.timelineId} className="rounded-md px-1 py-1.5 hover:bg-accent">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{info.displayName}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{info.timelineName}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isActive && (
+                            <>
+                              {canAlign && (
+                                <button onClick={() => onToggleExternalAlignment?.(info.timelineId)}
+                                  title={aligned ? 'Start-year aligned' : 'Real years'}
+                                  className={cn('p-1 rounded transition-colors', aligned ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted-foreground hover:bg-muted')}>
+                                  {aligned ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
+                                </button>
+                              )}
+                              <div className="flex items-center rounded border overflow-hidden">
+                                <button onClick={() => onSetExternalDisplayMode?.(info.timelineId, 'integrated')} title="Blend into my lanes"
+                                  className={cn('p-1 transition-colors', mode === 'integrated' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}>
+                                  <Layers className="h-3 w-3" />
+                                </button>
+                                <button onClick={() => onSetExternalDisplayMode?.(info.timelineId, 'separate')} title="Show as separate section"
+                                  className={cn('p-1 transition-colors', mode === 'separate' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}>
+                                  <LayoutList className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          <Switch checked={isActive} onCheckedChange={() => onToggleExternalActive?.(info.timelineId)} />
+                          <button onClick={() => onRemoveExternal?.(info.timelineId)}
+                            className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors" title="Remove">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Search for user timelines */}
+            <div className={cn('px-2 py-1.5 space-y-1.5', (sharedWithMe.length > 0 || externalStored.length > 0) && 'border-t mt-1 pt-2')}>
+              <p className="text-[10px] font-medium text-muted-foreground">Find timelines by username</p>
+              <div className="flex gap-1.5">
+                <Input
+                  value={userSearchInput}
+                  onChange={e => { setUserSearchInput(e.target.value); setUserSearchError(null); setUserSearchResults([]) }}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleUserSearch())}
+                  placeholder="username"
+                  className="h-7 text-xs flex-1"
+                />
+                <Button type="button" size="sm" className="h-7 px-2 shrink-0" onClick={handleUserSearch} disabled={userSearching || !userSearchInput.trim()}>
+                  <Search className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {userSearching && <p className="text-[10px] text-muted-foreground">Searching…</p>}
+              {userSearchError && <p className="text-[10px] text-destructive">{userSearchError}</p>}
+              {userSearchResults.length > 0 && (
+                <div className="space-y-0.5">
+                  {userSearchResults.map(r => {
+                    const alreadyAdded = !!externalStored.find(s => s.timelineId === r.timelineId)
+                    const access = userSearchAccess.get(r.timelineId)
+                    const accessLabel = access === 'both' ? 'public · shared' : access === 'shared' ? 'shared with you' : 'public'
+                    return (
+                      <div key={r.timelineId} className="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-accent">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{r.timelineName}</p>
+                          <p className="text-[10px] text-muted-foreground">@{r.username} · {accessLabel}</p>
+                        </div>
+                        <Button size="sm" variant={alreadyAdded ? 'secondary' : 'default'} className="h-6 text-[10px] px-2 shrink-0" disabled={alreadyAdded}
+                          onClick={() => { if (!alreadyAdded) onAddExternal?.(r) }}>
+                          {alreadyAdded ? 'Added' : 'Add'}
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* ── Personas ── */}
           <div className="border-t px-3 pt-2 pb-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
@@ -491,6 +713,24 @@ export function TimelinePersonaSelector({
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={open => { if (!open) setDeleteConfirmId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete timeline?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{timelines.find(t => t.id === deleteConfirmId)?.name}" and all its lanes and events. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
