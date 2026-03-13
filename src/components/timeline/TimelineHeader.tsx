@@ -23,7 +23,7 @@ interface TimelineHeaderProps {
   lifeSpan?: LifeSpan
 }
 
-export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef, lifeSpan }: TimelineHeaderProps) {
+export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef }: TimelineHeaderProps) {
   const { sc } = useSizeConfig()
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 2
@@ -145,35 +145,6 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       className="sticky top-0 z-10 bg-background border-b"
       style={{ width: '100%', height: sc.HEADER_HEIGHT }}
     >
-      {/* Life span overlay */}
-      {lifeSpan && (() => {
-        const birthPx = (lifeSpan.birthYear - yearStart) * pixelsPerYear
-        const LIFE_COLOR = 'rgba(59,130,246,'
-        if (lifeSpan.endYear != null) {
-          const endPx = (lifeSpan.endYear - yearStart) * pixelsPerYear
-          return (
-            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
-              left: Math.max(0, birthPx),
-              width: Math.max(0, endPx - Math.max(0, birthPx)),
-              backgroundColor: LIFE_COLOR + '0.13)',
-            }} />
-          )
-        } else {
-          const solidPx = (lifeSpan.birthYear + 85 - yearStart) * pixelsPerYear
-          const fadePx  = (lifeSpan.birthYear + 100 - yearStart) * pixelsPerYear
-          const left = Math.max(0, birthPx)
-          const width = Math.max(0, fadePx - left)
-          const solidStop = Math.max(0, solidPx - left)
-          return (
-            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
-              left,
-              width,
-              background: `linear-gradient(to right, ${LIFE_COLOR}0.13) 0px, ${LIFE_COLOR}0.13) ${solidStop}px, ${LIFE_COLOR}0) ${width}px)`,
-            }} />
-          )
-        }
-      })()}
-
       {filtered.map(({ key, left, label, major }) => (
         <div
           key={key}
@@ -194,7 +165,6 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
       ))}
       {/* Present-day marker */}
       <div className="absolute top-0 pointer-events-none" style={{ left: currentYearLeft }}>
-        <div className="absolute top-0 w-0.5 h-full" style={{ backgroundColor: '#ef4444', left: -1 }} />
         <div
           className="absolute"
           style={{

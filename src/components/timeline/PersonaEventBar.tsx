@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { AlignedPersonaEvent } from '@/types/database'
 import { useSizeConfig } from '@/contexts/UiSizeContext'
@@ -29,19 +29,19 @@ export function PersonaEventBar({
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT, BAR_HEIGHT, DOT_SIZE, EVENT_FONT, EVENT_LINE_HEIGHT } = sc
 
   const [open, setOpen] = useState(false)
+  const [pinned, setPinned] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0 })
-  const pinnedRef = useRef(false)
 
   // Close pinned tooltip on outside click
   useEffect(() => {
-    if (!open || !pinnedRef.current) return
+    if (!pinned) return
     function handleOutside() {
-      pinnedRef.current = false
+      setPinned(false)
       setOpen(false)
     }
-    document.addEventListener('pointerdown', handleOutside, { capture: true })
-    return () => document.removeEventListener('pointerdown', handleOutside, { capture: true })
-  }, [open])
+    document.addEventListener('click', handleOutside)
+    return () => document.removeEventListener('click', handleOutside)
+  }, [pinned])
 
   const color = event.color || laneColor
   const left = (event.display_start_year - yearStart) * pixelsPerYear
@@ -60,28 +60,28 @@ export function PersonaEventBar({
     : 0
 
   function handlePointerEnter(e: React.PointerEvent) {
-    if (pinnedRef.current) return
+    if (pinned) return
     setPos({ x: e.clientX, y: e.clientY })
     setOpen(true)
   }
 
   function handlePointerMove(e: React.PointerEvent) {
-    if (pinnedRef.current) return
+    if (pinned) return
     setPos({ x: e.clientX, y: e.clientY })
   }
 
   function handlePointerLeave() {
-    if (pinnedRef.current) return
+    if (pinned) return
     setOpen(false)
   }
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
-    if (pinnedRef.current) {
-      pinnedRef.current = false
+    if (pinned) {
+      setPinned(false)
       setOpen(false)
     } else {
-      pinnedRef.current = true
+      setPinned(true)
       setPos({ x: e.clientX, y: e.clientY })
       setOpen(true)
     }
@@ -102,7 +102,7 @@ export function PersonaEventBar({
         transform: 'translateY(-100%)',
         maxWidth: TOOLTIP_MAX_WIDTH,
       }}
-      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <p className="font-medium text-xs text-primary-foreground">{label}</p>
       {event.description && (

@@ -33,7 +33,7 @@ import {
   LayoutList,
   ChevronDown,
 } from 'lucide-react'
-import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR } from '@/lib/constants'
+import { MIN_PIXELS_PER_YEAR, MAX_PIXELS_PER_YEAR, SIDEBAR_WIDTH } from '@/lib/constants'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,6 +99,16 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
       }
     }
   }, [personas, activePersonaIds, alignedPersonaIds, personaDisplayModes, togglePersona, togglePersonaAlignment, setPersonaDisplayMode])
+
+  // Set initial zoom so ~180 years (90 back + 90 forward) fills the screen, centred on today
+  useEffect(() => {
+    const isMobile = window.innerWidth <= 767
+    const contentW = window.innerWidth - (isMobile ? 0 : SIDEBAR_WIDTH)
+    const ppy = Math.max(MIN_PIXELS_PER_YEAR, contentW / 180)
+    setPixelsPerYear(Math.round(ppy * 100) / 100)
+    // Scroll to today after layout settles
+    requestAnimationFrame(() => { scrollToTodayRef.current?.() })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { size, setSize } = useSizeConfig()
   const { skinId, setSkinId } = useSkin()
