@@ -102,7 +102,6 @@ export function PersonaEventBar({
       onClick={(e) => e.stopPropagation()}
     >
       <p className="font-medium text-xs text-primary-foreground">{event.title}</p>
-      <p className="text-xs text-primary-foreground opacity-70">{event.persona_name}</p>
       {event.description && (
         <p className="text-xs text-primary-foreground opacity-85 whitespace-normal">{event.description}</p>
       )}
