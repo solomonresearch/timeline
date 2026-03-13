@@ -235,42 +235,43 @@ export function TotalAssetsLane({
         const showYearCol = (tooltip.hoverYear - yearFloor) > 0.01
         return (
           <div
-            className="fixed z-50 pointer-events-none rounded bg-black/80 text-white px-3 py-2"
+            className="fixed z-50 pointer-events-none rounded bg-black/92 text-white px-2.5 py-2"
             style={{
-              left: tooltip.clientX + 16,
+              left: tooltip.clientX,
               top: tooltip.clientY - (tooltip.items.length * 20 + 52),
-              minWidth: showYearCol ? 240 : 180,
+              minWidth: showYearCol ? 210 : 160,
+              transform: 'translateX(-100%)',
             }}
           >
             {/* Column headers */}
-            <div className="flex justify-between gap-4 text-[10px] leading-4 opacity-50 mb-0.5">
+            <div className="flex justify-between gap-2 text-[10px] leading-4 opacity-50 mb-0.5">
               <span className="flex-1" />
-              {showYearCol && <span className="w-16 text-right">{yearFloor}</span>}
-              <span className="w-16 text-right">Total</span>
+              {showYearCol && <span className="w-14 text-right">{yearFloor}</span>}
+              <span className="w-14 text-right">Total</span>
             </div>
             {/* Per-event rows */}
             {tooltip.items.map((item, i) => (
-              <div key={i} className="flex justify-between gap-4 text-xs leading-5">
-                <span className="opacity-70 truncate flex-1 max-w-[120px]">{item.label}</span>
+              <div key={i} className="flex justify-between gap-2 text-xs leading-5">
+                <span className="opacity-70 truncate flex-1 max-w-[110px]">{item.label}</span>
                 {showYearCol && (
-                  <span className="w-16 text-right" style={{ color: item.valueNow < 0 ? '#fca5a5' : 'inherit' }}>
+                  <span className="w-14 text-right" style={{ color: item.valueNow < 0 ? '#fca5a5' : 'inherit' }}>
                     {formatValue(item.valueNow)}
                   </span>
                 )}
-                <span className="w-16 text-right" style={{ color: item.valueHover < 0 ? '#fca5a5' : 'inherit' }}>
+                <span className="w-14 text-right" style={{ color: item.valueHover < 0 ? '#fca5a5' : 'inherit' }}>
                   {formatValue(item.valueHover)}
                 </span>
               </div>
             ))}
             {/* Total row */}
-            <div className="flex justify-between gap-4 text-xs leading-5 font-bold border-t border-white/30 mt-1 pt-1">
+            <div className="flex justify-between gap-2 text-xs leading-5 font-bold border-t border-white/30 mt-1 pt-1">
               <span className="flex-1">Total</span>
               {showYearCol && (
-                <span className="w-16 text-right" style={{ color: tooltip.totalNow < 0 ? '#fca5a5' : 'inherit' }}>
+                <span className="w-14 text-right" style={{ color: tooltip.totalNow < 0 ? '#fca5a5' : 'inherit' }}>
                   {formatValue(tooltip.totalNow)}
                 </span>
               )}
-              <span className="w-16 text-right" style={{ color: tooltip.totalHover < 0 ? '#fca5a5' : 'inherit' }}>
+              <span className="w-14 text-right" style={{ color: tooltip.totalHover < 0 ? '#fca5a5' : 'inherit' }}>
                 {formatValue(tooltip.totalHover)}
               </span>
             </div>
