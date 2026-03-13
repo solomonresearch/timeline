@@ -14,7 +14,7 @@ export function AboutPage() {
           onClick={() => navigate('/')}
           className="text-xl font-bold hover:opacity-80 transition-opacity"
         >
-          LifeSaga
+          TimeLANE
         </button>
         <button
           onClick={() => navigate('/')}
@@ -29,18 +29,18 @@ export function AboutPage() {
 
         {/* About */}
         <section className="space-y-4">
-          <h1 className="text-3xl font-bold">About LifeSaga</h1>
+          <h1 className="text-3xl font-bold">About TimeLANE</h1>
           <p className="text-muted-foreground leading-relaxed">
-            LifeSaga is a personal life timeline tool that lets you visualize your entire life — past, present, and future — on a single horizontal canvas. Organize events across swim lanes like Locations, Work, Education, Relationships, Health, and more. Drag, zoom, and scroll through decades in seconds.
+            TimeLANE is a personal life timeline tool that lets you visualize your entire life — past, present, and future — on a single horizontal canvas. Organize events across swim lanes like Locations, Work, Education, Relationships, Health, and more. Drag, zoom, and scroll through decades in seconds.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Beyond recording the past, LifeSaga is built for planning ahead. Add future events — job changes, moves, purchases — and attach value projections to track the financial impact of your decisions over time. See how a career change, a boat, or a business venture affects your long-term picture.
+            Beyond recording the past, TimeLANE is built for planning ahead. Add future events — job changes, moves, purchases — and attach value projections to track the financial impact of your decisions over time. See how a career change, a boat, or a business venture affects your long-term picture.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             Overlay historical personas (Einstein, Marie Curie, da Vinci and others) age-aligned to your own life to gain perspective. Import from Google Calendar or upload an ICS file to populate your timeline instantly.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            LifeSaga is a personal project built with React, TypeScript, and Supabase. It is currently in early development.
+            TimeLANE is a personal project built with React, TypeScript, and Supabase. It is currently in early development.
           </p>
         </section>
 
@@ -54,12 +54,12 @@ export function AboutPage() {
           <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
             <div>
               <h3 className="font-semibold text-foreground mb-1">1. Acceptance of Terms</h3>
-              <p>By accessing or using LifeSaga ("the Service"), you agree to be bound by these Terms & Conditions. If you do not agree, please do not use the Service.</p>
+              <p>By accessing or using TimeLANE ("the Service"), you agree to be bound by these Terms & Conditions. If you do not agree, please do not use the Service.</p>
             </div>
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">2. Use of the Service</h3>
-              <p>LifeSaga is provided for personal, non-commercial use. You are responsible for all content you create and store. You may not use the Service for any unlawful purpose or in a way that could harm other users.</p>
+              <p>TimeLANE is provided for personal, non-commercial use. You are responsible for all content you create and store. You may not use the Service for any unlawful purpose or in a way that could harm other users.</p>
             </div>
 
             <div>
@@ -74,7 +74,7 @@ export function AboutPage() {
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">5. Intellectual Property</h3>
-              <p>The LifeSaga application code and design are proprietary. Content you create remains yours. You grant LifeSaga a limited licence to store and display your content solely to provide the Service to you.</p>
+              <p>The TimeLANE application code and design are proprietary. Content you create remains yours. You grant TimeLANE a limited licence to store and display your content solely to provide the Service to you.</p>
             </div>
 
             <div>
@@ -84,7 +84,7 @@ export function AboutPage() {
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">7. Limitation of Liability</h3>
-              <p>To the fullest extent permitted by law, LifeSaga and its operators shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
+              <p>To the fullest extent permitted by law, TimeLANE and its operators shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
             </div>
 
             <div>

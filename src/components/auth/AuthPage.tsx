@@ -38,13 +38,13 @@ export function AuthPage() {
       <div className="shrink-0 border-b shadow-sm bg-background px-4 py-3 flex items-center justify-between gap-4">
         {/* Brand + tagline */}
         <div className="shrink-0">
-          <div className="text-xl font-bold leading-tight">LifeSaga</div>
-          <div className="text-xs text-muted-foreground italic">"Past Life, Future Saga"</div>
+          <div className="text-xl font-bold leading-tight">TimeLANE</div>
+          <div className="text-xs text-muted-foreground italic">The operating system for your life</div>
         </div>
 
         {/* Short description — hidden on small screens */}
-        <p className="hidden sm:block text-sm text-muted-foreground text-center flex-1 max-w-md">
-          Visualize your entire life on one timeline — past events, future plans, and value tracking across every dimension of life.
+        <p className="hidden sm:block text-sm text-muted-foreground text-center flex-1 max-w-md leading-snug">
+          Visualize your entire life across timelines and lanes —<br />from past memories to future plans.
         </p>
 
         {/* Auth popover anchored top-right */}

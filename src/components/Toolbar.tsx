@@ -187,7 +187,7 @@ export function Toolbar({
       <div className="flex items-center justify-between border-b bg-background px-3 py-2 gap-2">
         {/* ── Left: branding + timeline selector ── */}
         <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">LifeSaga</h1>
+          <h1 className="text-lg font-semibold shrink-0 hidden sm:block">TimeLANE</h1>
           <TimelinePersonaSelector
             personas={personas}
             activePersonaIds={activePersonaIds}
