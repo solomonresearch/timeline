@@ -7,10 +7,9 @@ import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-interface TimelineMeta {
-  startYear: number
-  endYear: number
-  color: string
+interface LifeSpan {
+  birthYear: number
+  endYear: number | null
 }
 
 interface TimelineHeaderProps {
@@ -21,17 +20,10 @@ interface TimelineHeaderProps {
   scrollLeft: number
   viewportWidth: number
   cursorRef?: RefObject<HTMLDivElement | null>
-  timelineMeta?: TimelineMeta
+  lifeSpan?: LifeSpan
 }
 
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16) || 0
-  const g = parseInt(hex.slice(3, 5), 16) || 0
-  const b = parseInt(hex.slice(5, 7), 16) || 0
-  return `rgba(${r},${g},${b},${alpha})`
-}
-
-export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef, timelineMeta }: TimelineHeaderProps) {
+export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear, scrollLeft, viewportWidth, cursorRef, lifeSpan }: TimelineHeaderProps) {
   const { sc } = useSizeConfig()
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 2
@@ -148,29 +140,40 @@ export function TimelineHeader({ yearStart, yearEnd, pixelsPerYear, currentYear,
   const majorTickH = Math.round(sc.HEADER_HEIGHT / 2)
   const minorTickH = Math.round(sc.HEADER_HEIGHT / 4)
 
-  const shadeLeft = timelineMeta
-    ? Math.max(0, (timelineMeta.startYear - yearStart) * pixelsPerYear)
-    : 0
-  const shadeRight = timelineMeta
-    ? Math.max(0, (yearEnd - Math.min(timelineMeta.endYear, yearEnd)) * pixelsPerYear)
-    : 0
-
   return (
     <div
       className="sticky top-0 z-10 bg-background border-b"
       style={{ width: '100%', height: sc.HEADER_HEIGHT }}
     >
-      {/* Active timeline range shading */}
-      {timelineMeta && (
-        <div
-          className="absolute top-0 bottom-0 pointer-events-none"
-          style={{
-            left: shadeLeft,
-            right: shadeRight,
-            backgroundColor: hexToRgba(timelineMeta.color, 0.12),
-          }}
-        />
-      )}
+      {/* Life span overlay */}
+      {lifeSpan && (() => {
+        const birthPx = (lifeSpan.birthYear - yearStart) * pixelsPerYear
+        const LIFE_COLOR = 'rgba(59,130,246,'
+        if (lifeSpan.endYear != null) {
+          const endPx = (lifeSpan.endYear - yearStart) * pixelsPerYear
+          return (
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
+              left: Math.max(0, birthPx),
+              width: Math.max(0, endPx - Math.max(0, birthPx)),
+              backgroundColor: LIFE_COLOR + '0.13)',
+            }} />
+          )
+        } else {
+          const solidPx = (lifeSpan.birthYear + 85 - yearStart) * pixelsPerYear
+          const fadePx  = (lifeSpan.birthYear + 100 - yearStart) * pixelsPerYear
+          const left = Math.max(0, birthPx)
+          const width = Math.max(0, fadePx - left)
+          const solidStop = Math.max(0, solidPx - left)
+          return (
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
+              left,
+              width,
+              background: `linear-gradient(to right, ${LIFE_COLOR}0.13) 0px, ${LIFE_COLOR}0.13) ${solidStop}px, ${LIFE_COLOR}0) ${width}px)`,
+            }} />
+          )
+        }
+      })()}
+
       {filtered.map(({ key, left, label, major }) => (
         <div
           key={key}

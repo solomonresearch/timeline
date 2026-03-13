@@ -27,6 +27,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [username, setUsername] = useState('')
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameOk, setUsernameOk] = useState(false)
@@ -37,6 +38,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       setDisplayName(profile.display_name)
       setBio(profile.bio)
       setBirthDate(profile.birth_date ? iso2dmy(profile.birth_date) : '')
+      setEndDate(profile.end_date ? iso2dmy(profile.end_date) : '')
       setUsername(profile.username ?? '')
       setUsernameError(null)
       setUsernameOk(false)
@@ -70,6 +72,10 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     setBirthDate(formatDMYInput(value))
   }
 
+  function handleEndDateChange(value: string) {
+    setEndDate(formatDMYInput(value))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -78,6 +84,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       display_name: displayName.trim(),
       bio: bio.trim(),
       birth_date: birthDate ? dmy2iso(birthDate) || null : null,
+      end_date: endDate ? dmy2iso(endDate) || null : null,
       username: trimmedUsername,
     })
     setSaving(false)
@@ -119,7 +126,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             }
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="profileBirthDate">Birth Date <span className="text-red-500">*</span></Label>
+            <Label htmlFor="profileBirthDate">Birth (start) Date</Label>
             <Input
               id="profileBirthDate"
               type="text"
@@ -128,6 +135,16 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               onChange={e => handleBirthDateChange(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">Used to align persona comparisons by age</p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="profileEndDate">End Date <span className="text-xs font-normal text-muted-foreground">(optional)</span></Label>
+            <Input
+              id="profileEndDate"
+              type="text"
+              value={endDate}
+              placeholder="DD/MM/YYYY"
+              onChange={e => handleEndDateChange(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bio">Bio</Label>

@@ -392,11 +392,6 @@ export function TimelinePersonaSelector({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="max-w-52 gap-1">
             <span className="truncate">{buttonLabel}</span>
-            {(activePersonaCount + activeOverlayCount + externalActiveIds.size) > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
-                +{activePersonaCount + activeOverlayCount + externalActiveIds.size}
-              </span>
-            )}
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>

@@ -419,6 +419,7 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
           personaDisplayModes={personaDisplayModes}
           scrollToTodayRef={scrollToTodayRef}
           scrollToEventRef={scrollToEventRef}
+          lifeSpan={{ birthYear: 1980, endYear: null }}
           overlayEvents={[]}
           overlayDisplayModes={new Map()}
           activeOverlayTimelines={[]}

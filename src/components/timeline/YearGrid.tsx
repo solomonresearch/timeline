@@ -3,10 +3,9 @@ import {
   getHourInterval, getMinuteInterval, fracYearToMs, msToFracYear,
 } from '@/lib/constants'
 
-interface TimelineMeta {
-  startYear: number
-  endYear: number
-  color: string
+interface LifeSpan {
+  birthYear: number
+  endYear: number | null  // null = unknown → fade 85→100
 }
 
 interface YearGridProps {
@@ -17,17 +16,10 @@ interface YearGridProps {
   currentYear: number
   scrollLeft: number
   viewportWidth: number
-  timelineMeta?: TimelineMeta
+  lifeSpan?: LifeSpan
 }
 
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16) || 0
-  const g = parseInt(hex.slice(3, 5), 16) || 0
-  const b = parseInt(hex.slice(5, 7), 16) || 0
-  return `rgba(${r},${g},${b},${alpha})`
-}
-
-export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, currentYear, scrollLeft, viewportWidth, timelineMeta }: YearGridProps) {
+export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, currentYear, scrollLeft, viewportWidth, lifeSpan }: YearGridProps) {
   const mode = getZoomMode(pixelsPerYear)
   const bufferPx = viewportWidth * 1.5
   const visStart = yearStart + Math.max(0, scrollLeft - bufferPx) / pixelsPerYear
@@ -83,29 +75,42 @@ export function YearGrid({ yearStart, yearEnd, pixelsPerYear, totalHeight, curre
     }
   }
 
-  const shadeLeft = timelineMeta
-    ? Math.max(0, (timelineMeta.startYear - yearStart) * pixelsPerYear)
-    : 0
-  const shadeRight = timelineMeta
-    ? Math.max(0, (yearEnd - Math.min(timelineMeta.endYear, yearEnd)) * pixelsPerYear)
-    : 0
-
   return (
     <div
       className="pointer-events-none absolute inset-0"
       style={{ width: '100%', height: totalHeight }}
     >
-      {/* Active timeline range shading */}
-      {timelineMeta && (
-        <div
-          className="absolute top-0 bottom-0"
-          style={{
-            left: shadeLeft,
-            right: shadeRight,
-            backgroundColor: hexToRgba(timelineMeta.color, 0.08),
-          }}
-        />
-      )}
+      {/* Life span overlay */}
+      {lifeSpan && (() => {
+        const birthPx = (lifeSpan.birthYear - yearStart) * pixelsPerYear
+        const LIFE_COLOR = 'rgba(59,130,246,'  // blue
+        if (lifeSpan.endYear != null) {
+          // Known end date — solid block
+          const endPx = (lifeSpan.endYear - yearStart) * pixelsPerYear
+          return (
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
+              left: Math.max(0, birthPx),
+              width: Math.max(0, endPx - Math.max(0, birthPx)),
+              backgroundColor: LIFE_COLOR + '0.10)',
+            }} />
+          )
+        } else {
+          // No end date — solid until birth+85, gradient fade to birth+100
+          const solidPx = (lifeSpan.birthYear + 85 - yearStart) * pixelsPerYear
+          const fadePx  = (lifeSpan.birthYear + 100 - yearStart) * pixelsPerYear
+          const left = Math.max(0, birthPx)
+          const width = Math.max(0, fadePx - left)
+          const solidStop = Math.max(0, solidPx - left)
+          return (
+            <div className="absolute top-0 bottom-0 pointer-events-none" style={{
+              left,
+              width,
+              background: `linear-gradient(to right, ${LIFE_COLOR}0.10) 0px, ${LIFE_COLOR}0.10) ${solidStop}px, ${LIFE_COLOR}0) ${width}px)`,
+            }} />
+          )
+        }
+      })()}
+
       {lines.map(y => (
         <div
           key={y}

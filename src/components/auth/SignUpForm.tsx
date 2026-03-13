@@ -12,9 +12,10 @@ const USERNAME_RE = /^[a-z0-9_]{3,32}$/
 interface SignUpFormProps {
   onSwitchToSignIn: () => void
   onSignUpSuccess: () => void
+  fromDemo?: boolean
 }
 
-export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProps) {
+export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess, fromDemo }: SignUpFormProps) {
   const { signUp, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +23,9 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
   const [username, setUsername] = useState('')
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameOk, setUsernameOk] = useState(false)
-  const [birthDate, setBirthDate] = useState('')
+  // Pre-fill with demo person's birth date (Alex Weber, born 1 Jan 1980) when coming from "sign up with this timeline"
+  const [birthDate, setBirthDate] = useState(fromDemo ? '01/01/1980' : '')
+  const [endDate, setEndDate] = useState('')
   const [bio, setBio] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -46,6 +49,10 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
 
   function handleBirthDateChange(value: string) {
     setBirthDate(formatDMYInput(value))
+  }
+
+  function handleEndDateChange(value: string) {
+    setEndDate(formatDMYInput(value))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,17 +79,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
       return
     }
 
-    if (!birthDate || birthDate.length < 10 || !dmy2iso(birthDate)) {
-      setError('Please enter a valid birth date (DD/MM/YYYY)')
-      return
-    }
-
-    if (!bio.trim()) {
-      setError('Please tell us about yourself')
-      return
-    }
-
-    setSubmitting(true)
+setSubmitting(true)
     const { error } = await signUp(email, password)
     if (error) {
       setError(error)
@@ -92,6 +89,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         'timeline_pending_profile',
         JSON.stringify({
           birth_date: dmy2iso(birthDate),
+          end_date: endDate ? dmy2iso(endDate) || null : null,
           bio: bio.trim(),
           username: trimmedUsername,
           email,
@@ -148,7 +146,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         }
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
         <Input
           id="email"
           type="email"
@@ -159,7 +157,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
         <Input
           id="password"
           type="password"
@@ -170,7 +168,7 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Label htmlFor="confirmPassword">Confirm Password <span className="text-red-500">*</span></Label>
         <Input
           id="confirmPassword"
           type="password"
@@ -181,25 +179,34 @@ export function SignUpForm({ onSwitchToSignIn, onSignUpSuccess }: SignUpFormProp
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signupBirthDate">Birth Date <span className="text-red-500">*</span></Label>
+        <Label htmlFor="signupBirthDate">Birth (start) Date</Label>
         <Input
           id="signupBirthDate"
           type="text"
           value={birthDate}
           placeholder="DD/MM/YYYY"
           onChange={e => handleBirthDateChange(e.target.value)}
-          required
+        />
+        <p className="text-xs text-muted-foreground">Used to align persona comparisons by age</p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="signupEndDate">End Date <span className="text-xs font-normal text-muted-foreground">(optional)</span></Label>
+        <Input
+          id="signupEndDate"
+          type="text"
+          value={endDate}
+          placeholder="DD/MM/YYYY"
+          onChange={e => handleEndDateChange(e.target.value)}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signupBio">About You <span className="text-red-500">*</span></Label>
+        <Label htmlFor="signupBio">About You</Label>
         <Textarea
           id="signupBio"
           placeholder="Tell us about yourself..."
           value={bio}
           onChange={e => setBio(e.target.value)}
           rows={3}
-          required
         />
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

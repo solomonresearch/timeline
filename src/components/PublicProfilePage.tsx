@@ -108,10 +108,6 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
       link: null,
     } as DbEvent))
 
-  const timelineMeta = selectedTimeline?.start_year != null && selectedTimeline?.end_year != null
-    ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
-    : undefined
-
   return (
     <SkinProvider>
       <UiSizeProvider>
@@ -181,7 +177,6 @@ export function PublicProfilePage({ username, timelineIndex }: PublicProfilePage
                   personaDisplayModes={new Map()}
                   scrollToTodayRef={{ current: null }}
                   scrollToEventRef={{ current: null }}
-                  timelineMeta={timelineMeta}
                   overlayEvents={[]}
                   overlayDisplayModes={new Map()}
                   activeOverlayTimelines={[]}

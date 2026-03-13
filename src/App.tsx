@@ -123,9 +123,6 @@ function TimelineView() {
   } = useTimelineContext()
 
   const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
-  const timelineMeta = selectedTimeline?.start_year != null && selectedTimeline?.end_year != null
-    ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
-    : undefined
 
   const { user } = useAuth()
   const { profile } = useProfile()
@@ -464,7 +461,7 @@ function TimelineView() {
               personaDisplayModes={personaDisplayModes}
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
-              timelineMeta={timelineMeta}
+              lifeSpan={profile?.birth_date ? { birthYear: birthDateToFloatYear(profile.birth_date), endYear: profile.end_date ? birthDateToFloatYear(profile.end_date) : null } : undefined}
               overlayEvents={displayedOverlayEvents}
               overlayDisplayModes={mergedOverlayDisplayModes}
               activeOverlayTimelines={[...activeOverlayTimelines, ...externalOverlayTimelines]}
