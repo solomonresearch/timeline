@@ -5,8 +5,8 @@ import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 interface OverlayEventBarProps {
   event: OverlayTimelineEvent
-  timelineLabel: string   // emoji or 2-char abbreviation
   timelineName: string
+  timelineColor?: string | null
   yearStart: number
   pixelsPerYear: number
   laneColor: string
@@ -20,8 +20,8 @@ const TOOLTIP_PADDING = 8
 
 export function OverlayEventBar({
   event,
-  timelineLabel,
   timelineName,
+  timelineColor,
   yearStart,
   pixelsPerYear,
   laneColor,
@@ -47,8 +47,8 @@ export function OverlayEventBar({
   }, [pinned])
 
   const color = event.color || laneColor
+  const bulletColor = timelineColor || color
   const left = (event.display_start_year - yearStart) * pixelsPerYear
-  const label = `${timelineLabel}: ${event.title}`
 
   const isPast = event.type === 'point'
     ? event.display_start_year < currentYear
@@ -101,7 +101,8 @@ export function OverlayEventBar({
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <p className="font-medium text-xs text-primary-foreground">{label}</p>
+      <p className="font-medium text-xs text-primary-foreground">{event.title}</p>
+      <p className="text-xs text-primary-foreground opacity-70">{timelineName}</p>
       {event.description && (
         <p className="text-xs text-primary-foreground opacity-85 whitespace-normal">{event.description}</p>
       )}
@@ -170,7 +171,10 @@ export function OverlayEventBar({
             className="px-1 text-white/80 font-medium truncate block"
             style={{ fontSize: Math.round(EVENT_FONT * 0.9), lineHeight: `${EVENT_LINE_HEIGHT}px` }}
           >
-            {label}
+            <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-full shrink-0" style={{ width: 7, height: 7, backgroundColor: bulletColor }} />
+                {event.title}
+              </span>
           </span>
         )}
       </div>

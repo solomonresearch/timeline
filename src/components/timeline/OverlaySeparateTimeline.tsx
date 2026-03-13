@@ -11,7 +11,6 @@ interface OverlaySeparateTimelineProps {
   pixelsPerYear: number
   laneColorMap: Map<string, string>
   currentYear: number
-  timelineLabel: string  // emoji or 2-char abbrev
 }
 
 export function OverlaySeparateTimeline({
@@ -23,7 +22,6 @@ export function OverlaySeparateTimeline({
   pixelsPerYear,
   laneColorMap,
   currentYear,
-  timelineLabel,
 }: OverlaySeparateTimelineProps) {
   const { sc } = useSizeConfig()
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } = sc
@@ -48,8 +46,8 @@ export function OverlaySeparateTimeline({
               <OverlayEventBar
                 key={e.id}
                 event={e}
-                timelineLabel={timelineLabel}
                 timelineName={timeline.name}
+                timelineColor={timeline.color}
                 yearStart={yearStart}
                 pixelsPerYear={pixelsPerYear}
                 laneColor={laneColor}

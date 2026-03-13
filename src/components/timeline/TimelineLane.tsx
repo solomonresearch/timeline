@@ -23,7 +23,7 @@ interface TimelineLaneProps {
   onPan: (deltaX: number) => void
   eventRowMap?: Map<string, number>
   personaEvents: AlignedPersonaEvent[]
-  personaInitialsMap: Map<string, string>
+  personaNameMap: Map<string, string>
   laneHeight: number
   personaSubRowMap: Map<string, number>
   currentYear: number
@@ -34,7 +34,7 @@ interface TimelineLaneProps {
   overlayEvents?: OverlayTimelineEvent[]
   overlaySubRowMap?: Map<string, number>       // timeline_id -> sub-row index
   overlayBaseOffset?: number                   // y-offset where overlay rows start
-  overlayTimelineInfoMap?: Map<string, { label: string; name: string }>
+  overlayTimelineInfoMap?: Map<string, { label: string; name: string; color?: string | null }>
 }
 
 export function TimelineLane({
@@ -49,7 +49,7 @@ export function TimelineLane({
   onPan,
   eventRowMap,
   personaEvents,
-  personaInitialsMap,
+  personaNameMap,
   laneHeight,
   personaSubRowMap,
   currentYear,
@@ -223,7 +223,7 @@ export function TimelineLane({
         <PersonaEventBar
           key={pe.id}
           event={pe}
-          personaInitials={personaInitialsMap.get(pe.persona_id) ?? '??'}
+          personaName={personaNameMap.get(pe.persona_id) ?? ''}
           yearStart={yearStart}
           pixelsPerYear={pixelsPerYear}
           laneColor={lane.color}
@@ -238,8 +238,8 @@ export function TimelineLane({
           <OverlayEventBar
             key={oe.id}
             event={oe}
-            timelineLabel={info?.label ?? '?'}
             timelineName={info?.name ?? 'Unknown'}
+            timelineColor={info?.color}
             yearStart={yearStart}
             pixelsPerYear={pixelsPerYear}
             laneColor={lane.color}

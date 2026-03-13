@@ -13,10 +13,6 @@ interface PersonaSeparateTimelineProps {
   currentYear: number
 }
 
-function getInitials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-}
-
 export function PersonaSeparateTimeline({
   persona,
   events,
@@ -31,8 +27,6 @@ export function PersonaSeparateTimeline({
   const { BASE_LANE_HEIGHT, PERSONA_SUB_ROW_HEIGHT } = sc
   // Explicit width = same as regular TimelineLane rows — no guessing via inheritance
   const width = (yearEnd - yearStart) * pixelsPerYear
-  const initials = getInitials(persona.name)
-
   return (
     <div style={{ width }}>
       {/* Persona header row — height spacer only; label is rendered in LaneSidebar */}
@@ -52,7 +46,7 @@ export function PersonaSeparateTimeline({
               <PersonaEventBar
                 key={e.id}
                 event={e}
-                personaInitials={initials}
+                personaName={persona.name}
                 yearStart={yearStart}
                 pixelsPerYear={pixelsPerYear}
                 laneColor={laneColor}

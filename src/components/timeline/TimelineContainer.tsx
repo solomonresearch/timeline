@@ -711,9 +711,9 @@ export function TimelineContainer({
 
   // Map of timeline_id -> label info for rendering in lanes
   const overlayTimelineInfoMap = useMemo(() => {
-    const m = new Map<string, { label: string; name: string }>()
+    const m = new Map<string, { label: string; name: string; color?: string | null }>()
     for (const t of activeOverlayTimelines) {
-      m.set(t.id, { label: getOverlayLabel(t), name: t.name })
+      m.set(t.id, { label: getOverlayLabel(t), name: t.name, color: t.color })
     }
     return m
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -993,7 +993,7 @@ export function TimelineContainer({
                 onPan={handlePan}
                 eventRowMap={laneData[i].eventRowMap}
                 personaEvents={laneData[i].filteredPersonaEvents}
-                personaInitialsMap={personaInitialsMap}
+                personaNameMap={personaNameMap}
                 laneHeight={laneData[i].laneHeight}
                 personaSubRowMap={laneData[i].personaSubRowMap}
                 currentYear={currentYear}
@@ -1042,7 +1042,6 @@ export function TimelineContainer({
               pixelsPerYear={pixelsPerYear}
               laneColorMap={laneColorMap}
               currentYear={currentYear}
-              timelineLabel={getOverlayLabel(t)}
             />
           ))}
         </div>
