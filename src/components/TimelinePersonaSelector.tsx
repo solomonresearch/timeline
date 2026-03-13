@@ -244,9 +244,6 @@ export function TimelinePersonaSelector({
 
   const currentTimeline = timelines.find(t => t.id === selectedTimelineId)
   const otherTimelines = timelines.filter(t => t.id !== selectedTimelineId)
-  const activePersonaCount = activePersonaIds.size
-  const activeOverlayCount = activeOverlayIds.size
-
   function toggleLane(laneId: string) {
     setCopyLaneIds(prev => {
       const next = new Set(prev)
