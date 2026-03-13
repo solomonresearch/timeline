@@ -200,7 +200,6 @@ function TimelineView() {
 
   // URL-synced view state
   const [activeView, setActiveView] = useAppView()
-
   const scrollToTodayRef = useRef<(() => void) | null>(null)
   const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
   const [todayOffScreen, setTodayOffScreen] = useState<{ direction: 'left' | 'right' } | null>(null)

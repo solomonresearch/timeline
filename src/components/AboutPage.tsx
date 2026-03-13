@@ -64,7 +64,7 @@ export function AboutPage() {
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">3. Data & Privacy</h3>
-              <p>Your data is stored securely using Supabase (PostgreSQL with Row-Level Security). Only you can see your private timelines. Public timelines are visible to anyone with the link. We do not sell your data. We may use anonymised aggregate data to improve the Service.</p>
+              <p>Your data is stored securely using Supabase (PostgreSQL with Row-Level Security). Only you can see your private timelines. Public timelines are visible to anyone with the link. We may use anonymised aggregate data to improve the Service.</p>
             </div>
 
             <div>
@@ -74,7 +74,7 @@ export function AboutPage() {
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">5. Intellectual Property</h3>
-              <p>The TimeLANE application code and design are proprietary. Content you create remains yours. You grant TimeLANE a limited licence to store and display your content solely to provide the Service to you.</p>
+              <p>All intellectual property rights in and to the TimeLANE application — including its code, design, branding, and all content provided by TimeLANE — are and remain the exclusive property of TimeLANE.</p>
             </div>
 
             <div>
@@ -94,7 +94,12 @@ export function AboutPage() {
 
             <div>
               <h3 className="font-semibold text-foreground mb-1">9. Governing Law</h3>
-              <p>These terms are governed by the laws of Germany. Any disputes shall be subject to the exclusive jurisdiction of the courts of Germany.</p>
+              <p>These terms are governed by the laws of Switzerland. Any disputes shall be subject to the exclusive jurisdiction of the courts of Zurich, Switzerland.</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">10. Historical Personas</h3>
+              <p>The historical personas available in TimeLANE (such as public figures, scientists, and other notable individuals) are provided for illustrative and inspirational purposes only. While we aim for reasonable accuracy, the information may contain errors or omissions. TimeLANE makes no warranty as to the completeness or accuracy of any persona data. If you are the subject of a persona, a representative, or otherwise have a legitimate concern, you may request its removal by contacting us at <a href="mailto:hello@timelane.space" className="underline text-foreground hover:opacity-70">hello@timelane.space</a> and we will action the request promptly.</p>
             </div>
           </div>
         </section>
@@ -106,8 +111,8 @@ export function AboutPage() {
           <h2 className="text-2xl font-semibold">Contact</h2>
           <p className="text-sm text-muted-foreground">
             Questions, feedback, or issues? Reach us at{' '}
-            <a href="mailto:hello@lifesaga.app" className="underline text-foreground hover:opacity-70">
-              hello@lifesaga.app
+            <a href="mailto:hello@timelane.space" className="underline text-foreground hover:opacity-70">
+              hello@timelane.space
             </a>
           </p>
         </section>
