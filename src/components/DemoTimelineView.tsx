@@ -339,11 +339,24 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
           <ZoomIn className="h-4 w-4" />
         </Button>
 
-        {/* Add Event */}
-        <Button size="sm" onClick={handleAddEvent}>
-          <Plus className="h-4 w-4 mr-1" />
-          Event
-        </Button>
+        {/* Add dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" className="px-2.5" title="Add…">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={handleAddEvent}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Event
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAddLane}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Lane
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Three-dot overflow menu */}
         <DropdownMenu>
@@ -354,10 +367,6 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <div className="max-h-[70vh] overflow-y-auto">
-              <DropdownMenuItem onClick={handleAddLane}>
-                <Layers className="h-4 w-4 mr-2" />
-                Add Lane
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSearchOpen(true)}>
                 <Search className="h-4 w-4 mr-2" />
                 Search Events
