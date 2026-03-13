@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Plus, ZoomIn, ZoomOut, MoreHorizontal, CalendarDays, CalendarSearch, Globe, FileText, Mic, Search, LogOut, UserPen } from 'lucide-react' // Globe kept for import menu item
+import { Plus, ZoomIn, ZoomOut, MoreHorizontal, CalendarSearch, Globe, FileText, Mic, Search, LogOut, UserPen } from 'lucide-react' // Globe kept for import menu item
 import { Button } from '@/components/ui/button'
 import { TimelinePersonaSelector } from '@/components/TimelinePersonaSelector'
 import { ProfileDialog } from '@/components/ProfileDialog'
@@ -224,20 +224,13 @@ export function Toolbar({
         <div className="flex items-center gap-1.5 shrink-0">
           {activeView === 'timeline' && (
             <>
-              {onScrollToToday && (
-                <div className="relative">
-                  <Button variant="outline" size="sm" onClick={onScrollToToday} title="Scroll to today">
-                    <CalendarDays className="h-4 w-4" />
-                  </Button>
-                  {todayOffScreen && (
-                    <button
-                      onClick={onScrollToToday}
-                      className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border-2 border-red-500 bg-background text-red-500 hover:bg-red-500 hover:text-white transition-colors z-50 shadow-sm"
-                    >
-                      {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
-                    </button>
-                  )}
-                </div>
+              {onScrollToToday && todayOffScreen && (
+                <button
+                  onClick={onScrollToToday}
+                  className="fixed top-14 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border-2 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 transition-colors z-50 shadow-md"
+                >
+                  {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
+                </button>
               )}
               <Button variant="outline" size="sm" onClick={() => stepZoom(1 / 1.3)} title="Zoom out">
                 <ZoomOut className="h-4 w-4" />

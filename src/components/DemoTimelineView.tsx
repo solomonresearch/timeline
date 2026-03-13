@@ -319,20 +319,15 @@ function DemoTimelineViewInner({ onSignUpWithTimeline }: DemoTimelineViewProps) 
 
         {/* ── Right side ── */}
         <div className="flex items-center gap-2 shrink-0">
-        {/* Today */}
-        <div className="relative">
-          <Button variant="outline" size="sm" onClick={() => scrollToTodayRef.current?.()} title="Scroll to today">
-            <CalendarDays className="h-4 w-4" />
-          </Button>
-          {todayOffScreen && (
-            <button
-              onClick={() => scrollToTodayRef.current?.()}
-              className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border-2 border-red-500 bg-background text-red-500 hover:bg-red-500 hover:text-white transition-colors z-50 shadow-sm"
-            >
-              {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
-            </button>
-          )}
-        </div>
+        {/* Back to Today — fixed center, only when today is off-screen */}
+        {todayOffScreen && (
+          <button
+            onClick={() => scrollToTodayRef.current?.()}
+            className="fixed top-14 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border-2 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 transition-colors z-50 shadow-md"
+          >
+            {todayOffScreen.direction === 'left' ? '← ' : '→ '}Back to Today
+          </button>
+        )}
 
         {/* Zoom out */}
         <Button variant="outline" size="sm" onClick={() => stepZoom(1 / 1.3)} title="Zoom out">
