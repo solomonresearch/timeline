@@ -94,7 +94,7 @@ interface TimelineContainerProps {
   dataYearMax: number
   scrollToTodayRef?: MutableRefObject<(() => void) | null>
   scrollToEventRef?: MutableRefObject<((event: TimelineEvent) => void) | null>
-  timelineMeta?: { startYear: number; endYear: number; color: string }
+  lifeSpan?: { birthYear: number; endYear: number | null }
   overlayEvents?: OverlayTimelineEvent[]
   overlayDisplayModes?: Map<string, OverlayDisplayMode>
   activeOverlayTimelines?: DbTimeline[]
@@ -122,7 +122,7 @@ export function TimelineContainer({
   dataYearMax,
   scrollToTodayRef,
   scrollToEventRef,
-  timelineMeta,
+  lifeSpan,
   overlayEvents = [],
   overlayDisplayModes = new Map(),
   activeOverlayTimelines = [],
@@ -955,9 +955,9 @@ export function TimelineContainer({
 
       <div ref={scrollRef} className="absolute inset-0 overflow-auto">
         <div className="relative" style={{ width: effectiveTotalWidth, minHeight: grandTotalHeight + 24 }}>
-          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} timelineMeta={timelineMeta} />
+          <TimelineHeader yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} cursorRef={cursorHeaderRef} lifeSpan={lifeSpan} />
           <div className="relative">
-            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} timelineMeta={timelineMeta} />
+            <YearGrid yearStart={effectiveYearStart} yearEnd={effectiveYearEnd} pixelsPerYear={pixelsPerYear} totalHeight={grandTotalHeight} currentYear={currentYear} scrollLeft={scrollLeft} viewportWidth={viewportWidth} lifeSpan={lifeSpan} />
             {/* Cursor line — positioned in content space, updated via ref */}
             <div
               ref={cursorLaneRef}

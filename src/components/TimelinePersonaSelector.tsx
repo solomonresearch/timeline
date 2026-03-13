@@ -74,6 +74,8 @@ interface TimelinePersonaSelectorProps {
   onSetExternalDisplayMode?: (timelineId: string, mode: OverlayDisplayMode) => void
   mainStartYear?: number | null
   sharedWithMe?: SharedWithMeItem[]
+  requestCreate?: boolean
+  onRequestCreateHandled?: () => void
 }
 
 export function TimelinePersonaSelector({
@@ -101,6 +103,8 @@ export function TimelinePersonaSelector({
   onSetExternalDisplayMode,
   mainStartYear,
   sharedWithMe = [],
+  requestCreate,
+  onRequestCreateHandled,
 }: TimelinePersonaSelectorProps) {
   const {
     timelines,
@@ -268,6 +272,15 @@ export function TimelinePersonaSelector({
     setDialogOpen(true)
   }
 
+  // Open create dialog when triggered externally (e.g. from the + toolbar button)
+  useEffect(() => {
+    if (requestCreate) {
+      handleCreate()
+      onRequestCreateHandled?.()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestCreate])
+
   function handleEdit(id: string, e: React.MouseEvent) {
     e.stopPropagation()
     const t = timelines.find(tl => tl.id === id)
@@ -379,11 +392,6 @@ export function TimelinePersonaSelector({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="max-w-52 gap-1">
             <span className="truncate">{buttonLabel}</span>
-            {(activePersonaCount + activeOverlayCount + externalActiveIds.size) > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground shrink-0">
-                +{activePersonaCount + activeOverlayCount + externalActiveIds.size}
-              </span>
-            )}
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>

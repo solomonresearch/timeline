@@ -15,9 +15,11 @@ type AuthMode = 'sign-in' | 'sign-up' | 'forgot-password' | 'check-email'
 export function AuthPage() {
   const [mode, setMode] = useState<AuthMode>('sign-in')
   const [authOpen, setAuthOpen] = useState(false)
+  const [fromDemo, setFromDemo] = useState(false)
 
   function handleSignUpWithTimeline() {
     localStorage.setItem('timeline_import_demo', '1')
+    setFromDemo(true)
     setMode('sign-up')
     // Defer opening to let the dropdown finish closing before the popover opens
     setTimeout(() => setAuthOpen(true), 50)
@@ -61,6 +63,7 @@ export function AuthPage() {
               <SignUpForm
                 onSwitchToSignIn={() => setMode('sign-in')}
                 onSignUpSuccess={() => setMode('check-email')}
+                fromDemo={fromDemo}
               />
             )}
             {mode === 'forgot-password' && (

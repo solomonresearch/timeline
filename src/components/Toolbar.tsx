@@ -65,6 +65,9 @@ interface ToolbarProps {
   onSetExternalDisplayMode?: (timelineId: string, mode: OverlayDisplayMode) => void
   mainStartYear?: number | null
   sharedWithMe?: SharedWithMeItem[]
+  onAddTimeline?: () => void
+  requestCreateTimeline?: boolean
+  onRequestCreateTimelineHandled?: () => void
   showUserMenu?: boolean
   extraActions?: React.ReactNode
 }
@@ -119,6 +122,9 @@ export function Toolbar({
   onSetExternalDisplayMode,
   mainStartYear,
   sharedWithMe,
+  onAddTimeline,
+  requestCreateTimeline,
+  onRequestCreateTimelineHandled,
   showUserMenu = true,
   extraActions,
 }: ToolbarProps) {
@@ -207,6 +213,8 @@ export function Toolbar({
             onSetExternalDisplayMode={onSetExternalDisplayMode}
             mainStartYear={mainStartYear}
             sharedWithMe={sharedWithMe}
+            requestCreate={requestCreateTimeline}
+            onRequestCreateHandled={onRequestCreateTimelineHandled}
           />
         </div>
 
@@ -228,10 +236,28 @@ export function Toolbar({
             </>
           )}
 
-          <Button size="sm" onClick={onAddEvent}>
-            <Plus className="h-4 w-4 mr-1" />
-            Event
-          </Button>
+          {/* ── + dropdown: Event / Lane / Timeline ── */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="px-2.5" title="Add…">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={onAddEvent}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAddLane}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Lane
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAddTimeline}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Timeline
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* ── 3-dot menu: everything else ── */}
           <DropdownMenu>
@@ -242,12 +268,6 @@ export function Toolbar({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="max-h-[85vh] overflow-y-auto">
-
-                {/* Add Lane */}
-                <DropdownMenuItem onClick={onAddLane}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Lane
-                </DropdownMenuItem>
 
                 {/* Search */}
                 <DropdownMenuItem onClick={() => setSearchOpen(true)}>

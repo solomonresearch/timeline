@@ -123,9 +123,6 @@ function TimelineView() {
   } = useTimelineContext()
 
   const selectedTimeline = timelines.find(t => t.id === selectedTimelineId)
-  const timelineMeta = selectedTimeline?.start_year != null && selectedTimeline?.end_year != null
-    ? { startYear: selectedTimeline.start_year, endYear: selectedTimeline.end_year, color: selectedTimeline.color ?? '#3b82f6' }
-    : undefined
 
   const { user } = useAuth()
   const { profile } = useProfile()
@@ -206,6 +203,7 @@ function TimelineView() {
 
   const scrollToTodayRef = useRef<(() => void) | null>(null)
   const scrollToEventRef = useRef<((event: TimelineEvent) => void) | null>(null)
+  const [requestCreateTimeline, setRequestCreateTimeline] = useState(false)
 
   // Max-events filter: show the N longest-duration events (point events have duration 0)
   const [maxEvents, setMaxEvents] = useState(100)
@@ -432,6 +430,9 @@ function TimelineView() {
           onSetExternalDisplayMode={setExternalDisplayMode}
           mainStartYear={selectedTimeline?.start_year}
           sharedWithMe={sharedWithMe}
+          onAddTimeline={() => setRequestCreateTimeline(true)}
+          requestCreateTimeline={requestCreateTimeline}
+          onRequestCreateTimelineHandled={() => setRequestCreateTimeline(false)}
         />
 
         {activeView === 'overview' ? (
@@ -460,7 +461,7 @@ function TimelineView() {
               personaDisplayModes={personaDisplayModes}
               scrollToTodayRef={scrollToTodayRef}
               scrollToEventRef={scrollToEventRef}
-              timelineMeta={timelineMeta}
+              lifeSpan={profile?.birth_date ? { birthYear: birthDateToFloatYear(profile.birth_date), endYear: profile.end_date ? birthDateToFloatYear(profile.end_date) : null } : undefined}
               overlayEvents={displayedOverlayEvents}
               overlayDisplayModes={mergedOverlayDisplayModes}
               activeOverlayTimelines={[...activeOverlayTimelines, ...externalOverlayTimelines]}
