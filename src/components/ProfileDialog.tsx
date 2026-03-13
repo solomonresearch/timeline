@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { isUsernameAvailable } from '@/lib/api'
 import { iso2dmy, dmy2iso, formatDMYInput } from '@/lib/constants'
@@ -23,7 +23,7 @@ interface ProfileDialogProps {
 }
 
 export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
-  const { profile, updateProfile } = useProfile()
+  const { profile, updateProfile, uploadProfileAvatar } = useProfile()
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -32,6 +32,12 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameOk, setUsernameOk] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Avatar state
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (profile && open) {
@@ -42,6 +48,8 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       setUsername(profile.username ?? '')
       setUsernameError(null)
       setUsernameOk(false)
+      setAvatarPreview(profile.avatar_url ?? null)
+      setAvatarFile(null)
     }
   }, [profile, open])
 
@@ -76,9 +84,25 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     setEndDate(formatDMYInput(value))
   }
 
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+
+    let avatarUrl: string | null | undefined = undefined
+    if (avatarFile) {
+      setUploadingAvatar(true)
+      const url = await uploadProfileAvatar(avatarFile)
+      setUploadingAvatar(false)
+      if (url) avatarUrl = url
+    }
+
     const trimmedUsername = username.trim().toLowerCase() || null
     await updateProfile({
       display_name: displayName.trim(),
@@ -86,10 +110,14 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       birth_date: birthDate ? dmy2iso(birthDate) || null : null,
       end_date: endDate ? dmy2iso(endDate) || null : null,
       username: trimmedUsername,
+      ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
     })
     setSaving(false)
     onOpenChange(false)
   }
+
+  const currentAvatar = avatarPreview ?? profile?.avatar_url
+  const initials = (profile?.display_name || profile?.username || '?').slice(0, 2).toUpperCase()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,6 +127,41 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
           <DialogDescription>Update your display name and bio.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-3">
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="relative group w-20 h-20 rounded-full overflow-hidden border-2 border-border focus:outline-none focus:ring-2 focus:ring-ring"
+              title="Change profile photo"
+            >
+              {currentAvatar ? (
+                <img
+                  src={currentAvatar}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center text-xl font-semibold text-muted-foreground">
+                  {initials}
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-xs font-medium">Change</span>
+              </div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+            {avatarFile && (
+              <p className="text-xs text-muted-foreground">{avatarFile.name}</p>
+            )}
+          </div>
+
           <div className="grid gap-1.5">
             <Label htmlFor="displayName">Display Name</Label>
             <Input
@@ -161,7 +224,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
+              {uploadingAvatar ? 'Uploading...' : saving ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

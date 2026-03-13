@@ -6,6 +6,7 @@ export interface DbProfile {
   end_date: string | null
   username: string | null
   is_public: boolean
+  avatar_url: string | null
   created_at: string
   updated_at: string
 }
@@ -63,6 +64,7 @@ export interface PublicProfileData {
     username: string
     display_name: string
     bio: string
+    avatar_url: string | null
   }
   timelines: Array<{
     id: string

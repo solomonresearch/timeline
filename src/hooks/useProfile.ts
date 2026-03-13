@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { fetchProfile, updateProfile as updateProfileApi } from '@/lib/api'
+import { fetchProfile, updateProfile as updateProfileApi, uploadAvatar } from '@/lib/api'
 import type { DbProfile } from '@/types/database'
 
 export function useProfile() {
@@ -22,7 +22,7 @@ export function useProfile() {
   }, [user])
 
   const updateProfile = useCallback(
-    async (data: { display_name?: string; bio?: string; birth_date?: string | null; end_date?: string | null; username?: string | null; is_public?: boolean }) => {
+    async (data: { display_name?: string; bio?: string; birth_date?: string | null; end_date?: string | null; username?: string | null; is_public?: boolean; avatar_url?: string | null }) => {
       if (!user) return
       const updated = await updateProfileApi(user.id, data)
       if (updated) setProfile(updated)
@@ -30,5 +30,13 @@ export function useProfile() {
     [user],
   )
 
-  return { profile, updateProfile, loading }
+  const uploadProfileAvatar = useCallback(
+    async (file: File): Promise<string | null> => {
+      if (!user) return null
+      return uploadAvatar(user.id, file)
+    },
+    [user],
+  )
+
+  return { profile, updateProfile, uploadProfileAvatar, loading }
 }

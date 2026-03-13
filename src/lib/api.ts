@@ -86,9 +86,24 @@ export async function fetchProfile(userId: string): Promise<DbProfile | null> {
   return data
 }
 
+export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `${userId}/avatar.${ext}`
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) {
+    console.error('uploadAvatar error:', error)
+    return null
+  }
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  // Bust cache with timestamp
+  return `${data.publicUrl}?t=${Date.now()}`
+}
+
 export async function updateProfile(
   userId: string,
-  updates: { display_name?: string; bio?: string; birth_date?: string | null; end_date?: string | null; username?: string | null; is_public?: boolean },
+  updates: { display_name?: string; bio?: string; birth_date?: string | null; end_date?: string | null; username?: string | null; is_public?: boolean; avatar_url?: string | null },
 ): Promise<DbProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
