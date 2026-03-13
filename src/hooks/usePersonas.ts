@@ -83,23 +83,27 @@ export function usePersonas(userBirthYear: number | null = null) {
       console.debug('[usePersonas] alignment calc — userBirthYear:', userBirthYear, 'alignedIds:', [...alignedPersonaIds], 'events:', rawPersonaEvents.length)
     }
 
-    const personaBirthYears = new Map<string, number>()
+    const personaMap = new Map<string, DbPersona>()
     for (const p of personas) {
-      personaBirthYears.set(p.id, p.birth_year)
+      personaMap.set(p.id, p)
     }
 
     return rawPersonaEvents.map((e): AlignedPersonaEvent => {
-      const personaBirth = personaBirthYears.get(e.persona_id)
+      const persona = personaMap.get(e.persona_id)
+      const personaBirth = persona?.birth_year
+      const persona_name = persona?.name ?? ''
       if (userBirthYear != null && personaBirth != null && alignedPersonaIds.has(e.persona_id)) {
         const offset = userBirthYear - personaBirth
         return {
           ...e,
+          persona_name,
           display_start_year: e.start_year + offset,
           display_end_year: e.end_year != null ? e.end_year + offset : null,
         }
       }
       return {
         ...e,
+        persona_name,
         display_start_year: e.start_year,
         display_end_year: e.end_year,
       }

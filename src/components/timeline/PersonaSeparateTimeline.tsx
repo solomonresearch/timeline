@@ -14,7 +14,7 @@ interface PersonaSeparateTimelineProps {
 }
 
 export function PersonaSeparateTimeline({
-  persona,
+  persona: _persona,
   events,
   laneNames,
   yearStart,
@@ -46,7 +46,6 @@ export function PersonaSeparateTimeline({
               <PersonaEventBar
                 key={e.id}
                 event={e}
-                personaName={persona.name}
                 yearStart={yearStart}
                 pixelsPerYear={pixelsPerYear}
                 laneColor={laneColor}

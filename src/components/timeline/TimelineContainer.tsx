@@ -993,7 +993,6 @@ export function TimelineContainer({
                 onPan={handlePan}
                 eventRowMap={laneData[i].eventRowMap}
                 personaEvents={laneData[i].filteredPersonaEvents}
-                personaNameMap={personaNameMap}
                 laneHeight={laneData[i].laneHeight}
                 personaSubRowMap={laneData[i].personaSubRowMap}
                 currentYear={currentYear}

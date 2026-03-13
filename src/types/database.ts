@@ -143,6 +143,7 @@ export interface DbPersonaEvent {
 export interface AlignedPersonaEvent extends DbPersonaEvent {
   display_start_year: number
   display_end_year: number | null
+  persona_name: string
 }
 
 export interface OverlayTimelineEvent {

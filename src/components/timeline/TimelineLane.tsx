@@ -23,7 +23,6 @@ interface TimelineLaneProps {
   onPan: (deltaX: number) => void
   eventRowMap?: Map<string, number>
   personaEvents: AlignedPersonaEvent[]
-  personaNameMap: Map<string, string>
   laneHeight: number
   personaSubRowMap: Map<string, number>
   currentYear: number
@@ -49,7 +48,6 @@ export function TimelineLane({
   onPan,
   eventRowMap,
   personaEvents,
-  personaNameMap,
   laneHeight,
   personaSubRowMap,
   currentYear,
@@ -223,7 +221,6 @@ export function TimelineLane({
         <PersonaEventBar
           key={pe.id}
           event={pe}
-          personaName={personaNameMap.get(pe.persona_id) ?? ''}
           yearStart={yearStart}
           pixelsPerYear={pixelsPerYear}
           laneColor={lane.color}

@@ -5,7 +5,6 @@ import { useSizeConfig } from '@/contexts/UiSizeContext'
 
 interface PersonaEventBarProps {
   event: AlignedPersonaEvent
-  personaName: string
   yearStart: number
   pixelsPerYear: number
   laneColor: string
@@ -18,7 +17,6 @@ const TOOLTIP_PADDING = 8
 
 export function PersonaEventBar({
   event,
-  personaName,
   yearStart,
   pixelsPerYear,
   laneColor,
@@ -104,7 +102,7 @@ export function PersonaEventBar({
       onClick={(e) => e.stopPropagation()}
     >
       <p className="font-medium text-xs text-primary-foreground">{event.title}</p>
-      <p className="text-xs text-primary-foreground opacity-70">{personaName}</p>
+      <p className="text-xs text-primary-foreground opacity-70">{event.persona_name}</p>
       {event.description && (
         <p className="text-xs text-primary-foreground opacity-85 whitespace-normal">{event.description}</p>
       )}
