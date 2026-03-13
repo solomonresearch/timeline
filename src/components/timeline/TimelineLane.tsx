@@ -121,12 +121,7 @@ export function TimelineLane({
       modeRef.current = 'idle'
 
       if (mode === 'pending') {
-        // Quick click → add point event
-        const el = laneRef.current
-        if (!el) return
-        const r = el.getBoundingClientRect()
-        const year = Math.round((yearStart + (ev.clientX - r.left) / pixelsPerYear) * 2) / 2
-        onLaneClick(lane.id, year)
+        // single click — no-op; double-click opens the add-event dialog
       } else if (mode === 'panning') {
         setIsPanning(false)
       } else if (mode === 'ranging') {
@@ -161,6 +156,15 @@ export function TimelineLane({
     }, RANGE_HOLD_MS)
   }
 
+  function handleDoubleClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target !== e.currentTarget) return
+    const el = laneRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const year = Math.round((yearStart + (e.clientX - r.left) / pixelsPerYear) * 2) / 2
+    onLaneClick(lane.id, year)
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
   // Separator is only drawn at the boundary between event rows and persona sub-rows,
   // NOT between stacked event rows. This prevents grey lines inside expanded lanes.
@@ -177,6 +181,7 @@ export function TimelineLane({
       className={`relative border-b border-border/30 select-none ${isPanning ? 'cursor-grabbing' : 'cursor-crosshair'}`}
       style={{ height: laneHeight, width }}
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
     >
       {/* Separator at event-rows / sub-rows boundary */}
       {(hasPersonaRows || hasOverlayRows) && (
